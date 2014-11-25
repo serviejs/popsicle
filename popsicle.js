@@ -417,14 +417,19 @@
   /**
    * Turn raw headers into a header object.
    *
-   * @param  {Array}  arr
+   * @param  {Object} response
    * @return {Object}
    */
-  function parseRawHeaders (arr) {
-    var headers = {};
+  function parseRawHeaders (response) {
+    if (!response.rawHeaders) {
+      return response.headers;
+    }
 
-    for (var i = 0; i < arr.length; i = i + 2) {
-      headers[arr[i]] = arr[i + 1];
+    var headers    = {};
+    var rawHeaders = response.rawHeaders;
+
+    for (var i = 0; i < rawHeaders.length; i = i + 2) {
+      headers[rawHeaders[i]] = rawHeaders[i + 1];
     }
 
     return headers;
@@ -858,7 +863,7 @@
             request: self,
             body:    response.body,
             status:  response.statusCode,
-            headers: parseRawHeaders(response.rawHeaders)
+            headers: parseRawHeaders(response)
           });
 
           return resolve(res);
