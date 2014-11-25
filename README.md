@@ -6,7 +6,7 @@
 **Popsicle** is designed to be easiest way for making HTTP requests, offering a consistant and intuitive API that works on both node and the browser.
 
 ```javascript
-request('/users.json')
+popsicle('/users.json')
   .then(function (res) {
     console.log(res.body); //=> { ... }
   });
