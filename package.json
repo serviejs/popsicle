@@ -1,0 +1,61 @@
+{
+  "name": "popsicle",
+  "version": "0.0.0",
+  "description": "Simple HTTP requests for node and the browser",
+  "main": "popsicle.js",
+  "browser": {
+    "request": false,
+    "form-data": false
+  },
+  "scripts": {
+    "test": "gulp lint && gulp test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/blakeembrey/popsicle.git"
+  },
+  "keywords": [
+    "request",
+    "ajax",
+    "http",
+    "node",
+    "browser",
+    "promise",
+    "agent"
+  ],
+  "author": {
+    "name": "Blake Embrey",
+    "email": "hello@blakeembrey.com",
+    "url": "http://blakeembrey.me"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/blakeembrey/popsicle/issues"
+  },
+  "homepage": "https://github.com/blakeembrey/popsicle",
+  "devDependencies": {
+    "body-parser": "^1.9.2",
+    "chai": "^1.9.1",
+    "cookie-parser": "^1.3.3",
+    "es6-promise": "^2.0.0",
+    "express": "^4.10.2",
+    "gulp": "^3.8.6",
+    "gulp-jshint": "^1.8.4",
+    "gulp-mocha": "^1.1.0",
+    "is-travis": "^1.0.0",
+    "karma": "^0.12.23",
+    "karma-chrome-launcher": "^0.1.4",
+    "karma-coverage": "^0.2.6",
+    "karma-firefox-launcher": "^0.1.3",
+    "karma-mocha": "^0.1.9",
+    "karma-phantomjs-launcher": "^0.1.4",
+    "karma-sinon-chai": "^0.2.0",
+    "mocha": "^1.21.3",
+    "nock": "^0.46.0",
+    "require-dir": "^0.1.0"
+  },
+  "dependencies": {
+    "form-data": "^0.1.4",
+    "request": "^2.48.0"
+  }
+}
