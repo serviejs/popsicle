@@ -190,7 +190,7 @@ All response handling methods can return an error. The errors can be categorized
 
 * **parse error** Response body failed to parse - invalid body or incorrect type (`err.parse`)
 * **abort error** The request was aborted by user intervention (`err.abort`)
-* **timeout error* The request timed out (`err.timeout`)
+* **timeout error** The request timed out (`err.timeout`)
 * **csp error** Request violates the documents Content Security Policy (browsers, `err.csp`)
 * **unavailable error** Unable to connect to the remote URL (`err.unavailable`)
 * **blocked error** The request was blocked - HTTPS -> HTTP (browsers, `err.blocked`)
