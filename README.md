@@ -1,4 +1,4 @@
-# Popsicle
+# ![Popsicle](https://cdn.rawgit.com/blakeembrey/popsicle/master/logo.svg)
 
 [![NPM version][npm-image]][npm-url]
 [![Build status][travis-image]][travis-url]
