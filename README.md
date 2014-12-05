@@ -24,16 +24,21 @@ You will need a [promise polyfill](https://github.com/jakearchibald/es6-promise)
 npm install es6-promise
 ```
 
-Then apply the polyfill (Browserify and node shown below).
+Apply the polyfill.
 
 ```javascript
+// Node and browserify
 require('es6-promise').polyfill();
+
+// Browsers
+window.ES6Promise.polyfill();
 ```
 
 ## Usage
 
 ```javascript
 var request = require('popsicle');
+// var request = window.popsicle;
 
 request({
   method: 'POST',
@@ -47,7 +52,6 @@ request({
   }
 })
   .then(function (res) {
-    console.log(res instanceof request.Response); //=> true
     console.log(res.status); // => 200
     console.log(res.body); //=> { ... }
     console.log(res.get('Content-Type')); //=> 'application/json'
@@ -109,7 +113,7 @@ setTimeout(function () {
 }, 100);
 
 req.catch(function (err) {
-  console.log(err); //=> { message: 'Request aborted' }
+  console.log(err); //=> { message: 'Request aborted', aborted: true }
 });
 ```
 
@@ -156,7 +160,7 @@ request('/users')
       // Something broke.
     }
 
-    // Things worked!
+    // Success!
   });
 ```
 
@@ -191,9 +195,9 @@ All response handling methods can return an error. The errors can be categorized
 * **parse error** Response body failed to parse - invalid body or incorrect type (`err.parse`)
 * **abort error** The request was aborted by user intervention (`err.abort`)
 * **timeout error** The request timed out (`err.timeout`)
-* **csp error** Request violates the documents Content Security Policy (browsers, `err.csp`)
 * **unavailable error** Unable to connect to the remote URL (`err.unavailable`)
-* **blocked error** The request was blocked - HTTPS -> HTTP (browsers, `err.blocked`)
+* **blocked error** The request was blocked (HTTPS -> HTTP) (browsers, `err.blocked`)
+* **csp error** Request violates the documents Content Security Policy (browsers, `err.csp`)
 
 ### Plugins
 
@@ -223,16 +227,10 @@ request('/user')
 
 ## Development and Testing
 
-Install dependencies.
+Install dependencies and run the test runners (node and browsers using Karma).
 
 ```bash
-npm install
-```
-
-Run the test runner, which automatically tests node and browsers using Karma.
-
-```bash
-npm test
+npm install && npm test
 ```
 
 ## License
