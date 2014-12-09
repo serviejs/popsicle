@@ -230,17 +230,24 @@ describe('popsicle', function () {
         });
     });
 
-    it('should stringify and append to current query', function () {
-      return popsicle({
+    it('should stringify and append to query object', function () {
+      var req = popsicle({
         url: REMOTE_URL + '/echo/query?query=true',
         query: EXAMPLE_BODY
-      })
+      });
+
+      var query = {
+        username: 'blakeembrey',
+        password: 'hunter2',
+        query: 'true'
+      };
+
+      expect(req.url).to.equal(REMOTE_URL + '/echo/query');
+      expect(req.query).to.deep.equal(query);
+
+      return req
         .then(function (res) {
-          expect(res.body).to.deep.equal({
-            username: 'blakeembrey',
-            password: 'hunter2',
-            query: 'true'
-          });
+          expect(res.body).to.deep.equal(query);
         });
     });
   });

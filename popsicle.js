@@ -151,13 +151,11 @@
    * Turn an object into a query string.
    *
    * @param  {Object} obj
-   * @param  {String} [sep]
-   * @param  {String} [eq]
    * @return {String}
    */
-  function stringifyQuery (obj, sep, eq) {
-    eq  = eq || '=';
-    sep = sep || '&';
+  function stringifyQuery (obj) {
+    var eq  = '=';
+    var sep = '&';
 
     if (Object(obj) !== obj) {
       return String(obj == null ? '' : obj);
@@ -185,16 +183,15 @@
    * Convert a query string into an object.
    *
    * @param  {String} qs
-   * @param  {String} [sep]
-   * @param  {String} [eq]
+   * @param  {Object} [obj]
    * @return {Object}
    */
-  function parseQuery (qs, sep, eq) {
-    eq  = eq || '=';
-    sep = sep || '&';
+  function parseQuery (qs, obj) {
+    obj = obj || {};
     qs  = qs.split(sep);
 
-    var obj     = {};
+    var sep     = '&';
+    var eq      = '=';
     var maxKeys = 1000;
     var len     = qs.length > maxKeys ? maxKeys : qs.length;
 
@@ -698,6 +695,14 @@
 
     // Set request headers.
     setHeaders(this, options.headers);
+
+    // Parse query strings already set.
+    var queryIndex = this.url.indexOf('?');
+
+    if (queryIndex > -1) {
+      this.query = parseQuery(this.url.substr(queryIndex + 1), this.query);
+      this.url   = this.url.substr(0, queryIndex);
+    }
   }
 
   /**
