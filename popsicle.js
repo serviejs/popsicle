@@ -443,6 +443,10 @@
       request.body = self.body;
     }
 
+    if (self.rejectUnauthorized) {
+      request.rejectUnauthorized = true;
+    }
+
     return request;
   }
 
@@ -682,7 +686,8 @@
     this.url = options.url;
     this.query = options.query;
     this.timeout = options.timeout;
-    this.withCredentials = !!options.withCredentials;
+    this.withCredentials = options.withCredentials === true;
+    this.rejectUnauthorized = options.rejectUnauthorized !== false;
 
     // Default to GET and uppercase anything else.
     this.method = (options.method || 'GET').toUpperCase();
