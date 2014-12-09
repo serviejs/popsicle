@@ -15,29 +15,15 @@
   }
 
   /**
-   * Set properties onto an error instance.
-   *
-   * @param  {Error}    err
-   * @param  {Popsicle} self
-   * @param  {Error}    original
-   * @return {Error}
-   */
-  function wrapError (err, self, original) {
-    err.popsicle = self;
-    err.original = original;
-    return err;
-  }
-
-  /**
    * Create a stream error instance.
    *
    * @param  {Popsicle} self
    * @return {Error}
    */
   function streamError (self) {
-    var err = new Error('Request is streaming');
+    var err = self.error('Request is streaming');
     err.stream = true;
-    return wrapError(err, self);
+    return err;
   }
 
   /**
@@ -51,14 +37,14 @@
     var err;
 
     if (self.timedout) {
-      err = new Error('Timeout of ' + timeout + 'ms exceeded');
+      err = self.error('Timeout of ' + timeout + 'ms exceeded');
       err.timeout = timeout;
     } else {
-      err = new Error('Request aborted');
+      err = self.error('Request aborted');
       err.abort = true;
     }
 
-    return wrapError(err, self);
+    return err;
   }
 
   /**
@@ -69,9 +55,10 @@
    * @return {Error}
    */
   function parseError (self, e) {
-    var err = new Error('Unable to parse the response body');
+    var err = self.error('Unable to parse the response body');
     err.parse = true;
-    return wrapError(err, self, e);
+    err.original = e;
+    return err;
   }
 
   /**
@@ -82,9 +69,10 @@
    * @return {Error}
    */
   function cspError (self, e) {
-    var err = new Error('Refused to connect to "' + self.fullUrl() + '"');
+    var err = self.error('Refused to connect to "' + self.fullUrl() + '"');
     err.csp = true;
-    return wrapError(err, self, e);
+    err.original = e;
+    return err;
   }
 
   /**
@@ -94,9 +82,9 @@
    * @return {Error}
    */
   function unavailableError (self) {
-    var err = new Error('Unable to connect to "' + self.fullUrl() + '"');
+    var err = self.error('Unable to connect to "' + self.fullUrl() + '"');
     err.unavailable = true;
-    return wrapError(err, self);
+    return err;
   }
 
   /**
@@ -106,9 +94,9 @@
    * @return {Error}
    */
   function blockedError (self) {
-    var err = new Error('The request to "' + self.fullUrl() + '" was blocked');
+    var err = self.error('The request to "' + self.fullUrl() + '" was blocked');
     err.blocked = true;
-    return wrapError(err, self);
+    return err;
   }
 
   /**
@@ -344,7 +332,7 @@
         response.body = parseQuery(body);
       }
     } catch (e) {
-      throw parseError(response.request, e);
+      throw parseError(response, e);
     }
 
     return response;
@@ -615,6 +603,9 @@
     this.status  = options.status === 1223 ? 204 : options.status;
     this.request = options.request;
 
+    // Alias the response instance.
+    this.request.response = this;
+
     setHeaders(this, options.headers);
   }
 
@@ -667,6 +658,16 @@
    */
   Response.prototype.serverError = function () {
     return this.statusType() === 5;
+  };
+
+  /**
+   * Create a popsicle error instance.
+   *
+   * @param  {String} str
+   * @return {Error}
+   */
+  Response.prototype.error = function (str) {
+    return this.request.error(str);
   };
 
   /**
@@ -797,6 +798,18 @@
     clearTimeout(this._timer);
 
     return this;
+  };
+
+  /**
+   * Create a popsicle error instance.
+   *
+   * @param  {String} str
+   * @return {Error}
+   */
+  Request.prototype.error = function (str) {
+    var err = new Error(str);
+    err.popsicle = this;
+    return err;
   };
 
   /**
