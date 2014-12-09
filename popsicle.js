@@ -753,7 +753,7 @@
     this.use(stringifyRequest);
     this.use(correctType);
 
-    if (timeout && !this._timer) {
+    if (timeout) {
       this._timer = setTimeout(function () {
         self.timedout = true;
         self.abort();
