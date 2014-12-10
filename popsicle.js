@@ -2,6 +2,11 @@
   var isNode   = typeof require === 'function' && typeof exports === 'object';
   var FormData = isNode ? require('form-data') : root.FormData;
 
+  var _hasOwnProperty = Object.prototype.hasOwnProperty;
+
+  var FORM_EQ  = '=';
+  var FORM_SEP = '&';
+
   var JSON_MIME_REGEXP  = /^application\/(?:[\w!#\$%&\*`\-\.\^~]*\+)?json$/i;
   var QUERY_MIME_REGEXP = /^application\/x-www-form-urlencoded$/i;
   var FORM_MIME_REGEXP  = /^multipart\/form-data$/i;
@@ -12,6 +17,24 @@
       'https://github.com/jakearchibald/es6-promise for more information.';
 
     throw new TypeError(PROMISE_ERROR_MESSAGE);
+  }
+
+  /**
+   * Copy objects onto another.
+   *
+   * @param  {Object} dest
+   * @return {Object}
+   */
+  function assign (dest /*, ...src */) {
+    for (var i = 1; i < arguments.length; i++) {
+      for (var key in arguments[i]) {
+        if (_hasOwnProperty.call(arguments[i], key)) {
+          dest[key] = arguments[i][key];
+        }
+      }
+    }
+
+    return dest;
   }
 
   /**
@@ -154,9 +177,6 @@
    * @return {String}
    */
   function stringifyQuery (obj) {
-    var eq  = '=';
-    var sep = '&';
-
     if (Object(obj) !== obj) {
       return String(obj == null ? '' : obj);
     }
@@ -165,7 +185,7 @@
 
     Object.keys(obj).forEach(function (key) {
       var value  = obj[key];
-      var keyStr = encode(key) + eq;
+      var keyStr = encode(key) + FORM_EQ;
 
       if (Array.isArray(value)) {
         for (var i = 0; i < value.length; i++) {
@@ -176,7 +196,7 @@
       }
     });
 
-    return params.join(sep);
+    return params.join(FORM_SEP);
   }
 
   /**
@@ -188,17 +208,15 @@
    */
   function parseQuery (qs, obj) {
     obj = obj || {};
-    qs  = qs.split(sep);
+    qs  = qs.split(FORM_SEP);
 
-    var sep     = '&';
-    var eq      = '=';
     var maxKeys = 1000;
     var len     = qs.length > maxKeys ? maxKeys : qs.length;
 
     for (var i = 0; i < len; i++) {
       var key   = qs[i].replace(/\+/g, '%20');
       var value = '';
-      var index = key.indexOf(eq);
+      var index = key.indexOf(FORM_EQ);
 
       if (index !== -1) {
         value = key.substr(index + 1);
@@ -208,7 +226,7 @@
       key   = decodeURIComponent(key);
       value = decodeURIComponent(value);
 
-      if (!obj.hasOwnProperty(key)) {
+      if (!_hasOwnProperty.call(obj, key)) {
         obj[key] = value;
       } else if (Array.isArray(obj[key])) {
         obj[key].push(value);
@@ -681,7 +699,7 @@
 
     this.body = options.body;
     this.url = options.url;
-    this.query = options.query;
+    this.query = assign({}, options.query);
     this.timeout = options.timeout;
     this.withCredentials = options.withCredentials === true;
     this.rejectUnauthorized = options.rejectUnauthorized !== false;
@@ -690,18 +708,18 @@
     this.method = (options.method || 'GET').toUpperCase();
 
     // Initialize the response length.
-    this._responseTotal  = null;
+    this._responseTotal = null;
     this._responseLength = 0;
 
     // Set request headers.
     setHeaders(this, options.headers);
 
     // Parse query strings already set.
-    var queryIndex = this.url.indexOf('?');
+    var queryIndex = options.url.indexOf('?');
 
     if (queryIndex > -1) {
-      this.query = parseQuery(this.url.substr(queryIndex + 1), this.query);
-      this.url   = this.url.substr(0, queryIndex);
+      this.url   = options.url.substr(0, queryIndex);
+      this.query = parseQuery(options.url.substr(queryIndex + 1), this.query);
     }
   }
 
@@ -717,11 +735,10 @@
    * @return {String}
    */
   Request.prototype.fullUrl = function () {
-    var url = this.url;
+    var url   = this.url;
+    var query = stringifyQuery(this.query);
 
-    if (this.query) {
-      var query = stringifyQuery(this.query);
-
+    if (query) {
       url += (url.indexOf('?') === -1 ? '?' : '&') + query;
     }
 
