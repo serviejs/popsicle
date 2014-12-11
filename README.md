@@ -203,11 +203,12 @@ All response handling methods can return an error. The errors can be categorized
 
 ### Plugins
 
-A simple plugin interface is exposed through `Request#use`.
+A simple plugin interface is exposed through `Request#use` and promises.
 
 #### Existing Plugins
 
-None yet. Will you be the first?
+* [Status](https://github.com/blakeembrey/popsicle-status) - Reject responses on HTTP failure status codes
+* [Prefix](https://github.com/blakeembrey/popsicle-prefix) - Automatically prefix all HTTP requests
 
 #### Using Plugins
 
