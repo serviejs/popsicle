@@ -208,8 +208,9 @@ A simple plugin interface is exposed through `Request#use` and promises.
 #### Existing Plugins
 
 * [Status](https://github.com/blakeembrey/popsicle-status) - Reject responses on HTTP failure status codes
-* [Prefix](https://github.com/blakeembrey/popsicle-prefix) - Automatically prefix all HTTP requests
 * [No Cache](https://github.com/blakeembrey/popsicle-no-cache) - Prevent caching of HTTP requests
+* [Basic Auth](https://github.com/blakeembrey/popsicle-basic-auth) - Add basic authentication to requests
+* [Prefix](https://github.com/blakeembrey/popsicle-prefix) - Automatically prefix all HTTP requests
 
 #### Using Plugins
 
