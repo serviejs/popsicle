@@ -236,6 +236,12 @@ Install dependencies and run the test runners (node and browsers using Karma).
 npm install && npm test
 ```
 
+## Related Projects
+
+* [Superagent](https://github.com/visionmedia/superagent) - HTTP requests on node and browser
+* [Fetch](https://github.com/github/fetch) - Browser polyfill for promise-based HTTP requests
+* [Axios](https://github.com/mzabriskie/axios) - Similar API based on Angular's $http service
+
 ## License
 
 MIT
