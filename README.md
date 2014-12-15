@@ -3,7 +3,7 @@
 [![NPM version][npm-image]][npm-url]
 [![Build status][travis-image]][travis-url]
 
-**Popsicle** is designed to be easiest way for making HTTP requests, offering a consistant and intuitive API that works on both node and the browser.
+**Popsicle** is designed to be easiest way for making HTTP requests, offering a consistent and intuitive API that works on both node and the browser.
 
 ```javascript
 request('/users.json')
