@@ -1,4 +1,6 @@
-var isPhantom = window.outerWidth === 0 && window.outerHeight === 0;
+var isPhantom = typeof window !== 'undefined' &&
+  window.outerWidth === 0 &&
+  window.outerHeight === 0;
 
 var REMOTE_URL = 'http://localhost:4567';
 
