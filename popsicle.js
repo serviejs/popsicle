@@ -1,5 +1,6 @@
 (function (root) {
   var isNode   = typeof require === 'function' && typeof exports === 'object';
+  var Buffer   = isNode ? require('buffer').Buffer : null;
   var FormData = isNode ? require('form-data') : root.FormData;
 
   var _hasOwnProperty = Object.prototype.hasOwnProperty;

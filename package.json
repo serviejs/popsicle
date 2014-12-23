@@ -5,7 +5,8 @@
   "main": "popsicle.js",
   "browser": {
     "request": false,
-    "form-data": false
+    "form-data": false,
+    "buffer": false
   },
   "scripts": {
     "test": "gulp lint && gulp test"
