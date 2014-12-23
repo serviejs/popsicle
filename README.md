@@ -119,14 +119,25 @@ req.catch(function (err) {
 });
 ```
 
-#### Download Progress
+#### Progress
 
-The request object can also be used to check progress at any time. However, the URL must have responded with a `Content-Length` header for this to work properly.
+The request object can also be used to check progress at any time.
+
+`Request#uploaded` can be used to check the upload progress (between `0` and `1`) of the current request. If the request is being streamed (node), the length may incorrectly return `Infinity` to signify the number can't be calculated.
+
+`Request#downloaded` can be used to check the download progress (between `0` and `1`) of the current request instance. If the response did not respond with a `Content-Length` header this can not be calculated properly and will return `Infinity`.
+
+`Request#progress(fn)` can be used to register a progress event listener. It'll emit on upload and download progress events, which makes it useful for SPA progress bars. The function is called with an object (`{ uploaded: 0, downloaded: 0, total: 0, aborted: false }`).
 
 ```javascript
 var req = request('http://example.com');
 
+req.uploaded(); //=> 0
 req.downloaded(); //=> 0
+
+req.progress(function (e) {
+  console.log(e); //=> { uploaded: 1, downloaded: 0, total: 0.5, aborted: false }
+});
 
 req.then(function (res) {
   console.log(req.downloaded()); //=> 1
@@ -168,7 +179,9 @@ request('/users')
 
 #### Streams (Node only)
 
-On node, you can also chain using streams. However, the API is currently incomplete.
+**Incomplete: Emits incorrect errors**
+
+On node, you can also chain using streams.
 
 ```javascript
 request('/users')

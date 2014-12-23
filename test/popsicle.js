@@ -326,6 +326,8 @@ describe('popsicle', function () {
           errored = true;
 
           expect(err.message).to.equal('Request aborted');
+          expect(err.abort).to.be.true;
+          expect(err.popsicle).to.be.an.instanceOf(popsicle.Request);
         })
         .then(function () {
           expect(errored).to.be.true;
@@ -333,26 +335,108 @@ describe('popsicle', function () {
     });
   });
 
-  describe('download progress', function () {
-    it('should check download progress', function () {
-      var req    = popsicle(REMOTE_URL + '/download');
-      var assert = false;
+  describe('progress', function () {
+    describe('download', function () {
+      it('should check download progress', function () {
+        var req    = popsicle(REMOTE_URL + '/download');
+        var assert = false;
 
-      // Before the request has started.
-      expect(req.downloaded()).to.equal(0);
+        // Before the request has started.
+        expect(req.downloaded()).to.equal(0);
 
-      // Check halfway into the response.
-      setTimeout(function () {
-        assert = req.downloaded() === 0.5;
-      }, 100);
+        // Check halfway into the response.
+        setTimeout(function () {
+          assert = req.downloaded() === 0.5;
+        }, 100);
 
-      return req.then(function () {
-        // Can't consistently test progress in browsers.
-        if (typeof window === 'undefined') {
-          expect(assert).to.be.true;
-        }
+        return req
+          .then(function () {
+            // Can't consistently test progress in browsers.
+            if (typeof window === 'undefined') {
+              expect(assert).to.be.true;
+            }
 
-        expect(req.downloaded()).to.equal(1);
+            expect(req.downloaded()).to.equal(1);
+          });
+      });
+    });
+
+    describe('event', function () {
+      it('should emit progress events', function () {
+        var req = popsicle({
+          url: REMOTE_URL + '/echo',
+          body: EXAMPLE_BODY,
+          method: 'POST'
+        });
+
+        var asserted = 0;
+        var expected = 0;
+
+        req.progress(function (e) {
+          // Fix for PhantomJS tests (doesn't return `Content-Length` header).
+          if (req._xhr && e.downloaded === Infinity) {
+            console.warn('Browser does not support "Content-Length" header');
+
+            return;
+          }
+
+          expect(e.total).to.equal(expected);
+
+          asserted += 1;
+          expected += 0.5;
+        });
+
+        return req
+          .then(function (res) {
+            expect(asserted).to.equal(3);
+            expect(res.body).to.deep.equal(EXAMPLE_BODY);
+          });
+      });
+
+      it('should error when the progress callback errors', function () {
+        var req = popsicle(REMOTE_URL + '/echo');
+        var errored = false;
+
+        req.progress(function () {
+          throw new Error('Testing');
+        });
+
+        return req
+          .catch(function (err) {
+            errored = true;
+
+            expect(err.message).to.equal('Testing');
+            expect(err.popsicle).to.not.exist;
+          })
+          .then(function () {
+            expect(errored).to.be.true;
+          });
+      });
+
+      it('should emit a final event on abort', function () {
+        var req = popsicle(REMOTE_URL + '/echo');
+        var errored = false;
+        var progressed = 0;
+
+        req.progress(function (e) {
+          expect(e.total).to.equal(1);
+          expect(e.aborted).to.be.true;
+
+          progressed++;
+        });
+
+        req.abort();
+
+        return req
+          .catch(function (err) {
+            errored = true;
+
+            expect(err.abort).to.be.true;
+          })
+          .then(function () {
+            expect(errored).to.be.true;
+            expect(progressed).to.equal(1);
+          });
       });
     });
   });

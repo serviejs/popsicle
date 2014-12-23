@@ -38,6 +38,49 @@
   }
 
   /**
+   * Create a function to set progress properties on a request instance.
+   *
+   * @param  {String}   property
+   * @return {Function}
+   */
+  function setProgress (property) {
+    return function (num) {
+      if (this[property] === num) {
+        return;
+      }
+
+      this[property] = num;
+
+      this._emitProgress();
+    };
+  }
+
+  /**
+   * Calculate the length of the current request as a percent of the total.
+   *
+   * @param  {Number} length
+   * @param  {Number} total
+   * @return {Number}
+   */
+  function calc (length, total) {
+    if (total == null) {
+      return 0;
+    }
+
+    return total === length ? 1 : length / total;
+  }
+
+  /**
+   * Return zero if the number is `Infinity`.
+   *
+   * @param  {Number} num
+   * @return {Number}
+   */
+  function infinity (num) {
+    return num === Infinity ? 0 : num;
+  }
+
+  /**
    * Create a stream error instance.
    *
    * @param  {Popsicle} self
@@ -469,19 +512,57 @@
    * Track the current download size.
    *
    * @param {Request} self
+   * @param {request} request
    */
-  function trackResponseProgress (self) {
-    self._request.on('response', function (res) {
-      self._responseTotal = Number(res.headers['content-length']);
-    });
+  function trackRequestProgress (self, request) {
+    var write = request.write;
 
-    self._request.on('data', function (data) {
-      self._responseLength += data.length;
-    });
+    self._request = request;
 
-    self._request.on('end', function () {
-      self._responseTotal = self._responseLength;
-    });
+    // Override `Request.prototype.write` to track written data.
+    request.write = function (data) {
+      self._setRequestLength(self._requestLength + data.length);
+
+      return write.apply(request, arguments);
+    };
+
+    function onRequestEnd () {
+      self._setRequestTotal(self._requestLength);
+    }
+
+    function onRequest () {
+      self._setRequestTotal(Number(request.headers['content-length']) || 0);
+
+      request.req.on('finish', onRequestEnd);
+    }
+
+    function onResponse (response) {
+      self._responseTotal = Number(response.headers['content-length']);
+    }
+
+    function onResponseData (data) {
+      self._setResponseLength(self._responseLength + data.length);
+    }
+
+    function onResponseEnd () {
+      self._setResponseTotal(self._responseLength);
+      removeListeners();
+      self._completed();
+    }
+
+    function removeListeners () {
+      request.removeListener('request', onRequest);
+      request.removeListener('response', onResponse);
+      request.removeListener('data', onResponseData);
+      request.removeListener('end', onResponseEnd);
+      request.req.removeListener('finish', onRequestEnd);
+    }
+
+    request.on('request', onRequest);
+    request.on('response', onResponse);
+    request.on('data', onResponseData);
+    request.on('end', onResponseEnd);
+    request.on('error', removeListeners);
   }
 
   /**
@@ -697,22 +778,27 @@
   function Request (options) {
     Headers.call(this);
 
+    // Request options.
     this.body = options.body;
     this.url = options.url;
+    this.method = (options.method || 'GET').toUpperCase();
     this.query = assign({}, options.query);
     this.timeout = options.timeout;
     this.withCredentials = options.withCredentials === true;
     this.rejectUnauthorized = options.rejectUnauthorized !== false;
 
-    // Default to GET and uppercase anything else.
-    this.method = (options.method || 'GET').toUpperCase();
-
-    // Initialize the response length.
+    // Progress properties.
+    this._requestTotal = null;
+    this._requestLength = 0;
     this._responseTotal = null;
     this._responseLength = 0;
 
     // Set request headers.
     setHeaders(this, options.headers);
+
+    // Request state.
+    this.aborted = false;
+    this.completed = false;
 
     // Parse query strings already set.
     var queryIndex = options.url.indexOf('?');
@@ -746,20 +832,100 @@
   };
 
   /**
-   * Check how far something has been downloaded.
+   * Check how far the request has been uploaded.
+   *
+   * @return {Number}
+   */
+  Request.prototype.uploaded = function () {
+    return calc(this._requestLength, this._requestTotal);
+  };
+
+  /**
+   * Check how far the request has been downloaded.
    *
    * @return {Number}
    */
   Request.prototype.downloaded = function () {
-    if (this._responseTotal == null) {
-      return 0;
+    return calc(this._responseLength, this._responseTotal);
+  };
+
+  /**
+   * Track request completion progress.
+   *
+   * @param  {Function} fn
+   * @return {Request}
+   */
+  Request.prototype.progress = function (fn) {
+    if (this.completed) {
+      return this;
     }
 
-    return this._responseLength / this._responseTotal;
+    this._progressFns = this._progressFns || [];
+
+    this._progressFns.push(fn);
+
+    return this;
+  };
+
+  /**
+   * Set various progress properties.
+   *
+   * @private
+   * @param {Number} num
+   */
+  Request.prototype._setRequestTotal = setProgress('_requestTotal');
+  Request.prototype._setRequestLength = setProgress('_requestLength');
+  Request.prototype._setResponseTotal = setProgress('_responseTotal');
+  Request.prototype._setResponseLength = setProgress('_responseLength');
+
+  /**
+   * Emit a request progress event (upload or download).
+   */
+  Request.prototype._emitProgress = function () {
+    var fns = this._progressFns;
+
+    if (!fns) {
+      return;
+    }
+
+    var self = this;
+    var aborted = this.aborted;
+    var uploaded = this.uploaded();
+    var downloaded = this.downloaded();
+    var total = (infinity(uploaded) + infinity(downloaded)) / 2;
+
+    function emitProgress () {
+      try {
+        fns.forEach(function (fn) {
+          // Emit new progress object every iteration to avoid issues if a
+          // function mutates the object.
+          fn({
+            uploaded: uploaded,
+            downloaded: downloaded,
+            total: total,
+            aborted: aborted
+          });
+        });
+      } catch (e) {
+        self._errored(e);
+      }
+    }
+
+    emitProgress();
+  };
+
+  /**
+   * Complete the request.
+   */
+  Request.prototype._completed = function () {
+    this.completed = true;
+    delete this._progressFns;
   };
 
   /**
    * Allows request plugins.
+   *
+   * @return {Request}
    */
   Request.prototype.use = function (fn) {
     fn(this);
@@ -768,9 +934,7 @@
   };
 
   /**
-   * Setup and create the request instance.
-   *
-   * @return {Promise}
+   * Setup the request instance (promises and streams).
    */
   Request.prototype._setup = function () {
     var self    = this;
@@ -802,7 +966,6 @@
       } else {
         this._setup();
 
-        // Promises buffer and parse the full response.
         this._promise = this._create().then(parseResponse);
       }
     }
@@ -821,10 +984,29 @@
     }
 
     this.aborted = true;
+
+    // Reset progress and complete progress events.
+    this._requestTotal = 0;
+    this._requestLength = 0;
+    this._responseTotal = 0;
+    this._responseLength = 0;
+    this._emitProgress();
+
     this._abort();
+    this._completed();
     clearTimeout(this._timer);
 
     return this;
+  };
+
+  /**
+   * Trigger a request-related error that should break requests.
+   *
+   * @param {Error} err
+   */
+  Request.prototype._errored = function (err) {
+    this._error = err;
+    this.abort();
   };
 
   /**
@@ -893,9 +1075,14 @@
       return new Promise(function (resolve, reject) {
         var opts = requestOptions(self);
 
-        self._request = request(opts, function (err, response) {
+        var req = request(opts, function (err, response) {
           if (err) {
-            return reject(unavailableError(self));
+            // Node.js core error (ECONNRESET, EPIPE).
+            if (typeof err.code === 'string') {
+              return reject(unavailableError(self));
+            }
+
+            return reject(err);
           }
 
           var res = new Response({
@@ -909,11 +1096,15 @@
           return resolve(res);
         });
 
-        self._request.on('abort', function () {
+        req.on('abort', function () {
+          if (self._error) {
+            return reject(self._error);
+          }
+
           return reject(abortError(self));
         });
 
-        trackResponseProgress(self);
+        trackRequestProgress(self, req);
       });
     };
 
@@ -963,8 +1154,9 @@
      * @return {Promise}
      */
     Request.prototype._create = function  ( ) {
-      var self = this;
-      var url  = this.fullUrl();
+      var self   = this;
+      var url    = self.fullUrl();
+      var method = self.method;
 
       return new Promise(function (resolve, reject) {
         // Loading HTTP resources from HTTPS is restricted and uncatchable.
@@ -982,13 +1174,22 @@
           }
 
           if (xhr.readyState === 3) {
-            self._responseLength = xhr.responseText.length;
+            self._setResponseLength(xhr.responseText.length);
           }
 
           if (xhr.readyState === 4) {
             // Set the total response size to match the response length,
             // in case the content length header was not available before.
-            self._responseTotal = self._responseLength;
+            self._setResponseTotal(self._responseLength);
+
+            // Clean up listeners.
+            delete xhr.onreadystatechange;
+            delete xhr.upload.onprogress;
+            self._completed();
+
+            if (self._error) {
+              return reject(self._error);
+            }
 
             // Handle the aborted state internally, PhantomJS doesn't reset
             // `xhr.status` to zero on abort.
@@ -1012,9 +1213,22 @@
           }
         };
 
+        // No upload will occur with these requests.
+        if (method === 'GET' || method === 'HEAD' || !xhr.upload) {
+          xhr.upload = {};
+
+          self._setRequestTotal(0);
+          self._setRequestLength(0);
+        } else {
+          xhr.upload.onprogress = function (e) {
+            self._setRequestTotal(e.total);
+            self._setRequestLength(e.loaded);
+          };
+        }
+
         // XHR can fail to open when site CSP is set.
         try {
-          xhr.open(self.method, url);
+          xhr.open(method, url);
         } catch (e) {
           return reject(cspError(self, e));
         }
