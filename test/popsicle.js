@@ -1,3 +1,5 @@
+var isPhantom = window.outerWidth === 0 && window.outerHeight === 0;
+
 var REMOTE_URL = 'http://localhost:4567';
 
 describe('popsicle', function () {
@@ -374,8 +376,8 @@ describe('popsicle', function () {
 
         req.progress(function (e) {
           // Fix for PhantomJS tests (doesn't return `Content-Length` header).
-          if (req._xhr && e.downloaded === Infinity) {
-            console.warn('Browser does not support "Content-Length" header');
+          if (isPhantom && e.downloaded === 0 && expected === 1) {
+            console.warn('PhantomJS does not support "Content-Length" header');
 
             return;
           }

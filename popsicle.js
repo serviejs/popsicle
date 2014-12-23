@@ -522,7 +522,7 @@
 
     // Override `Request.prototype.write` to track written data.
     request.write = function (data) {
-      self._setRequestLength(self._requestLength + data.length);
+      self._setRequestLength(self._requestLength + Buffer.byteLength(data));
 
       return write.apply(request, arguments);
     };
@@ -538,11 +538,11 @@
     }
 
     function onResponse (response) {
-      self._responseTotal = Number(response.headers['content-length']);
+      self._responseTotal = Number(response.headers['content-length']) || 0;
     }
 
     function onResponseData (data) {
-      self._setResponseLength(self._responseLength + data.length);
+      self._setResponseLength(self._responseLength + Buffer.byteLength(data));
     }
 
     function onResponseEnd () {
@@ -1133,7 +1133,7 @@
         // TODO: Emit a stream error if already aborted.
         this._stream = this._request = request(requestOptions(this));
 
-        trackResponseProgress(this);
+        trackRequestProgress(this);
       }
 
       return this._stream;
@@ -1171,18 +1171,10 @@
           if (xhr.readyState === 2) {
             self._responseTotal = Number(
               xhr.getResponseHeader('Content-Length')
-            );
-          }
-
-          if (xhr.readyState === 3) {
-            self._setResponseLength(xhr.responseText.length);
+            ) || 0;
           }
 
           if (xhr.readyState === 4) {
-            // Set the total response size to match the response length,
-            // in case the content length header was not available before.
-            self._setResponseTotal(self._responseLength);
-
             // Clean up listeners.
             delete xhr.onreadystatechange;
             delete xhr.upload.onprogress;
@@ -1202,6 +1194,8 @@
               return reject(unavailableError(self));
             }
 
+            self._setResponseTotal(self._responseLength);
+
             var res = new Response({
               raw:     xhr,
               request: self,
@@ -1212,6 +1206,12 @@
 
             return resolve(res);
           }
+        };
+
+        // Use `progress` events to avoid calculating byte length.
+        xhr.onprogress = function (e) {
+          self._setResponseTotal(e.total);
+          self._setResponseLength(e.loaded);
         };
 
         // No upload will occur with these requests.
