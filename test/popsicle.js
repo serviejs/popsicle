@@ -1,7 +1,3 @@
-var isPhantom = typeof window !== 'undefined' &&
-  window.outerWidth === 0 &&
-  window.outerHeight === 0;
-
 var REMOTE_URL = 'http://localhost:4567';
 
 describe('popsicle', function () {
@@ -346,11 +342,11 @@ describe('popsicle', function () {
         var assert = false;
 
         // Before the request has started.
-        expect(req.downloaded()).to.equal(0);
+        expect(req.downloaded).to.equal(0);
 
         // Check halfway into the response.
         setTimeout(function () {
-          assert = req.downloaded() === 0.5;
+          assert = req.downloaded === 0.5;
         }, 100);
 
         return req
@@ -360,7 +356,7 @@ describe('popsicle', function () {
               expect(assert).to.be.true;
             }
 
-            expect(req.downloaded()).to.equal(1);
+            expect(req.downloaded).to.equal(1);
           });
       });
     });
@@ -377,22 +373,15 @@ describe('popsicle', function () {
         var expected = 0;
 
         req.progress(function (e) {
-          // Fix for PhantomJS tests (doesn't return `Content-Length` header).
-          if (isPhantom && e.downloaded === 0 && expected === 1) {
-            console.warn('PhantomJS does not support "Content-Length" header');
-
-            return;
-          }
-
-          expect(e.total).to.equal(expected);
-
           asserted += 1;
           expected += 0.5;
+
+          expect(e.completed).to.equal(expected);
         });
 
         return req
           .then(function (res) {
-            expect(asserted).to.equal(3);
+            expect(asserted).to.equal(2);
             expect(res.body).to.deep.equal(EXAMPLE_BODY);
           });
       });
@@ -423,7 +412,7 @@ describe('popsicle', function () {
         var progressed = 0;
 
         req.progress(function (e) {
-          expect(e.total).to.equal(1);
+          expect(e.completed).to.equal(1);
           expect(e.aborted).to.be.true;
 
           progressed++;

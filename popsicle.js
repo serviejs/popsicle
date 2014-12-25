@@ -41,44 +41,58 @@
   /**
    * Create a function to set progress properties on a request instance.
    *
+   * @param  {Object}   obj
    * @param  {String}   property
+   * @param  {String}   callback
    * @return {Function}
    */
-  function setProgress (property) {
-    return function (num) {
+  function setProgress (obj, property, callback) {
+    var method = '_set' + property.charAt(0).toUpperCase() + property.slice(1);
+
+    /**
+     * Create the progress update method.
+     *
+     * @param {Number} num
+     */
+    obj[method] = function (num) {
       if (this[property] === num) {
         return;
       }
 
       this[property] = num;
 
+      this[callback]();
+      this._completed();
       this._emitProgress();
     };
   }
 
   /**
-   * Calculate the length of the current request as a percent of the total.
+   * Generate a random number between two digits.
    *
-   * @param  {Number} length
-   * @param  {Number} total
+   * @param  {Number} low
+   * @param  {Number} high
    * @return {Number}
    */
-  function calc (length, total) {
-    if (total == null) {
-      return 0;
-    }
+  function between (low, high) {
+    var diff = high - low;
 
-    return total === length ? 1 : length / total;
+    return Math.random() * diff + low;
   }
 
   /**
-   * Return zero if the number is `Infinity`.
+   * Calculate the percentage of a request.
    *
-   * @param  {Number} num
+   * @param  {Number} size
+   * @param  {Number} total
    * @return {Number}
    */
-  function infinity (num) {
-    return num === Infinity ? 0 : num;
+  function calc (n, size, total) {
+    if (isNaN(total)) {
+      return n + ((1 - n) * between(0.1, 0.45));
+    }
+
+    return Math.min(1, size / total);
   }
 
   /**
@@ -97,6 +111,16 @@
     }
 
     return 0;
+  }
+
+  /**
+   * Turn a value into a number (avoid `null` becoming `0`).
+   *
+   * @param  {String} str
+   * @return {Number}
+   */
+  function num (str) {
+    return str == null ? NaN : Number(str);
   }
 
   /**
@@ -538,36 +562,32 @@
 
     self._request = request;
 
-    // Override `Request.prototype.write` to track written data.
-    request.write = function (data) {
-      self._setRequestLength(self._requestLength + byteLength(data));
-
-      return write.apply(request, arguments);
-    };
-
-    function onRequestEnd () {
-      self._setRequestTotal(self._requestLength);
-    }
-
     function onRequest () {
-      self._setRequestTotal(Number(request.headers['content-length']) || 0);
+      var write = request.req.write;
 
-      request.req.on('finish', onRequestEnd);
+      self.uploadTotal = num(request.headers['content-length']);
+
+      // Override `Request.prototype.write` to track amount of sent data.
+      request.req.write = function (data) {
+        self._setUploadSize(self.uploadSize + byteLength(data));
+
+        return write.apply(this, arguments);
+      };
     }
 
     function onResponse (response) {
-      self._responseTotal = Number(response.headers['content-length']) || 0;
+      self.downloadTotal = num(response.headers['content-length']);
+      self._uploadFinished();
     }
 
     function onResponseData (data) {
       // Data should always be a `Buffer` instance.
-      self._setResponseLength(self._responseLength + data.length);
+      self._setDownloadSize(self.downloadSize + data.length);
     }
 
     function onResponseEnd () {
-      self._setResponseTotal(self._responseLength);
       removeListeners();
-      self._completed();
+      self._downloadFinished();
     }
 
     function removeListeners () {
@@ -575,7 +595,7 @@
       request.removeListener('response', onResponse);
       request.removeListener('data', onResponseData);
       request.removeListener('end', onResponseEnd);
-      request.req.removeListener('finish', onRequestEnd);
+      request.removeListener('error', removeListeners);
     }
 
     request.on('request', onRequest);
@@ -807,18 +827,16 @@
     this.withCredentials = options.withCredentials === true;
     this.rejectUnauthorized = options.rejectUnauthorized !== false;
 
-    // Progress properties.
-    this._requestTotal = null;
-    this._requestLength = 0;
-    this._responseTotal = null;
-    this._responseLength = 0;
+    // Progress state.
+    this.uploaded    = this.downloaded    = this.completed = 0;
+    this.uploadSize  = this.downloadSize  = 0;
+    this.uploadTotal = this.downloadTotal = NaN;
 
     // Set request headers.
     setHeaders(this, options.headers);
 
     // Request state.
     this.aborted = false;
-    this.completed = false;
 
     // Parse query strings already set.
     var queryIndex = options.url.indexOf('?');
@@ -852,24 +870,6 @@
   };
 
   /**
-   * Check how far the request has been uploaded.
-   *
-   * @return {Number}
-   */
-  Request.prototype.uploaded = function () {
-    return calc(this._requestLength, this._requestTotal);
-  };
-
-  /**
-   * Check how far the request has been downloaded.
-   *
-   * @return {Number}
-   */
-  Request.prototype.downloaded = function () {
-    return calc(this._responseLength, this._responseTotal);
-  };
-
-  /**
    * Track request completion progress.
    *
    * @param  {Function} fn
@@ -888,15 +888,43 @@
   };
 
   /**
-   * Set various progress properties.
+   * Set upload progress properties.
    *
    * @private
-   * @param {Number} num
+   * @type  {Function}
+   * @param {Number}   num
    */
-  Request.prototype._setRequestTotal = setProgress('_requestTotal');
-  Request.prototype._setRequestLength = setProgress('_requestLength');
-  Request.prototype._setResponseTotal = setProgress('_responseTotal');
-  Request.prototype._setResponseLength = setProgress('_responseLength');
+  setProgress(Request.prototype, 'uploadSize',   '_uploaded');
+  setProgress(Request.prototype, 'downloadSize', '_downloaded');
+
+  /**
+   * Calculate the uploaded percentage.
+   */
+  Request.prototype._uploaded = function () {
+    var n     = this.uploaded;
+    var size  = this.uploadSize;
+    var total = this.uploadTotal;
+
+    this.uploaded = calc(n, size, total);
+  };
+
+  /**
+   * Calculate the downloaded percentage.
+   */
+  Request.prototype._downloaded = function () {
+    var n     = this.downloaded;
+    var size  = this.downloadSize;
+    var total = this.downloadTotal;
+
+    this.downloaded = calc(n, size, total);
+  };
+
+  /**
+   * Update the completed percentage.
+   */
+  Request.prototype._completed = function () {
+    this.completed = (this.uploaded + this.downloaded) / 2;
+  };
 
   /**
    * Emit a request progress event (upload or download).
@@ -904,41 +932,52 @@
   Request.prototype._emitProgress = function () {
     var fns = this._progressFns;
 
-    if (!fns) {
+    if (!fns || this._error) {
       return;
     }
 
-    var self = this;
-    var aborted = this.aborted;
-    var uploaded = this.uploaded();
-    var downloaded = this.downloaded();
-    var total = (infinity(uploaded) + infinity(downloaded)) / 2;
-
-    function emitProgress () {
-      try {
-        fns.forEach(function (fn) {
-          // Emit new progress object every iteration to avoid issues if a
-          // function mutates the object.
-          fn({
-            uploaded: uploaded,
-            downloaded: downloaded,
-            total: total,
-            aborted: aborted
-          });
-        });
-      } catch (e) {
-        self._errored(e);
+    try {
+      for (var i = 0; i < fns.length; i++) {
+        fns[i](this);
       }
+    } catch (e) {
+      this._errored(e);
     }
-
-    emitProgress();
   };
 
   /**
-   * Complete the request.
+   * Finished uploading.
    */
-  Request.prototype._completed = function () {
-    this.completed = true;
+  Request.prototype._uploadFinished = function () {
+    if (this.uploaded === 1) {
+      return;
+    }
+
+    this.uploaded = 1;
+    this.completed = 0.5;
+
+    this._emitProgress();
+  };
+
+  /**
+   * Finished downloading.
+   */
+  Request.prototype._downloadFinished = function () {
+    if (this.downloaded === 1) {
+      return;
+    }
+
+    this.downloaded = 1;
+    this.completed = 1;
+
+    this._emitProgress();
+  };
+
+  /**
+   * Tidy up after requests.
+   */
+  Request.prototype._finished = function () {
+    this.completed = 1;
     delete this._progressFns;
   };
 
@@ -1005,15 +1044,14 @@
 
     this.aborted = true;
 
-    // Reset progress and complete progress events.
-    this._requestTotal = 0;
-    this._requestLength = 0;
-    this._responseTotal = 0;
-    this._responseLength = 0;
+    // Set everything to be completed.
+    this.downloaded = this.uploaded = this.completed = 1;
+
+    // Emit a final progress event for listeners.
     this._emitProgress();
 
     this._abort();
-    this._completed();
+    this._finished();
     clearTimeout(this._timer);
 
     return this;
@@ -1188,16 +1226,19 @@
 
         xhr.onreadystatechange = function () {
           if (xhr.readyState === 2) {
-            self._responseTotal = Number(
-              xhr.getResponseHeader('Content-Length')
-            ) || 0;
+            self.downloadTotal = num(xhr.getResponseHeader('Content-Length'));
+
+            // Trigger upload finished after we get the response length.
+            // Otherwise, it's possible this method will error and make the
+            // `xhr` object invalid.
+            self._uploadFinished();
           }
 
           if (xhr.readyState === 4) {
             // Clean up listeners.
             delete xhr.onreadystatechange;
             delete xhr.upload.onprogress;
-            self._completed();
+            self._downloadFinished();
 
             if (self._error) {
               return reject(self._error);
@@ -1213,8 +1254,6 @@
               return reject(unavailableError(self));
             }
 
-            self._setResponseTotal(self._responseLength);
-
             var res = new Response({
               raw:     xhr,
               request: self,
@@ -1229,20 +1268,26 @@
 
         // Use `progress` events to avoid calculating byte length.
         xhr.onprogress = function (e) {
-          self._setResponseTotal(e.total);
-          self._setResponseLength(e.loaded);
+          if (e.lengthComputable) {
+            self.downloadTotal = e.total;
+          }
+
+          self._setDownloadSize(e.loaded);
         };
 
         // No upload will occur with these requests.
         if (method === 'GET' || method === 'HEAD' || !xhr.upload) {
           xhr.upload = {};
 
-          self._setRequestTotal(0);
-          self._setRequestLength(0);
+          self.uploadTotal = 0;
+          self._setUploadSize(0);
         } else {
           xhr.upload.onprogress = function (e) {
-            self._setRequestTotal(e.total);
-            self._setRequestLength(e.loaded);
+            if (e.lengthComputable) {
+              self.uploadTotal = e.total;
+            }
+
+            self._setUploadSize(e.loaded);
           };
         }
 

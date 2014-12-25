@@ -123,24 +123,28 @@ req.catch(function (err) {
 
 The request object can also be used to check progress at any time.
 
-`Request#uploaded` can be used to check the upload progress (between `0` and `1`) of the current request. If the request is being streamed (node), the length may incorrectly return `Infinity` to signify the number can't be calculated.
+* **req.uploadSize** Current upload size in bytes
+* **req.uploadTotal** Total upload size in bytes
+* **req.uploaded** Total uploaded as a percentage
+* **req.downloadSize** Current download size in bytes
+* **req.downloadTotal** Total download size in bytes
+* **req.downloaded** Total downloaded as a percentage
+* **req.completed** Total uploaded and downloaded as a percentage
 
-`Request#downloaded` can be used to check the download progress (between `0` and `1`) of the current request instance. If the response did not respond with a `Content-Length` header this can not be calculated properly and will return `Infinity`.
-
-`Request#progress(fn)` can be used to register a progress event listener. It'll emit on upload and download progress events, which makes it useful for SPA progress bars. The function is called with an object (`{ uploaded: 0, downloaded: 0, total: 0, aborted: false }`).
+All percentage properties (`req.uploaded`, `req.downloaded`, `req.completed`) will be a number between `0` and `1`. When the total size is unknown (no `Content-Length` header), the percentage will automatically increment on each chunk of data returned (this will not be accurate).
 
 ```javascript
 var req = request('http://example.com');
 
-req.uploaded(); //=> 0
-req.downloaded(); //=> 0
+req.uploaded; //=> 0
+req.downloaded; //=> 0
 
 req.progress(function (e) {
-  console.log(e); //=> { uploaded: 1, downloaded: 0, total: 0.5, aborted: false }
+  console.log(e); //=> { uploaded: 1, downloaded: 0, completed: 0.5, aborted: false }
 });
 
 req.then(function (res) {
-  console.log(req.downloaded()); //=> 1
+  console.log(req.downloaded); //=> 1
 });
 ```
 
