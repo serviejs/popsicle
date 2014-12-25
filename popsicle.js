@@ -82,6 +82,24 @@
   }
 
   /**
+   * Return the byte length of an input.
+   *
+   * @param  {(String|Buffer)} data
+   * @return {Number}
+   */
+  function byteLength (data) {
+    if (Buffer.isBuffer(data)) {
+      return data.length;
+    }
+
+    if (typeof data === 'string') {
+      return Buffer.byteLength(data);
+    }
+
+    return 0;
+  }
+
+  /**
    * Create a stream error instance.
    *
    * @param  {Popsicle} self
@@ -522,7 +540,7 @@
 
     // Override `Request.prototype.write` to track written data.
     request.write = function (data) {
-      self._setRequestLength(self._requestLength + Buffer.byteLength(data));
+      self._setRequestLength(self._requestLength + byteLength(data));
 
       return write.apply(request, arguments);
     };
@@ -542,7 +560,8 @@
     }
 
     function onResponseData (data) {
-      self._setResponseLength(self._responseLength + Buffer.byteLength(data));
+      // Data should always be a `Buffer` instance.
+      self._setResponseLength(self._responseLength + data.length);
     }
 
     function onResponseEnd () {
