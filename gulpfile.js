@@ -2,7 +2,7 @@ var gulp       = require('gulp');
 var requireDir = require('require-dir');
 
 /**
- * Require all local grunt tasks.
+ * Require all local gulp tasks.
  */
 requireDir('./tasks');
 
