@@ -1,5 +1,5 @@
 (function (root) {
-  var isNode   = typeof require === 'function' && typeof exports === 'object';
+  var isNode   = typeof window === 'undefined';
   var Buffer   = isNode ? require('buffer').Buffer : null;
   var FormData = isNode ? require('form-data') : root.FormData;
 
