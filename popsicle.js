@@ -1,7 +1,7 @@
 (function (root) {
   var isNode   = typeof window === 'undefined';
   var Buffer   = isNode ? require('buffer').Buffer : null;
-  var FormData = isNode ? require('form-data') : root.FormData;
+  var FormData = isNode ? require('form-data') : window.FormData;
 
   var _hasOwnProperty = Object.prototype.hasOwnProperty;
 
@@ -214,14 +214,14 @@
    * @return {Function}
    */
   function getXHR () {
-    if (root.XMLHttpRequest) {
-      return new root.XMLHttpRequest();
+    if (window.XMLHttpRequest) {
+      return new window.XMLHttpRequest();
     }
 
-    try { return new root.ActiveXObject('Microsoft.XMLHTTP'); } catch (e) {}
-    try { return new root.ActiveXObject('Msxml2.XMLHTTP.6.0'); } catch (e) {}
-    try { return new root.ActiveXObject('Msxml2.XMLHTTP.3.0'); } catch (e) {}
-    try { return new root.ActiveXObject('Msxml2.XMLHTTP'); } catch (e) {}
+    try { return new window.ActiveXObject('Microsoft.XMLHTTP'); } catch (e) {}
+    try { return new window.ActiveXObject('Msxml2.XMLHTTP.6.0'); } catch (e) {}
+    try { return new window.ActiveXObject('Msxml2.XMLHTTP.3.0'); } catch (e) {}
+    try { return new window.ActiveXObject('Msxml2.XMLHTTP'); } catch (e) {}
 
     throw new Error('XMLHttpRequest is not available');
   }
@@ -249,7 +249,7 @@
 
     try {
       return encodeURIComponent(str)
-        .replace(/[!'()]/g, root.escape)
+        .replace(/[!'()]/g, escape)
         .replace(/\*/g, '%2A');
     } catch (e) {
       return '';
