@@ -228,6 +228,7 @@ A simple plugin interface is exposed through `Request#use` and promises.
 * [No Cache](https://github.com/blakeembrey/popsicle-no-cache) - Prevent caching of HTTP requests
 * [Basic Auth](https://github.com/blakeembrey/popsicle-basic-auth) - Add basic authentication to requests
 * [Prefix](https://github.com/blakeembrey/popsicle-prefix) - Automatically prefix all HTTP requests
+* [Constants](https://github.com/blakeembrey/popsicle-constants) - Replace constants in the URL string
 
 #### Using Plugins
 
