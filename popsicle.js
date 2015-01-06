@@ -1,5 +1,6 @@
-(function (root) {
+(function () {
   var isNode   = typeof window === 'undefined';
+  var root     = isNode ? global : window;
   var Buffer   = isNode ? require('buffer').Buffer : null;
   var FormData = isNode ? require('form-data') : window.FormData;
 
@@ -249,7 +250,7 @@
 
     try {
       return encodeURIComponent(str)
-        .replace(/[!'()]/g, escape)
+        .replace(/[!'()]/g, root.escape)
         .replace(/\*/g, '%2A');
     } catch (e) {
       return '';
@@ -1369,4 +1370,4 @@
   } else {
     root.popsicle = popsicle;
   }
-})(this);
+})();
