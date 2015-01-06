@@ -107,6 +107,16 @@
   }
 
   /**
+   * Check if an object is actually an object (not a primitive type).
+   *
+   * @param  {Object}  obj
+   * @return {Boolean}
+   */
+  function isObject (obj) {
+    return Object(obj) === obj;
+  }
+
+  /**
    * Create a stream error instance.
    *
    * @param  {Popsicle} self
@@ -228,10 +238,6 @@
    * @return {String}
    */
   function stringifyQuery (obj) {
-    if (Object(obj) !== obj) {
-      return String(obj == null ? '' : obj);
-    }
-
     var params = [];
 
     Object.keys(obj).forEach(function (key) {
@@ -254,13 +260,17 @@
    * Convert a query string into an object.
    *
    * @param  {String} qs
-   * @param  {Object} [obj]
    * @return {Object}
    */
-  function parseQuery (qs, obj) {
-    obj = obj || {};
-    qs  = qs.split(FORM_SEP);
+  function parseQuery (qs) {
+    // Unable to parse empty values.
+    if (qs == null || qs === '') {
+      return {};
+    }
 
+    qs = String(qs).split(FORM_SEP);
+
+    var obj     = {};
     var maxKeys = 1000;
     var len     = qs.length > maxKeys ? maxKeys : qs.length;
 
@@ -344,7 +354,7 @@
     var body = request.body;
 
     // Convert primitives types into strings.
-    if (Object(body) !== body) {
+    if (!isObject(body)) {
       request.body = body == null ? null : String(body);
 
       return;
@@ -645,11 +655,13 @@
   function Request (options) {
     Headers.call(this);
 
+    var query = options.query;
+
     // Request options.
     this.body = options.body;
     this.url = options.url;
     this.method = (options.method || 'GET').toUpperCase();
-    this.query = assign({}, options.query);
+    this.query = assign({}, isObject(query) ? query : parseQuery(query));
     this.timeout = options.timeout;
     this.withCredentials = options.withCredentials === true;
     this.rejectUnauthorized = options.rejectUnauthorized !== false;
@@ -669,8 +681,10 @@
     var queryIndex = options.url.indexOf('?');
 
     if (queryIndex > -1) {
-      this.url   = options.url.substr(0, queryIndex);
-      this.query = parseQuery(options.url.substr(queryIndex + 1), this.query);
+      this.url = options.url.substr(0, queryIndex);
+
+      // Copy url query parameters onto query object.
+      assign(this.query, parseQuery(options.url.substr(queryIndex + 1)));
     }
   }
 

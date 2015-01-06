@@ -263,6 +263,21 @@ describe('popsicle', function () {
           expect(res.body).to.deep.equal(query);
         });
     });
+
+    it('should accept query as a string', function () {
+      var req = popsicle({
+        url: REMOTE_URL + '/echo/query',
+        query: 'query=true'
+      });
+
+      expect(req.url).to.equal(REMOTE_URL + '/echo/query');
+      expect(req.query).to.deep.equal({ query: 'true' });
+
+      return req
+        .then(function (res) {
+          expect(res.body).to.deep.equal({ query: 'true' });
+        });
+    });
   });
 
   describe('timeout', function () {
