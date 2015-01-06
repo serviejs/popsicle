@@ -1138,9 +1138,10 @@
 
         // Initialize a streaming request instance.
         // TODO: Emit a stream error if already aborted.
-        this._stream = this._request = request(requestOptions(this));
+        // TODO: Catch stream errors and coerce to popsicle errors.
+        var req = this._stream = request(requestOptions(this));
 
-        trackRequestProgress(this);
+        trackRequestProgress(this, req);
       }
 
       return this._stream;
