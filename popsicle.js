@@ -467,7 +467,7 @@
    */
   function Headers () {
     this.headers = {};
-    this._headerNames = {};
+    this.headerNames = {};
   }
 
   /**
@@ -487,7 +487,7 @@
     var lower = lowerHeader(key);
 
     this.headers[lower] = value;
-    this._headerNames[lower] = key;
+    this.headerNames[lower] = key;
 
     return this;
   };
@@ -499,7 +499,7 @@
    * @return {String}
    */
   Headers.prototype.name = function (key) {
-    return this._headerNames[lowerHeader(key)];
+    return this.headerNames[lowerHeader(key)];
   };
 
   /**
@@ -522,7 +522,7 @@
     var lower = lowerHeader(header);
 
     delete this.headers[lower];
-    delete this._headerNames[lower];
+    delete this.headerNames[lower];
 
     return this;
   };
