@@ -97,24 +97,6 @@
   }
 
   /**
-   * Return the byte length of an input.
-   *
-   * @param  {(String|Buffer)} data
-   * @return {Number}
-   */
-  function byteLength (data) {
-    if (Buffer.isBuffer(data)) {
-      return data.length;
-    }
-
-    if (typeof data === 'string') {
-      return Buffer.byteLength(data);
-    }
-
-    return 0;
-  }
-
-  /**
    * Turn a value into a number (avoid `null` becoming `0`).
    *
    * @param  {String} str
@@ -207,24 +189,6 @@
     var err = self.error('The request to "' + self.fullUrl() + '" was blocked');
     err.blocked = true;
     return err;
-  }
-
-  /**
-   * Determine XHR method.
-   *
-   * @return {Function}
-   */
-  function getXHR () {
-    if (window.XMLHttpRequest) {
-      return new window.XMLHttpRequest();
-    }
-
-    try { return new window.ActiveXObject('Microsoft.XMLHTTP'); } catch (e) {}
-    try { return new window.ActiveXObject('Msxml2.XMLHTTP.6.0'); } catch (e) {}
-    try { return new window.ActiveXObject('Msxml2.XMLHTTP.3.0'); } catch (e) {}
-    try { return new window.ActiveXObject('Msxml2.XMLHTTP'); } catch (e) {}
-
-    throw new Error('XMLHttpRequest is not available');
   }
 
   /**
@@ -469,145 +433,7 @@
   }
 
   /**
-   * Parse headers from a string.
-   *
-   * @param  {String} str
-   * @return {Object}
-   */
-  function parseHeaders (str) {
-    var headers = {};
-    var lines   = str.split(/\r?\n/);
-
-    lines.pop();
-
-    lines.forEach(function (header) {
-      var index = header.indexOf(':');
-
-      var name  = header.substr(0, index);
-      var value = header.substr(index + 1).trim();
-
-      headers[name] = value;
-    });
-
-    return headers;
-  }
-
-  /**
-   * Get all XHR response headers as an object.
-   *
-   * @param  {XMLHttpRequest} xhr
-   * @return {Object}
-   */
-  function getAllResponseHeaders (xhr) {
-    var headers = parseHeaders(xhr.getAllResponseHeaders());
-
-    return headers;
-  }
-
-  /**
-   * Turn raw headers into a header object.
-   *
-   * @param  {Object} response
-   * @return {Object}
-   */
-  function parseRawHeaders (response) {
-    if (!response.rawHeaders) {
-      return response.headers;
-    }
-
-    var headers    = {};
-    var rawHeaders = response.rawHeaders;
-
-    for (var i = 0; i < rawHeaders.length; i = i + 2) {
-      headers[rawHeaders[i]] = rawHeaders[i + 1];
-    }
-
-    return headers;
-  }
-
-  /**
-   * Return options sanitized for the request module.
-   *
-   * @param  {Request} self
-   * @return {Object}
-   */
-  function requestOptions (self) {
-    var request = {};
-
-    request.url     = self.fullUrl();
-    request.method  = self.method;
-    request.headers = self.headers;
-
-    // The `request` module supports form data under a private property.
-    if (self.body instanceof FormData) {
-      request._form = self.body;
-    } else {
-      request.body = self.body;
-    }
-
-    if (self.rejectUnauthorized) {
-      request.rejectUnauthorized = true;
-    }
-
-    return request;
-  }
-
-  /**
-   * Track the current download size.
-   *
-   * @param {Request} self
-   * @param {request} request
-   */
-  function trackRequestProgress (self, request) {
-    var write = request.write;
-
-    self._request = request;
-
-    function onRequest () {
-      var write = request.req.write;
-
-      self.uploadTotal = num(request.headers['content-length']);
-
-      // Override `Request.prototype.write` to track amount of sent data.
-      request.req.write = function (data) {
-        self._setUploadSize(self.uploadSize + byteLength(data));
-
-        return write.apply(this, arguments);
-      };
-    }
-
-    function onResponse (response) {
-      self.downloadTotal = num(response.headers['content-length']);
-      self._uploadFinished();
-    }
-
-    function onResponseData (data) {
-      // Data should always be a `Buffer` instance.
-      self._setDownloadSize(self.downloadSize + data.length);
-    }
-
-    function onResponseEnd () {
-      removeListeners();
-      self._downloadFinished();
-    }
-
-    function removeListeners () {
-      request.removeListener('request', onRequest);
-      request.removeListener('response', onResponse);
-      request.removeListener('data', onResponseData);
-      request.removeListener('end', onResponseEnd);
-      request.removeListener('error', removeListeners);
-    }
-
-    request.on('request', onRequest);
-    request.on('response', onResponse);
-    request.on('data', onResponseData);
-    request.on('end', onResponseEnd);
-    request.on('error', removeListeners);
-  }
-
-  /**
-   * Set multiple headers on an instance.
+   * Set headers on an instance.
    *
    * @param {Request} self
    * @param {Object}  headers
@@ -1045,7 +871,7 @@
 
     this.aborted = true;
 
-    // Set everything to be completed.
+    // Set everything to completed.
     this.downloaded = this.uploaded = this.completed = 1;
 
     // Emit a final progress event for listeners.
@@ -1117,6 +943,129 @@
    */
   if (isNode) {
     var request = require('request');
+    var pkg     = require('./package.json');
+
+    /**
+     * Return options sanitized for the request module.
+     *
+     * @param  {Request} self
+     * @return {Object}
+     */
+    var requestOptions = function (self) {
+      var request = {};
+
+      request.url = self.fullUrl();
+      request.method = self.method;
+
+      // Set a default user-agent.
+      request.headers = assign(self.headers, {
+        'User-Agent': 'node-popsicle/' + pkg.version
+      });
+
+      // The `request` module supports form data under a private property.
+      if (self.body instanceof FormData) {
+        request._form = self.body;
+      } else {
+        request.body = self.body;
+      }
+
+      if (self.rejectUnauthorized) {
+        request.rejectUnauthorized = true;
+      }
+
+      return request;
+    };
+
+    /**
+     * Return the byte length of an input.
+     *
+     * @param  {(String|Buffer)} data
+     * @return {Number}
+     */
+    var byteLength = function (data) {
+      if (Buffer.isBuffer(data)) {
+        return data.length;
+      }
+
+      if (typeof data === 'string') {
+        return Buffer.byteLength(data);
+      }
+
+      return 0;
+    };
+
+    /**
+     * Track the current download size.
+     *
+     * @param {Request} self
+     * @param {request} request
+     */
+    var trackRequestProgress = function (self, request) {
+      self._request = request;
+
+      function onRequest () {
+        var write = request.req.write;
+
+        self.uploadTotal = num(request.headers['content-length']);
+
+        // Override `Request.prototype.write` to track amount of sent data.
+        request.req.write = function (data) {
+          self._setUploadSize(self.uploadSize + byteLength(data));
+
+          return write.apply(this, arguments);
+        };
+      }
+
+      function onResponse (response) {
+        self.downloadTotal = num(response.headers['content-length']);
+        self._uploadFinished();
+      }
+
+      function onResponseData (data) {
+        // Data should always be a `Buffer` instance.
+        self._setDownloadSize(self.downloadSize + data.length);
+      }
+
+      function onResponseEnd () {
+        removeListeners();
+        self._downloadFinished();
+      }
+
+      function removeListeners () {
+        request.removeListener('request', onRequest);
+        request.removeListener('response', onResponse);
+        request.removeListener('data', onResponseData);
+        request.removeListener('end', onResponseEnd);
+        request.removeListener('error', removeListeners);
+      }
+
+      request.on('request', onRequest);
+      request.on('response', onResponse);
+      request.on('data', onResponseData);
+      request.on('end', onResponseEnd);
+      request.on('error', removeListeners);
+    };
+
+    /**
+     * Turn raw headers into a header object.
+     *
+     * @param  {Object} response
+     * @return {Object}
+     */
+    var parseRawHeaders = function (response) {
+      if (!response.rawHeaders) {
+        return response.headers;
+      }
+
+      var headers    = {};
+      var rawHeaders = response.rawHeaders;
+
+      for (var i = 0; i < rawHeaders.length; i = i + 2) {
+        headers[rawHeaders[i]] = rawHeaders[i + 1];
+      }
+
+      return headers;
+    };
 
     /**
      * Trigger the request in node.
@@ -1207,6 +1156,60 @@
       return this.stream().pipe(stream);
     };
   } else {
+    /**
+     * Determine XHR method.
+     *
+     * @return {Function}
+     */
+    var getXHR = function () {
+      if (root.XMLHttpRequest) {
+        return new root.XMLHttpRequest();
+      }
+
+      try { return new root.ActiveXObject('Microsoft.XMLHTTP'); } catch (e) {}
+      try { return new root.ActiveXObject('Msxml2.XMLHTTP.6.0'); } catch (e) {}
+      try { return new root.ActiveXObject('Msxml2.XMLHTTP.3.0'); } catch (e) {}
+      try { return new root.ActiveXObject('Msxml2.XMLHTTP'); } catch (e) {}
+
+      throw new Error('XMLHttpRequest is not available');
+    };
+
+    /**
+     * Parse headers from a string.
+     *
+     * @param  {String} str
+     * @return {Object}
+     */
+    var parseHeaders = function (str) {
+      var headers = {};
+      var lines   = str.split(/\r?\n/);
+
+      lines.pop();
+
+      lines.forEach(function (header) {
+        var index = header.indexOf(':');
+
+        var name  = header.substr(0, index);
+        var value = header.substr(index + 1).trim();
+
+        headers[name] = value;
+      });
+
+      return headers;
+    };
+
+    /**
+     * Get all XHR response headers as an object.
+     *
+     * @param  {XMLHttpRequest} xhr
+     * @return {Object}
+     */
+    var getAllResponseHeaders = function (xhr) {
+      var headers = parseHeaders(xhr.getAllResponseHeaders());
+
+      return headers;
+    };
+
     /**
      * Trigger the request in a browser.
      *
