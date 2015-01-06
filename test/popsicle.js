@@ -1,3 +1,5 @@
+var isNode = typeof window === 'undefined';
+
 var REMOTE_URL = 'http://localhost:4567';
 
 describe('popsicle', function () {
@@ -113,8 +115,19 @@ describe('popsicle', function () {
     });
   });
 
-  describe('headers', function () {
-    it('should parse response headers', function () {
+  describe('request headers', function () {
+    it('should always send a user agent', function () {
+      return popsicle(REMOTE_URL + '/echo/header/user-agent')
+        .then(function (res) {
+          var regexp = isNode ? /^node-popsicle\/\d\.\d\.\d$/ : /^Mozilla\/.+$/;
+
+          expect(res.body).to.match(regexp);
+        });
+    });
+  });
+
+  describe('response headers', function () {
+    it('should parse', function () {
       return popsicle(REMOTE_URL + '/notfound')
         .then(function (res) {
           expect(res.type()).to.equal('text/html');
