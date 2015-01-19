@@ -265,7 +265,7 @@
   function parseQuery (qs) {
     // Unable to parse empty values.
     if (qs == null || qs === '') {
-      return {};
+      return null;
     }
 
     qs = String(qs).split(FORM_SEP);
@@ -391,19 +391,11 @@
    */
   function parseResponse (response) {
     var body = response.body;
-
-    // Set the body to `null` for empty responses.
-    if (body === '') {
-      response.body = null;
-
-      return response;
-    }
-
     var type = response.type();
 
     try {
       if (JSON_MIME_REGEXP.test(type)) {
-        response.body = JSON.parse(body);
+        response.body = body === '' ? null : JSON.parse(body);
       } else if (QUERY_MIME_REGEXP.test(type)) {
         response.body = parseQuery(body);
       }

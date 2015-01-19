@@ -478,6 +478,33 @@ describe('popsicle', function () {
           expect(res.type()).to.equal('application/x-www-form-urlencoded');
         });
     });
+
+    it('should keep non-parsable responses as empty strings', function () {
+      return popsicle({
+        url: REMOTE_URL + '/echo',
+        method: 'post',
+        headers: {
+          'Content-Type': 'text/html'
+        }
+      })
+        .then(function (res) {
+          expect(res.body).to.equal('');
+        });
+    });
+
+    it('should set responses to null when empty', function () {
+      return popsicle({
+        url: REMOTE_URL + '/echo',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+        .then(function (res) {
+          expect(res.body).to.equal(null);
+          expect(res.type()).to.equal('application/json');
+        });
+    });
   });
 
   describe('accept', function () {
