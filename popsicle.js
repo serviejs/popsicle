@@ -208,7 +208,7 @@
    * @return {String}
    */
   function type (str) {
-    return str.split(/ *; */)[0];
+    return str == null ? '' : str.split(/ *; */)[0];
   }
 
   /**
@@ -393,6 +393,12 @@
     var body = response.body;
     var type = response.type();
 
+    if (body === '') {
+      response.body = null;
+
+      return response;
+    }
+
     try {
       if (JSON_MIME_REGEXP.test(type)) {
         response.body = body === '' ? null : JSON.parse(body);
@@ -540,23 +546,7 @@
       return this.set('Content-Type', value);
     }
 
-    var contentType = this.headers['content-type'];
-
-    return contentType && type(contentType);
-  };
-
-  /**
-   * Return or set the accept header.
-   *
-   * @param  {String} [value]
-   * @return {String}
-   */
-  Headers.prototype.accept = function (value) {
-    if (value) {
-      return this.set('Accept', value);
-    }
-
-    return this.headers.accept;
+    return type(this.headers['content-type']);
   };
 
   /**

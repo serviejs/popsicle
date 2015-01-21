@@ -479,16 +479,13 @@ describe('popsicle', function () {
         });
     });
 
-    it('should keep non-parsable responses as empty strings', function () {
+    it('should set non-parsable responses as null', function () {
       return popsicle({
         url: REMOTE_URL + '/echo',
-        method: 'post',
-        headers: {
-          'Content-Type': 'text/html'
-        }
+        method: 'post'
       })
         .then(function (res) {
-          expect(res.body).to.equal('');
+          expect(res.body).to.equal(null);
         });
     });
 
@@ -503,17 +500,6 @@ describe('popsicle', function () {
         .then(function (res) {
           expect(res.body).to.equal(null);
           expect(res.type()).to.equal('application/json');
-        });
-    });
-  });
-
-  describe('accept', function () {
-    it('should set the accept header', function () {
-      return popsicle(REMOTE_URL + '/echo/header/accept')
-        .accept('application/json')
-        .then(function (res) {
-          expect(res.body).to.equal('application/json');
-          expect(res.type()).to.equal('text/html');
         });
     });
   });
