@@ -797,14 +797,6 @@
   };
 
   /**
-   * Tidy up after requests.
-   */
-  Request.prototype._finished = function () {
-    this.completed = 1;
-    delete this._progressFns;
-  };
-
-  /**
    * Allows request plugins.
    *
    * @return {Request}
@@ -822,10 +814,19 @@
     var self    = this;
     var timeout = this.timeout;
 
+    // Automatic request handlers.
     this.use(defaultAccept);
     this.use(stringifyRequest);
     this.use(correctType);
 
+    // Remove progress functions on complete.
+    this.progress(function (e) {
+      if (e.completed === 1) {
+        delete self._progressFns;
+      }
+    });
+
+    // Catch request timeouts.
     if (timeout) {
       this._timer = setTimeout(function () {
         self.timedout = true;
@@ -870,11 +871,9 @@
     // Set everything to completed.
     this.downloaded = this.uploaded = this.completed = 1;
 
-    // Emit a final progress event for listeners.
-    this._emitProgress();
-
+    // Abort and emit the final progress event.
     this._abort();
-    this._finished();
+    this._emitProgress();
     clearTimeout(this._timer);
 
     return this;

@@ -131,7 +131,7 @@ The request object can also be used to check progress at any time.
 * **req.downloaded** Total downloaded as a percentage
 * **req.completed** Total uploaded and downloaded as a percentage
 
-All percentage properties (`req.uploaded`, `req.downloaded`, `req.completed`) will be a number between `0` and `1`. When the total size is unknown (no `Content-Length` header), the percentage will automatically increment on each chunk of data returned (this will not be accurate).
+All percentage properties (`req.uploaded`, `req.downloaded`, `req.completed`) will be a number between `0` and `1`. When the total size is unknown (no `Content-Length` header), the percentage will automatically increment on each chunk of data returned (this will not be accurate). Aborting a request will automatically emit a completed progress event.
 
 ```javascript
 var req = request('http://example.com');
