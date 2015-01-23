@@ -212,7 +212,7 @@
   }
 
   /**
-   * Encode a URI component correctly according to the spec.
+   * Encode a URI component according to the spec.
    *
    * @param  {String} str
    * @return {String}
@@ -562,7 +562,7 @@
     this.status  = options.status === 1223 ? 204 : options.status;
     this.request = options.request;
 
-    // Alias the response instance.
+    // Alias to the request instance.
     this.request.response = this;
 
     setHeaders(this, options.headers);
