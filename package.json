@@ -37,12 +37,11 @@
   "devDependencies": {
     "body-parser": "^1.9.2",
     "chai": "^1.9.1",
-    "cookie-parser": "^1.3.3",
     "es6-promise": "^2.0.0",
     "express": "^4.10.2",
     "gulp": "^3.8.6",
     "gulp-jshint": "^1.8.4",
-    "gulp-mocha": "^1.1.0",
+    "gulp-mocha": "^2.0.0",
     "is-travis": "^1.0.0",
     "karma": "^0.12.23",
     "karma-chrome-launcher": "^0.1.4",
@@ -50,13 +49,12 @@
     "karma-firefox-launcher": "^0.1.3",
     "karma-mocha": "^0.1.9",
     "karma-phantomjs-launcher": "^0.1.4",
-    "karma-sinon-chai": "^0.2.0",
-    "mocha": "^1.21.3",
-    "nock": "^0.46.0",
+    "karma-sinon-chai": "^0.3.0",
+    "mocha": "^2.1.0",
     "require-dir": "^0.1.0"
   },
   "dependencies": {
-    "form-data": "^0.1.4",
+    "form-data": "^0.2.0",
     "request": "^2.48.0"
   }
 }
