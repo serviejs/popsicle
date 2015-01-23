@@ -1,7 +1,7 @@
 {
   "name": "popsicle",
   "main": "popsicle.js",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "homepage": "https://github.com/blakeembrey/popsicle",
   "authors": [
     "Blake Embrey <hello@blakeembrey.com>"
