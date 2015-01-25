@@ -224,6 +224,7 @@ A simple plugin interface is exposed through `Request#use` and promises.
 
 #### Existing Plugins
 
+* [Server](https://github.com/blakeembrey/popsicle-server) - Automatically mount servers with each request for testing
 * [Status](https://github.com/blakeembrey/popsicle-status) - Reject responses on HTTP failure status codes
 * [No Cache](https://github.com/blakeembrey/popsicle-no-cache) - Prevent caching of HTTP requests
 * [Basic Auth](https://github.com/blakeembrey/popsicle-basic-auth) - Add basic authentication to requests
