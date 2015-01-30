@@ -545,4 +545,28 @@ describe('popsicle', function () {
         });
     });
   });
+
+  if (isNode) {
+    describe('cookie jar', function () {
+      it('should work with a cookie jar', function () {
+        var jar = popsicle.jar();
+
+        return popsicle({
+          url: REMOTE_URL + '/cookie',
+          jar: jar
+        })
+          .then(function (res) {
+            expect(res.get('Set-Cookie')).to.exist;
+
+            return popsicle({
+              url: REMOTE_URL + '/echo',
+              jar: jar
+            });
+          })
+          .then(function (res) {
+            expect(res.get('Cookie')).to.deep.equal('hello=world');
+          });
+      });
+    });
+  }
 });

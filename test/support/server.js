@@ -42,6 +42,13 @@ app.get('/error', function (req, res) {
   res.status(500).send('fail');
 });
 
+app.get('/cookie', function (req, res) {
+  var expires = new Date(Date.now() + 10 * 60 * 60).toGMTString();
+
+  res.set('set-cookie', 'hello=world; expires=' + expires + '; path=/');
+  res.sendStatus(200);
+});
+
 app.get('/not-found', function (req, res) {
   res.sendStatus(404);
 });

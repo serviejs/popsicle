@@ -69,6 +69,15 @@ request({
 * **body** An object, string or form data to pass with the request
 * **timeout** The number of milliseconds before cancelling the request (default: `Infinity`)
 
+**Node only**
+
+* **jar** An instance of a cookie jar (default: `null`)
+* **rejectUnauthorized** Reject invalid SSL certificates (default: `true`)
+
+**Browser only**
+
+* **withCredentials** Send cookies with CORS requests (default: `false`)
+
 #### Automatically Serializing Body
 
 Popsicle can automatically serialize the request body to a string. If an object is supplied, it'll automatically stringify as JSON unless the `Content-Type` header was set otherwise. If the `Content-Type` is `multipart/form-data` or `application/x-www-form-urlencoded`, it can also be automatically serialized.
@@ -88,7 +97,7 @@ request({
 
 #### Multipart Request Bodies
 
-You can manually create a form data instance by calling `popsicle.form`. When you pass a form data instance, it'll automatically set the correct `Content-Type` too - complete with the boundary.
+You can manually create a form data instance by calling `popsicle.form`. When you pass a form data instance, it'll automatically set the correct `Content-Type` - complete with boundary.
 
 ```javascript
 var form = request.form({
@@ -190,6 +199,20 @@ On node, you can also chain using streams.
 ```javascript
 request('/users')
   .pipe(fs.createWriteStream('users.json'));
+```
+
+#### Cookie Jar (Node only)
+
+You can create a reusable cookie jar instance for requests by calling `popsicle.jar`.
+
+```javascript
+var jar = request.jar();
+
+request({
+  method: 'POST',
+  url: '/users',
+  jar: jar
+});
 ```
 
 ### Response Objects
