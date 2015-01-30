@@ -998,13 +998,13 @@
     var trackRequestProgress = function (self, request) {
       self._request = request;
 
-      function onRequest () {
-        var write = request.req.write;
+      function onRequest (request) {
+        var write = request.write;
 
-        self.uploadTotal = num(request.headers['content-length']);
+        self.uploadTotal = num(request.getHeader('Content-Length'));
 
         // Override `Request.prototype.write` to track amount of sent data.
-        request.req.write = function (data) {
+        request.write = function (data) {
           self._setUploadSize(self.uploadSize + byteLength(data));
 
           return write.apply(this, arguments);
@@ -1012,6 +1012,7 @@
       }
 
       function onResponse (response) {
+        response.on('data', onResponseData);
         self.downloadTotal = num(response.headers['content-length']);
         self._uploadFinished();
       }
@@ -1021,24 +1022,12 @@
         self._setDownloadSize(self.downloadSize + data.length);
       }
 
-      function onResponseEnd () {
-        removeListeners();
-        self._downloadFinished();
-      }
-
-      function removeListeners () {
-        request.removeListener('request', onRequest);
-        request.removeListener('response', onResponse);
-        request.removeListener('data', onResponseData);
-        request.removeListener('end', onResponseEnd);
-        request.removeListener('error', removeListeners);
-      }
+      request.on('redirect', function () {
+        console.log(request.redirects);
+      });
 
       request.on('request', onRequest);
       request.on('response', onResponse);
-      request.on('data', onResponseData);
-      request.on('end', onResponseEnd);
-      request.on('error', removeListeners);
     };
 
     /**
@@ -1079,6 +1068,10 @@
         var opts = requestOptions(self);
 
         var req = request(opts, function (err, response) {
+          // Clean up listeners.
+          delete self._request;
+          self._downloadFinished();
+
           if (err) {
             // Node.js core error (ECONNRESET, EPIPE).
             if (typeof err.code === 'string') {
@@ -1236,8 +1229,7 @@
 
           if (xhr.readyState === 4) {
             // Clean up listeners.
-            delete xhr.onreadystatechange;
-            delete xhr.upload.onprogress;
+            delete self._xhr;
             self._downloadFinished();
 
             if (self._error) {
