@@ -645,6 +645,9 @@
     this.method = (options.method || 'GET').toUpperCase();
     this.query = assign({}, isObject(query) ? query : parseQuery(query));
     this.timeout = options.timeout;
+
+    // Node specific options.
+    this.jar = options.jar;
     this.withCredentials = options.withCredentials === true;
     this.rejectUnauthorized = options.rejectUnauthorized !== false;
 
@@ -843,7 +846,7 @@
   Request.prototype.create = function () {
     // Setup a new promise request if none exists.
     if (!this._promise) {
-      // If already aborted, set the promise to be rejected.
+      // If already aborted, create a rejected promise.
       if (this.aborted) {
         this._promise = Promise.reject(abortError(this));
       } else {
@@ -938,7 +941,7 @@
    */
   if (isNode) {
     var request = require('request');
-    var pkg     = require('./package.json');
+    var version = require('./package.json').version;
 
     /**
      * Return options sanitized for the request module.
@@ -951,10 +954,11 @@
 
       request.url = self.fullUrl();
       request.method = self.method;
+      request.jar = self.jar;
 
       // Set a default user-agent.
       request.headers = assign(self.headers, {
-        'User-Agent': 'node-popsicle/' + pkg.version
+        'User-Agent': 'node-popsicle/' + version
       });
 
       // The `request` module supports form data under a private property.
@@ -1342,6 +1346,21 @@
   popsicle.form = function (params) {
     return toFormData(params);
   };
+
+  /**
+   * Support cookie jars (on Node).
+   *
+   * @return {Object}
+   */
+  if (isNode) {
+    popsicle.jar = function () {
+      return request.jar();
+    };
+  } else {
+    popsicle.jar = function () {
+      throw new Error('Cookie jars are not supported on browsers');
+    };
+  }
 
   /**
    * Alias `Request` and `Response` constructors.
