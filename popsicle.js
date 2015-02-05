@@ -955,10 +955,13 @@
       request.url = self.fullUrl();
       request.method = self.method;
       request.jar = self.jar;
-
-      // Set a default user-agent.
-      request.headers = assign(self.headers, {
+      request.headers = {
         'User-Agent': 'node-popsicle/' + version
+      };
+
+      // Add headers with the correct case names.
+      Object.keys(self.headers).forEach(function (header) {
+        request.headers[self.name(header)] = self.get(header);
       });
 
       // The `request` module supports form data under a private property.
