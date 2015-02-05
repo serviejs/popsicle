@@ -119,7 +119,9 @@ describe('popsicle', function () {
     it('should always send a user agent', function () {
       return popsicle(REMOTE_URL + '/echo/header/user-agent')
         .then(function (res) {
-          var regexp = isNode ? /^node-popsicle\/\d\.\d\.\d$/ : /^Mozilla\/.+$/;
+          var regexp = isNode ?
+            /^node-popsicle\/\d+\.\d+\.\d+$/ :
+            /^Mozilla\/.+$/;
 
           expect(res.body).to.match(regexp);
         });
