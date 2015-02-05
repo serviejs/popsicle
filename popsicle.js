@@ -1029,10 +1029,6 @@
         self._setDownloadSize(self.downloadSize + data.length);
       }
 
-      request.on('redirect', function () {
-        console.log(request.redirects);
-      });
-
       request.on('request', onRequest);
       request.on('response', onResponse);
     };
