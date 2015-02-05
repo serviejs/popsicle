@@ -13,6 +13,8 @@
   var QUERY_MIME_REGEXP = /^application\/x-www-form-urlencoded$/i;
   var FORM_MIME_REGEXP  = /^multipart\/form-data$/i;
 
+  var parseRawHeaders;
+
   if (typeof Promise === 'undefined') {
     var PROMISE_ERROR_MESSAGE = (isNode ? 'global' : 'window') + '.Promise ' +
       'is undefined and should be polyfilled. Check out ' +
@@ -228,6 +230,24 @@
         .replace(/\*/g, '%2A');
     } catch (e) {
       return '';
+    }
+  }
+
+  /**
+   * Append a value to an object using the key.
+   *
+   * @param  {Object} object
+   * @param  {String} key
+   * @param  {String} value
+   * @return {Object}
+   */
+  function append (object, key, value) {
+    if (!object[key]) {
+      object[key] = value;
+    } else if (Array.isArray(object[key])) {
+      object[key].push(value);
+    } else {
+      object[key] = [object[key], value];
     }
   }
 
@@ -1039,7 +1059,7 @@
      * @param  {Object} response
      * @return {Object}
      */
-    var parseRawHeaders = function (response) {
+    parseRawHeaders = function (response) {
       if (!response.rawHeaders) {
         return response.headers;
       }
@@ -1048,7 +1068,10 @@
       var rawHeaders = response.rawHeaders;
 
       for (var i = 0; i < rawHeaders.length; i = i + 2) {
-        headers[rawHeaders[i]] = rawHeaders[i + 1];
+        var name = rawHeaders[i];
+        var value = rawHeaders[i + 1];
+
+        append(headers, name, value);
       }
 
       return headers;
@@ -1169,12 +1192,12 @@
     /**
      * Parse headers from a string.
      *
-     * @param  {String} str
+     * @param  {XMLHttpRequest} xhr
      * @return {Object}
      */
-    var parseHeaders = function (str) {
+    parseRawHeaders = function (xhr) {
       var headers = {};
-      var lines   = str.split(/\r?\n/);
+      var lines   = xhr.getAllResponseHeaders().split(/\r?\n/);
 
       lines.pop();
 
@@ -1184,20 +1207,8 @@
         var name  = header.substr(0, index);
         var value = header.substr(index + 1).trim();
 
-        headers[name] = value;
+        append(headers, name, value);
       });
-
-      return headers;
-    };
-
-    /**
-     * Get all XHR response headers as an object.
-     *
-     * @param  {XMLHttpRequest} xhr
-     * @return {Object}
-     */
-    var getAllResponseHeaders = function (xhr) {
-      var headers = parseHeaders(xhr.getAllResponseHeaders());
 
       return headers;
     };
@@ -1253,7 +1264,7 @@
               raw:     xhr,
               request: self,
               body:    xhr.responseText,
-              headers: getAllResponseHeaders(xhr),
+              headers: parseRawHeaders(xhr),
               status:  xhr.status
             });
 
@@ -1357,7 +1368,7 @@
     };
   } else {
     popsicle.jar = function () {
-      throw new Error('Cookie jars are not supported on browsers');
+      throw new Error('Cookie jars are not supported in browsers');
     };
   }
 
