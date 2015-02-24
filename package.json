@@ -1,6 +1,6 @@
 {
   "name": "popsicle",
-  "version": "0.3.10",
+  "version": "0.3.11",
   "description": "Simple HTTP requests for node and the browser",
   "main": "popsicle.js",
   "files": [
