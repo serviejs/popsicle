@@ -1,5 +1,5 @@
-var path     = require('path');
-var isTravis = require('is-travis');
+var path = require('path')
+var isTravis = require('is-travis')
 
 /**
  * Initialize Karma with config information.
@@ -121,5 +121,5 @@ module.exports = function (config) {
      * @type {Boolean}
      */
     singleRun: false
-  });
-};
+  })
+}
