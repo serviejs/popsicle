@@ -3,6 +3,11 @@
   "version": "0.3.10",
   "description": "Simple HTTP requests for node and the browser",
   "main": "popsicle.js",
+  "files": [
+    "popsicle.js",
+    "LICENSE",
+    "logo.svg"
+  ],
   "browser": {
     "request": false,
     "form-data": false,
