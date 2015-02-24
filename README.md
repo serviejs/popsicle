@@ -1,6 +1,7 @@
 # ![Popsicle](https://cdn.rawgit.com/blakeembrey/popsicle/master/logo.svg)
 
 [![NPM version][npm-image]][npm-url]
+[![NPM downloads][downloads-image]][downloads-url]
 [![Build status][travis-image]][travis-url]
 
 **Popsicle** is designed to be easiest way for making HTTP requests, offering a consistent and intuitive API that works on both node and the browser.
@@ -292,5 +293,7 @@ MIT
 
 [npm-image]: https://img.shields.io/npm/v/popsicle.svg?style=flat
 [npm-url]: https://npmjs.org/package/popsicle
+[downloads-image]: https://img.shields.io/npm/dm/popsicle.svg?style=flat
+[downloads-url]: https://npmjs.org/package/popsicle
 [travis-image]: https://img.shields.io/travis/blakeembrey/popsicle.svg?style=flat
 [travis-url]: https://travis-ci.org/blakeembrey/popsicle
