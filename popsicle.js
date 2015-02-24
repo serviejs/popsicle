@@ -576,17 +576,13 @@
    *
    * @param {Object} options
    */
-  function Response (options) {
+  function Response (raw, request) {
     Headers.call(this)
 
-    this.raw = options.raw
-    this.body = options.body
-    this.status = options.status === 1223 ? 204 : options.status
-    this.request = options.request
+    this.raw = raw
 
-    this.request.response = this
-
-    setHeaders(this, options.headers)
+    this.request = request
+    request.response = this
   }
 
   /**
@@ -1105,13 +1101,11 @@
             return reject(err)
           }
 
-          var res = new Response({
-            raw: response,
-            request: self,
-            body: response.body,
-            status: response.statusCode,
-            headers: parseRawHeaders(response)
-          })
+          var res = new Response(response, self)
+
+          res.body = response.body
+          res.status = response.statusCode
+          res.set(parseRawHeaders(response))
 
           return resolve(res)
         })
@@ -1229,9 +1223,16 @@
 
         var xhr = self._xhr = getXHR()
 
+        var res = new Response(xhr, self)
+
         xhr.onreadystatechange = function () {
           if (xhr.readyState === 2) {
-            self.downloadTotal = num(xhr.getResponseHeader('Content-Length'))
+            // Parse raw headers to avoid errors when reading values.
+            res.set(parseRawHeaders(xhr))
+            res.status = xhr.status === 1223 ? 204 : xhr.status
+
+            // Try setting the total download size.
+            self.downloadTotal = num(res.get('Content-Length'))
 
             // Trigger upload finished after we get the response length.
             // Otherwise, it's possible this method will error and make the
@@ -1258,13 +1259,7 @@
               return reject(unavailableError(self))
             }
 
-            var res = new Response({
-              raw: xhr,
-              request: self,
-              body: xhr.responseText,
-              headers: parseRawHeaders(xhr),
-              status: xhr.status
-            })
+            res.body = xhr.responseText
 
             return resolve(res)
           }
