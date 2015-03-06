@@ -266,7 +266,7 @@ request('/user')
 
 Install dependencies and run the test runners (node and browsers using Karma).
 
-```bash
+```
 npm install && npm test
 ```
 
