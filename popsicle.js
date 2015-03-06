@@ -121,18 +121,6 @@
   }
 
   /**
-   * Create a stream error instance.
-   *
-   * @param  {Popsicle} self
-   * @return {Error}
-   */
-  function streamError (self) {
-    var err = self.error('Request is streaming')
-    err.stream = true
-    return err
-  }
-
-  /**
    * Create a timeout error instance.
    *
    * @param  {Popsicle} self
@@ -828,7 +816,7 @@
   }
 
   /**
-   * Setup the request instance (promises and streams).
+   * Setup the request instance.
    */
   Request.prototype._setup = function () {
     var self = this
@@ -1079,11 +1067,6 @@
     Request.prototype._create = function () {
       var self = this
 
-      // Throw on promise creation if streaming.
-      if (this._stream) {
-        throw streamError(this)
-      }
-
       return new Promise(function (resolve, reject) {
         var opts = requestOptions(self)
 
@@ -1131,36 +1114,6 @@
       if (this._request) {
         this._request.abort()
       }
-    }
-
-    /**
-     * Expose the current request stream.
-     *
-     * @return {Object}
-     */
-    Request.prototype.stream = function () {
-      if (!this._stream) {
-        this._setup()
-
-        // Initialize a streaming request instance.
-        // TODO: Emit a stream error if already aborted.
-        // TODO: Catch stream errors and coerce to popsicle errors.
-        var req = this._stream = request(requestOptions(this))
-
-        trackRequestProgress(this, req)
-      }
-
-      return this._stream
-    }
-
-    /**
-     * Pipe the current response into another stream.
-     *
-     * @param  {Object} stream
-     * @return {Object}
-     */
-    Request.prototype.pipe = function (stream) {
-      return this.stream().pipe(stream)
     }
   } else {
     /**

@@ -158,6 +158,20 @@ req.then(function (res) {
 });
 ```
 
+#### Cookie Jar (Node only)
+
+You can create a reusable cookie jar instance for requests by calling `popsicle.jar`.
+
+```javascript
+var jar = request.jar();
+
+request({
+  method: 'POST',
+  url: '/users',
+  jar: jar
+});
+```
+
 ### Handling Responses
 
 Popsicle responses can be handled in multiple ways. Promises, node-style callbacks and streams (node only) are all supported.
@@ -189,31 +203,6 @@ request('/users')
 
     // Success!
   });
-```
-
-#### Streams (Node only)
-
-**Incomplete: Emits incorrect errors**
-
-On node, you can also chain using streams.
-
-```javascript
-request('/users')
-  .pipe(fs.createWriteStream('users.json'));
-```
-
-#### Cookie Jar (Node only)
-
-You can create a reusable cookie jar instance for requests by calling `popsicle.jar`.
-
-```javascript
-var jar = request.jar();
-
-request({
-  method: 'POST',
-  url: '/users',
-  jar: jar
-});
 ```
 
 ### Response Objects
