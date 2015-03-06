@@ -550,6 +550,179 @@ describe('popsicle', function () {
     })
   })
 
+  describe('plugin', function () {
+    it('should be able to modify the request', function () {
+      var req = popsicle(REMOTE_URL + '/echo')
+      var used = false
+
+      req.use(function (self) {
+        used = true
+        expect(self).to.equal(req)
+      })
+
+      return req
+        .then(function () {
+          expect(used).to.be.true
+        })
+    })
+  })
+
+  describe('request flow', function () {
+    describe('before', function () {
+      it('should be able to run a function before opening the request', function () {
+        var req = popsicle(REMOTE_URL + '/echo')
+        var before = false
+
+        req.before(function (request) {
+          before = true
+          expect(request).to.be.an.instanceOf(popsicle.Request)
+          expect(request.response).to.not.exist
+        })
+
+        return req
+          .then(function () {
+            expect(before).to.be.true
+          })
+      })
+
+      it('should be able to fail the request before starting', function () {
+        var req = popsicle(REMOTE_URL + '/echo')
+        var failed = false
+
+        req.before(function () {
+          throw new Error('Hello world!')
+        })
+
+        return req
+          .catch(function (err) {
+            failed = true
+            expect(err.message).to.equal('Hello world!')
+          })
+          .then(function () {
+            expect(failed).to.be.true
+          })
+      })
+
+      it('should accept a promise to delay the request', function () {
+        var req = popsicle(REMOTE_URL + '/echo')
+        var before = false
+
+        req.before(function () {
+          return new Promise(function (resolve) {
+            setTimeout(function () {
+              before = true
+              resolve()
+            }, 10)
+          })
+        })
+
+        return req
+          .then(function () {
+            expect(before).to.be.true
+          })
+      })
+    })
+
+    describe('after', function () {
+      it('should run with the response, after before', function () {
+        var req = popsicle(REMOTE_URL + '/echo')
+        var after = false
+        var before = false
+
+        req.before(function () {
+          before = true
+        })
+
+        req.after(function (response) {
+          after = true
+          expect(before).to.be.true
+          expect(response).to.be.an.instanceOf(popsicle.Response)
+          expect(response.request).to.equal(req)
+        })
+
+        return req
+          .then(function () {
+            expect(after).to.be.true
+          })
+      })
+
+      it('should accept a promise', function () {
+        var req = popsicle(REMOTE_URL + '/echo')
+        var after = false
+
+        req.after(function (response) {
+          return new Promise(function (resolve) {
+            expect(response).to.be.an.instanceOf(popsicle.Response)
+
+            setTimeout(function () {
+              after = true
+              resolve()
+            }, 10)
+          })
+        })
+
+        return req
+          .then(function () {
+            expect(after).to.be.true
+          })
+      })
+    })
+
+    describe('always', function () {
+      it('should run on success, after before and after', function () {
+        var req = popsicle(REMOTE_URL + '/echo')
+        var before = false
+        var after = false
+        var always = false
+
+        req.before(function () {
+          before = true
+        })
+
+        req.after(function () {
+          after = true
+        })
+
+        req.always(function (request) {
+          always = true
+          expect(before).to.be.true
+          expect(after).to.be.true
+          expect(request).to.equal(req)
+        })
+
+        return req
+          .then(function () {
+            expect(always).to.be.true
+          })
+      })
+
+      it('should run on error', function () {
+        var req = popsicle(REMOTE_URL + '/echo')
+        var always = false
+        var errored = false
+
+        req.before(function () {
+          throw new Error('Testing')
+        })
+
+        req.always(function (request) {
+          always = true
+          expect(request).to.equal(req)
+        })
+
+        return req
+          .catch(function (err) {
+            errored = true
+            expect(err.message).to.equal('Testing')
+          })
+          .then(function () {
+            expect(always).to.be.true
+            expect(errored).to.be.true
+          })
+      })
+    })
+  })
+
   if (isNode) {
     describe('cookie jar', function () {
       it('should work with a cookie jar', function () {

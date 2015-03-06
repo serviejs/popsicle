@@ -245,9 +245,9 @@ A simple plugin interface is exposed through `Request#use`.
 * [Prefix](https://github.com/blakeembrey/popsicle-prefix) - Automatically prefix all HTTP requests
 * [Constants](https://github.com/blakeembrey/popsicle-constants) - Replace constants in the URL string
 
-#### Using Plugins
+#### Creating Plugins
 
-Plugins should expose a single function that accepts a `Request` instance. For example:
+Plugins must be a function that accepts configuration and returns another function. For example, here's a basic URL prefix plugin.
 
 ```javascript
 function prefix (url) {
@@ -263,6 +263,12 @@ request('/user')
   });
 ```
 
+If you need to augment the request or response lifecycle, there are a number of functions you can register. All listeners accept an optional promise that will resolve before proceeding.
+
+* **before(fn)** Register a function to run before the request is made
+* **after(fn)** Register a function to receive the response object
+* **always(fn)** Register a function that always runs on `resolve` or `reject`
+
 ## Development and Testing
 
 Install dependencies and run the test runners (node and browsers using Karma).
@@ -273,9 +279,9 @@ npm install && npm test
 
 ## Related Projects
 
-* [Superagent](https://github.com/visionmedia/superagent) - HTTP requests on node and browser
+* [Superagent](https://github.com/visionmedia/superagent) - HTTP requests for node and browsers
 * [Fetch](https://github.com/github/fetch) - Browser polyfill for promise-based HTTP requests
-* [Axios](https://github.com/mzabriskie/axios) - Similar API based on Angular's $http service
+* [Axios](https://github.com/mzabriskie/axios) - HTTP request API based on Angular's $http service
 
 ## License
 

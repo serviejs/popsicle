@@ -1,6 +1,14 @@
 /* global define */
 
-(function () {
+(function (root, factory) {
+  if (typeof define === 'function' && define.amd) {
+    define([], factory)
+  } else if (typeof exports === 'object') {
+    module.exports = factory()
+  } else {
+    root.popsicle = factory()
+  }
+})(this, function () {
   var isNode = typeof window === 'undefined'
   var root = isNode ? global : window
   var Buffer = isNode ? require('buffer').Buffer : null
@@ -15,6 +23,8 @@
   var QUERY_MIME_REGEXP = /^application\/x-www-form-urlencoded$/i
   var FORM_MIME_REGEXP = /^multipart\/form-data$/i
 
+  var abortRequest
+  var createRequest
   var parseRawHeaders
 
   if (typeof Promise === 'undefined') {
@@ -120,18 +130,20 @@
    * @return {Error}
    */
   function abortError (self) {
-    var timeout = self.timeout
-    var err
-
-    if (self.timedout) {
-      err = self.error('Timeout of ' + timeout + 'ms exceeded')
-      err.timeout = timeout
-    } else {
-      err = self.error('Request aborted')
-      err.abort = true
+    if (self._error) {
+      return self._error
     }
 
-    return err
+    if (!self.timedout) {
+      var abortedError = self.error('Request aborted')
+      abortedError.abort = true
+      return abortedError
+    }
+
+    var timeout = self.timeout
+    var timedoutError = self.error('Timeout of ' + timeout + 'ms exceeded')
+    timedoutError.timeout = timeout
+    return timedoutError
   }
 
   /**
@@ -390,7 +402,7 @@
    * Automatically parse the response body.
    *
    * @param  {Response} response
-   * @return {Response}
+   * @return {Promise}
    */
   function parseResponse (response) {
     var body = response.body
@@ -409,10 +421,8 @@
         response.body = parseQuery(body)
       }
     } catch (e) {
-      throw parseError(response, e)
+      return Promise.reject(parseError(response, e))
     }
-
-    return response
   }
 
   /**
@@ -440,6 +450,30 @@
     // and the browser will ses it on `xhr.send` (when it's not already set).
     if (request.body instanceof FormData) {
       request.remove('Content-Type')
+    }
+  }
+
+  /**
+   * Remove all listener functions.
+   *
+   * @param {Request} request
+   */
+  function removeListeners (request) {
+    delete request._before
+    delete request._after
+    delete request._always
+    delete request._progress
+  }
+
+  /**
+   * Check if the request has been aborted before starting.
+   *
+   * @param  {Request} request
+   * @return {Promise}
+   */
+  function checkAborted (request) {
+    if (request.aborted) {
+      return Promise.reject(abortError(request))
     }
   }
 
@@ -474,6 +508,17 @@
   }
 
   /**
+   * Set the request to error outside the normal request execution flow.
+   *
+   * @param {Request} req
+   * @param {Error}   err
+   */
+  function errored (req, err) {
+    req._error = err
+    req.abort()
+  }
+
+  /**
    * Emit a request progress event (upload or download).
    *
    * @param {Array<Function>} fns
@@ -488,7 +533,7 @@
         fns[i](req)
       }
     } catch (e) {
-      req._errored(e)
+      errored(req, e)
     }
   }
 
@@ -557,18 +602,93 @@
    * @param  {String}   prop
    * @return {Function}
    */
-  function pushPropertyFn (prop) {
+  function pushListener (prop) {
     return function (fn) {
-      if (this.completed) {
-        return this
+      if (this.opened) {
+        throw new Error('Listeners can not be added after request has started')
+      }
+
+      if (typeof fn !== 'function') {
+        throw new TypeError('Expected a function but got ' + fn)
       }
 
       this[prop] = this[prop] || []
-
       this[prop].push(fn)
-
       return this
     }
+  }
+
+  /**
+   * Create a promise chain.
+   *
+   * @param  {Array}   fns
+   * @param  {*}       arg
+   * @return {Promise}
+   */
+  function chain (fns, arg) {
+    return fns.reduce(function (promise, fn) {
+      return promise.then(function () {
+        return fn(arg)
+      })
+    }, Promise.resolve())
+  }
+
+  /**
+   * Setup the request instance.
+   *
+   * @param {Request} self
+   */
+  function setup (self) {
+    var timeout = self.timeout
+
+    if (timeout) {
+      self._timer = setTimeout(function () {
+        self.timedout = true
+        self.abort()
+      }, timeout)
+    }
+
+    // Set the request to "opened", disables any new listeners.
+    self.opened = true
+
+    return chain(self._before, self)
+      .then(function () {
+        return createRequest(self)
+      })
+      .then(function (response) {
+        response.request = self
+        self.response = response
+
+        return chain(self._after, response)
+      })
+      .catch(function (err) {
+        function reject () {
+          return Promise.reject(err)
+        }
+
+        return chain(self._always, self).then(reject)
+      })
+      .then(function () {
+        return chain(self._always, self)
+      })
+      .then(function () {
+        return self.response
+      })
+  }
+
+  /**
+   * Create the HTTP request promise.
+   *
+   * @param  {Request} self
+   * @return {Promise}
+   */
+  function create (self) {
+    // Setup a new promise request if none exists.
+    if (!self._promise) {
+      self._promise = setup(self)
+    }
+
+    return self._promise
   }
 
   /**
@@ -657,9 +777,6 @@
    */
   function Response (request) {
     Headers.call(this)
-
-    this.request = request
-    request.response = this
   }
 
   /**
@@ -754,6 +871,7 @@
     setHeaders(this, options.headers)
 
     // Request state.
+    this.opened = false
     this.aborted = false
 
     // Parse query strings already set.
@@ -765,6 +883,15 @@
       // Copy url query parameters onto query object.
       assign(this.query, parseQuery(options.url.substr(queryIndex + 1)))
     }
+
+    this.before(checkAborted)
+    this.before(defaultAccept)
+    this.before(stringifyRequest)
+    this.before(correctType)
+
+    this.after(parseResponse)
+
+    this.always(removeListeners)
   }
 
   /**
@@ -795,9 +922,10 @@
    * @param  {Function} fn
    * @return {Request}
    */
-  Request.prototype.before = pushPropertyFn('_before')
-  Request.prototype.after = pushPropertyFn('_after')
-  Request.prototype.progress = pushPropertyFn('_progress')
+  Request.prototype.before = pushListener('_before')
+  Request.prototype.after = pushListener('_after')
+  Request.prototype.always = pushListener('_always')
+  Request.prototype.progress = pushListener('_progress')
 
   /**
    * Allows request plugins.
@@ -808,54 +936,6 @@
     fn(this)
 
     return this
-  }
-
-  /**
-   * Setup the request instance.
-   */
-  Request.prototype._setup = function () {
-    var self = this
-    var timeout = this.timeout
-
-    this.use(defaultAccept)
-    this.use(stringifyRequest)
-    this.use(correctType)
-
-    this.progress(function (e) {
-      if (e.completed === 1) {
-        delete self._before
-        delete self._after
-        delete self._progress
-      }
-    })
-
-    if (timeout) {
-      this._timer = setTimeout(function () {
-        self.timedout = true
-        self.abort()
-      }, timeout)
-    }
-  }
-
-  /**
-   * Trigger the HTTP request.
-   *
-   * @return {Promise}
-   */
-  Request.prototype.create = function () {
-    // Setup a new promise request if none exists.
-    if (!this._promise) {
-      // If already aborted, create a rejected promise.
-      if (this.aborted) {
-        this._promise = Promise.reject(abortError(this))
-      } else {
-        this._setup()
-
-        this._promise = this._create().then(parseResponse)
-      }
-    }
-
-    return this._promise
   }
 
   /**
@@ -874,21 +954,11 @@
     this.downloaded = this.uploaded = this.completed = 1
 
     // Abort and emit the final progress event.
-    this._abort()
+    abortRequest(this)
     emitProgress(this, this._progress)
     clearTimeout(this._timer)
 
     return this
-  }
-
-  /**
-   * Trigger a request-related error that should break requests.
-   *
-   * @param {Error} err
-   */
-  Request.prototype._errored = function (err) {
-    this._error = err
-    this.abort()
   }
 
   /**
@@ -911,7 +981,7 @@
   Request.prototype.exec = function exec (cb) {
     this.then(function (value) {
       cb(null, value)
-    }, cb)
+    }).catch(cb)
   }
 
   /**
@@ -922,17 +992,17 @@
    * @return {Promise}
    */
   Request.prototype.then = function (onFulfilled, onRejected) {
-    return this.create().then(onFulfilled, onRejected)
+    return create(this).then(onFulfilled, onRejected)
   }
 
   /**
    * Standard promise error handling.
    *
-   * @param  {Function} cb
+   * @param  {Function} onRejected
    * @return {Promise}
    */
   Request.prototype['catch'] = function (onRejected) {
-    return this.create()['catch'](onRejected)
+    return this.then(null, onRejected)
   }
 
   /**
@@ -1002,8 +1072,6 @@
      * @param {request} request
      */
     var trackRequestProgress = function (self, request) {
-      self._request = request
-
       function onRequest (request) {
         var write = request.write
 
@@ -1059,11 +1127,10 @@
     /**
      * Trigger the request in node.
      *
+     * @param  {Request} self
      * @return {Promise}
      */
-    Request.prototype._create = function () {
-      var self = this
-
+    createRequest = function (self) {
       return new Promise(function (resolve, reject) {
         var opts = requestOptions(self)
 
@@ -1081,9 +1148,8 @@
             return reject(err)
           }
 
-          var res = new Response(self)
+          var res = new Response()
 
-          res.raw = response
           res.body = response.body
           res.status = response.statusCode
           res.set(parseRawHeaders(response))
@@ -1092,13 +1158,10 @@
         })
 
         req.on('abort', function () {
-          if (self._error) {
-            return reject(self._error)
-          }
-
           return reject(abortError(self))
         })
 
+        self._request = req
         trackRequestProgress(self, req)
       })
     }
@@ -1106,11 +1169,11 @@
     /**
      * Abort a running node request.
      *
-     * @return {Request}
+     * @param {Request} self
      */
-    Request.prototype._abort = function () {
-      if (this._request) {
-        this._request.abort()
+    abortRequest = function (self) {
+      if (self._request) {
+        self._request.abort()
       }
     }
   } else {
@@ -1159,21 +1222,21 @@
     /**
      * Trigger the request in a browser.
      *
+     * @param  {Request} self
      * @return {Promise}
      */
-    Request.prototype._create = function () {
-      var self = this
-      var url = self.fullUrl()
-      var method = self.method
-      var res = new Response(self)
-
+    createRequest = function (self) {
       return new Promise(function (resolve, reject) {
+        var url = self.fullUrl()
+        var method = self.method
+        var res = new Response()
+
         // Loading HTTP resources from HTTPS is restricted and uncatchable.
         if (window.location.protocol === 'https:' && /^http\:/.test(url)) {
           return reject(blockedError(self))
         }
 
-        var xhr = self._xhr = res.raw = getXHR()
+        var xhr = self._xhr = getXHR()
 
         xhr.onreadystatechange = function () {
           if (xhr.readyState === 2) {
@@ -1194,10 +1257,6 @@
             // Clean up listeners.
             delete self._xhr
             setDownloadFinished(self)
-
-            if (self._error) {
-              return reject(self._error)
-            }
 
             // Handle the aborted state internally, PhantomJS doesn't reset
             // `xhr.status` to zero on abort.
@@ -1263,10 +1322,12 @@
 
     /**
      * Abort a running XMLHttpRequest.
+     *
+     * @param {Request} self
      */
-    Request.prototype._abort = function () {
-      if (this._xhr) {
-        this._xhr.abort()
+    abortRequest = function (self) {
+      if (self._xhr) {
+        self._xhr.abort()
       }
     }
   }
@@ -1311,7 +1372,7 @@
     }
   } else {
     popsicle.jar = function () {
-      throw new Error('Cookie jars are not supported in browsers')
+      throw new Error('Cookie jars are not supported on the browser')
     }
   }
 
@@ -1321,13 +1382,5 @@
   popsicle.Request = Request
   popsicle.Response = Response
 
-  if (typeof define === 'function' && define.amd) {
-    define([], function () {
-      return popsicle
-    })
-  } else if (typeof exports === 'object') {
-    module.exports = popsicle
-  } else {
-    root.popsicle = popsicle
-  }
-})()
+  return popsicle
+})

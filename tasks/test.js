@@ -12,7 +12,7 @@ gulp.task('test:browser', ['server'], function (done) {
 
 gulp.task('test:node', ['server'], function () {
   return gulp.src(['test/support/*.js', 'test/*.js'], { read: false })
-    .pipe(mocha({ reporter: 'spec' }))
+    .pipe(mocha({ reporter: 'spec', bail: true }))
 })
 
 gulp.task('test', ['test:browser', 'test:node'])
