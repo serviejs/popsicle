@@ -249,9 +249,9 @@ A simple plugin interface is exposed through `Request#use` and promises.
 Plugins should expose a single function that accepts a `Request` instance. For example:
 
 ```javascript
-function prefix (uri) {
+function prefix (url) {
   return function (req) {
-    req.url = uri + req.url;
+    req.url = url + req.url;
   };
 }
 
