@@ -174,7 +174,7 @@ request({
 
 ### Handling Responses
 
-Popsicle responses can be handled in multiple ways. Promises, node-style callbacks and streams (node only) are all supported.
+Promises and node-style callbacks are supported.
 
 #### Promises
 
@@ -218,6 +218,7 @@ Every Popsicle response will give a `Response` object on success. The object pro
 * **clientError()** Return a boolean indicating a HTTP status code between 400 and 499
 * **serverError()** Return a boolean indicating a HTTP status code between 500 and 599
 * **get(key)** Retrieve a HTTP header using a case-insensitive key
+* **name(key)** Retrieve the original HTTP header name using a case-insensitive key
 * **type()** Return the response type (E.g. `application/json`)
 
 ### Error Handling
@@ -233,7 +234,7 @@ All response handling methods can return an error. The errors can be categorized
 
 ### Plugins
 
-A simple plugin interface is exposed through `Request#use` and promises.
+A simple plugin interface is exposed through `Request#use`.
 
 #### Existing Plugins
 
