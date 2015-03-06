@@ -562,12 +562,10 @@
   /**
    * Create a response instance.
    *
-   * @param {Object} options
+   * @param {Request} request
    */
-  function Response (raw, request) {
+  function Response (request) {
     Headers.call(this)
-
-    this.raw = raw
 
     this.request = request
     request.response = this
@@ -1084,8 +1082,9 @@
             return reject(err)
           }
 
-          var res = new Response(response, self)
+          var res = new Response(self)
 
+          res.raw = response
           res.body = response.body
           res.status = response.statusCode
           res.set(parseRawHeaders(response))
@@ -1167,6 +1166,7 @@
       var self = this
       var url = self.fullUrl()
       var method = self.method
+      var res = new Response(self)
 
       return new Promise(function (resolve, reject) {
         // Loading HTTP resources from HTTPS is restricted and uncatchable.
@@ -1174,9 +1174,7 @@
           return reject(blockedError(self))
         }
 
-        var xhr = self._xhr = getXHR()
-
-        var res = new Response(xhr, self)
+        var xhr = self._xhr = res.raw = getXHR()
 
         xhr.onreadystatechange = function () {
           if (xhr.readyState === 2) {
