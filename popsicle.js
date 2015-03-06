@@ -46,29 +46,22 @@
   /**
    * Create a function to set progress properties on a request instance.
    *
-   * @param  {Object}   obj
    * @param  {String}   property
    * @param  {String}   callback
    * @return {Function}
    */
-  function setProgress (obj, property, callback) {
-    var method = '_set' + property.charAt(0).toUpperCase() + property.slice(1)
-
-    /**
-     * Create the progress update method.
-     *
-     * @param {Number} num
-     */
-    obj[method] = function (num) {
-      if (this[property] === num) {
+  function setProgress (property, callback) {
+    return function (req, num) {
+      if (req[property] === num) {
         return
       }
 
-      this[property] = num
+      req[property] = num
 
-      this[callback]()
-      this._completed()
-      this._emitProgress()
+      callback(req)
+      req.completed = (req.uploaded + req.downloaded) / 2
+
+      emitProgress(req, req._progress)
     }
   }
 
@@ -481,6 +474,104 @@
   }
 
   /**
+   * Emit a request progress event (upload or download).
+   *
+   * @param {Array<Function>} fns
+   */
+  function emitProgress (req, fns) {
+    if (!fns || req._error) {
+      return
+    }
+
+    try {
+      for (var i = 0; i < fns.length; i++) {
+        fns[i](req)
+      }
+    } catch (e) {
+      req._errored(e)
+    }
+  }
+
+  /**
+   * Set upload progress properties.
+   *
+   * @type  {Function}
+   * @param {Number}   num
+   */
+  var setUploadSize = setProgress('uploadSize', function (req) {
+    var n = req.uploaded
+    var size = req.uploadSize
+    var total = req.uploadTotal
+
+    req.uploaded = calc(n, size, total)
+  })
+
+  /**
+   * Set download progress properties.
+   *
+   * @type  {Function}
+   * @param {Number}   num
+   */
+  var setDownloadSize = setProgress('downloadSize', function (req) {
+    var n = req.downloaded
+    var size = req.downloadSize
+    var total = req.downloadTotal
+
+    req.downloaded = calc(n, size, total)
+  })
+  /**
+   * Finished uploading.
+   *
+   * @param {Request} req
+   */
+  function setUploadFinished (req) {
+    if (req.uploaded === 1) {
+      return
+    }
+
+    req.uploaded = 1
+    req.completed = 0.5
+
+    emitProgress(req, req._progress)
+  }
+
+  /**
+   * Finished downloading.
+   *
+   * @param {Request} req
+   */
+  function setDownloadFinished (req) {
+    if (req.downloaded === 1) {
+      return
+    }
+
+    req.downloaded = 1
+    req.completed = 1
+
+    emitProgress(req, req._progress)
+  }
+
+  /**
+   * Create a function for pushing functions onto a stack.
+   *
+   * @param  {String}   prop
+   * @return {Function}
+   */
+  function pushPropertyFn (prop) {
+    return function (fn) {
+      if (this.completed) {
+        return this
+      }
+
+      this[prop] = this[prop] || []
+
+      this[prop].push(fn)
+
+      return this
+    }
+  }
+
+  /**
    * Keep track of headers in a single instance.
    */
   function Headers () {
@@ -699,108 +790,14 @@
   }
 
   /**
-   * Track request completion progress.
+   * Track various request states.
    *
    * @param  {Function} fn
    * @return {Request}
    */
-  Request.prototype.progress = function (fn) {
-    if (this.completed) {
-      return this
-    }
-
-    this._progressFns = this._progressFns || []
-
-    this._progressFns.push(fn)
-
-    return this
-  }
-
-  /**
-   * Set upload progress properties.
-   *
-   * @private
-   * @type  {Function}
-   * @param {Number}   num
-   */
-  setProgress(Request.prototype, 'uploadSize', '_uploaded')
-  setProgress(Request.prototype, 'downloadSize', '_downloaded')
-
-  /**
-   * Calculate the uploaded percentage.
-   */
-  Request.prototype._uploaded = function () {
-    var n = this.uploaded
-    var size = this.uploadSize
-    var total = this.uploadTotal
-
-    this.uploaded = calc(n, size, total)
-  }
-
-  /**
-   * Calculate the downloaded percentage.
-   */
-  Request.prototype._downloaded = function () {
-    var n = this.downloaded
-    var size = this.downloadSize
-    var total = this.downloadTotal
-
-    this.downloaded = calc(n, size, total)
-  }
-
-  /**
-   * Update the completed percentage.
-   */
-  Request.prototype._completed = function () {
-    this.completed = (this.uploaded + this.downloaded) / 2
-  }
-
-  /**
-   * Emit a request progress event (upload or download).
-   */
-  Request.prototype._emitProgress = function () {
-    var fns = this._progressFns
-
-    if (!fns || this._error) {
-      return
-    }
-
-    try {
-      for (var i = 0; i < fns.length; i++) {
-        fns[i](this)
-      }
-    } catch (e) {
-      this._errored(e)
-    }
-  }
-
-  /**
-   * Finished uploading.
-   */
-  Request.prototype._uploadFinished = function () {
-    if (this.uploaded === 1) {
-      return
-    }
-
-    this.uploaded = 1
-    this.completed = 0.5
-
-    this._emitProgress()
-  }
-
-  /**
-   * Finished downloading.
-   */
-  Request.prototype._downloadFinished = function () {
-    if (this.downloaded === 1) {
-      return
-    }
-
-    this.downloaded = 1
-    this.completed = 1
-
-    this._emitProgress()
-  }
+  Request.prototype.before = pushPropertyFn('_before')
+  Request.prototype.after = pushPropertyFn('_after')
+  Request.prototype.progress = pushPropertyFn('_progress')
 
   /**
    * Allows request plugins.
@@ -826,7 +823,9 @@
 
     this.progress(function (e) {
       if (e.completed === 1) {
-        delete self._progressFns
+        delete self._before
+        delete self._after
+        delete self._progress
       }
     })
 
@@ -876,7 +875,7 @@
 
     // Abort and emit the final progress event.
     this._abort()
-    this._emitProgress()
+    emitProgress(this, this._progress)
     clearTimeout(this._timer)
 
     return this
@@ -1012,7 +1011,7 @@
 
         // Override `Request.prototype.write` to track amount of sent data.
         request.write = function (data) {
-          self._setUploadSize(self.uploadSize + byteLength(data))
+          setUploadSize(self, self.uploadSize + byteLength(data))
 
           return write.apply(this, arguments)
         }
@@ -1021,12 +1020,12 @@
       function onResponse (response) {
         response.on('data', onResponseData)
         self.downloadTotal = num(response.headers['content-length'])
-        self._uploadFinished()
+        setUploadFinished(self)
       }
 
       function onResponseData (data) {
         // Data should always be a `Buffer` instance.
-        self._setDownloadSize(self.downloadSize + data.length)
+        setDownloadSize(self, self.downloadSize + data.length)
       }
 
       request.on('request', onRequest)
@@ -1071,7 +1070,7 @@
         var req = request(opts, function (err, response) {
           // Clean up listeners.
           delete self._request
-          self._downloadFinished()
+          setDownloadFinished(self)
 
           if (err) {
             // Node.js core error (ECONNRESET, EPIPE).
@@ -1188,13 +1187,13 @@
             // Trigger upload finished after we get the response length.
             // Otherwise, it's possible this method will error and make the
             // `xhr` object invalid.
-            self._uploadFinished()
+            setUploadFinished(self)
           }
 
           if (xhr.readyState === 4) {
             // Clean up listeners.
             delete self._xhr
-            self._downloadFinished()
+            setDownloadFinished(self)
 
             if (self._error) {
               return reject(self._error)
@@ -1222,7 +1221,7 @@
             self.downloadTotal = e.total
           }
 
-          self._setDownloadSize(e.loaded)
+          setDownloadSize(self, e.loaded)
         }
 
         // No upload will occur with these requests.
@@ -1230,14 +1229,14 @@
           xhr.upload = {}
 
           self.uploadTotal = 0
-          self._setUploadSize(0)
+          setUploadSize(self, 0)
         } else {
           xhr.upload.onprogress = function (e) {
             if (e.lengthComputable) {
               self.uploadTotal = e.total
             }
 
-            self._setUploadSize(e.loaded)
+            setUploadSize(self, e.loaded)
           }
         }
 
