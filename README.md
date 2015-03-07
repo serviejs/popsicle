@@ -244,6 +244,7 @@ A simple plugin interface is exposed through `Request#use`.
 * [Basic Auth](https://github.com/blakeembrey/popsicle-basic-auth) - Add basic authentication to requests
 * [Prefix](https://github.com/blakeembrey/popsicle-prefix) - Automatically prefix all HTTP requests
 * [Constants](https://github.com/blakeembrey/popsicle-constants) - Replace constants in the URL string
+* [Limit](https://github.com/blakeembrey/popsicle-limit) - Transparently handle API rate limits
 
 #### Creating Plugins
 
