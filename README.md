@@ -9,8 +9,8 @@
 ```javascript
 request('/users.json')
   .then(function (res) {
-    console.log(res.body); //=> { ... }
-  });
+    console.log(res.body) //=> { ... }
+  })
 ```
 
 ## Installation
@@ -31,17 +31,17 @@ Apply the polyfill.
 
 ```javascript
 // Node and browserify
-require('es6-promise').polyfill();
+require('es6-promise').polyfill()
 
 // Browsers
-window.ES6Promise.polyfill();
+window.ES6Promise.polyfill()
 ```
 
 ## Usage
 
 ```javascript
-var request = require('popsicle');
-// var request = window.popsicle;
+var request = require('popsicle')
+// var request = window.popsicle
 
 request({
   method: 'POST',
@@ -55,10 +55,10 @@ request({
   }
 })
   .then(function (res) {
-    console.log(res.status); // => 200
-    console.log(res.body); //=> { ... }
-    console.log(res.get('Content-Type')); //=> 'application/json'
-  });
+    console.log(res.status) // => 200
+    console.log(res.body) //=> { ... }
+    console.log(res.get('Content-Type')) //=> 'application/json'
+  })
 ```
 
 ### Handling Requests
@@ -93,7 +93,7 @@ request({
   headers: {
     'Content-Type': 'multipart/form-data'
   }
-});
+})
 ```
 
 #### Multipart Request Bodies
@@ -104,13 +104,13 @@ You can manually create a form data instance by calling `popsicle.form`. When yo
 var form = request.form({
   name: 'Blake Embrey',
   image: '...'
-});
+})
 
 request({
   method: 'POST',
   url: '/users',
   body: form
-});
+})
 ```
 
 #### Aborting Requests
@@ -118,15 +118,15 @@ request({
 All requests can be aborted during execution by calling `Request#abort`. Requests won't normally start until chained anyway, but this will also abort the request before it starts.
 
 ```javascript
-var req = request('http://example.com');
+var req = request('http://example.com')
 
 setTimeout(function () {
-  req.abort();
-}, 100);
+  req.abort()
+}, 100)
 
 req.catch(function (err) {
-  console.log(err); //=> { message: 'Request aborted', aborted: true }
-});
+  console.log(err) //=> { message: 'Request aborted', aborted: true }
+})
 ```
 
 #### Progress
@@ -144,18 +144,18 @@ The request object can also be used to check progress at any time.
 All percentage properties (`req.uploaded`, `req.downloaded`, `req.completed`) will be a number between `0` and `1`. When the total size is unknown (no `Content-Length` header), the percentage will automatically increment on each chunk of data returned (this will not be accurate). Aborting a request will automatically emit a completed progress event.
 
 ```javascript
-var req = request('http://example.com');
+var req = request('http://example.com')
 
-req.uploaded; //=> 0
-req.downloaded; //=> 0
+req.uploaded //=> 0
+req.downloaded //=> 0
 
 req.progress(function (e) {
-  console.log(e); //=> { uploaded: 1, downloaded: 0, completed: 0.5, aborted: false }
-});
+  console.log(e) //=> { uploaded: 1, downloaded: 0, completed: 0.5, aborted: false }
+})
 
 req.then(function (res) {
-  console.log(req.downloaded); //=> 1
-});
+  console.log(req.downloaded) //=> 1
+})
 ```
 
 #### Cookie Jar (Node only)
@@ -163,13 +163,13 @@ req.then(function (res) {
 You can create a reusable cookie jar instance for requests by calling `popsicle.jar`.
 
 ```javascript
-var jar = request.jar();
+var jar = request.jar()
 
 request({
   method: 'POST',
   url: '/users',
   jar: jar
-});
+})
 ```
 
 ### Handling Responses
@@ -187,7 +187,7 @@ request('/users')
   })
   .catch(function (err) {
     // Something broke.
-  });
+  })
 ```
 
 #### Callbacks
@@ -202,7 +202,7 @@ request('/users')
     }
 
     // Success!
-  });
+  })
 ```
 
 ### Response Objects
@@ -252,15 +252,15 @@ Plugins must be a function that accepts configuration and returns another functi
 ```javascript
 function prefix (url) {
   return function (req) {
-    req.url = url + req.url;
-  };
+    req.url = url + req.url
+  }
 }
 
 request('/user')
   .use(prefix('http://example.com'))
   .then(function (res) {
-    console.log(res.request.url); //=> "http://example.com/user"
-  });
+    console.log(res.request.url) //=> "http://example.com/user"
+  })
 ```
 
 If you need to augment the request or response lifecycle, there are a number of functions you can register. All listeners accept an optional promise that will resolve before proceeding.
