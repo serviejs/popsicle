@@ -23,7 +23,8 @@
   var QUERY_MIME_REGEXP = /^application\/x-www-form-urlencoded$/i
   var FORM_MIME_REGEXP = /^multipart\/form-data$/i
 
-  var abortRequest
+  var jar
+  var isHostObject
   var createRequest
   var parseRawHeaders
 
@@ -219,13 +220,9 @@
       return ''
     }
 
-    try {
-      return encodeURIComponent(str)
-        .replace(/[!'()]/g, root.escape)
-        .replace(/\*/g, '%2A')
-    } catch (e) {
-      return ''
-    }
+    return encodeURIComponent(str)
+      .replace(/[!'()]/g, root.escape)
+      .replace(/\*/g, '%2A')
   }
 
   /**
@@ -315,40 +312,12 @@
   }
 
   /**
-   * Check whether the object is already natively supported.
-   *
-   * @param  {*}       object
-   * @return {Boolean}
-   */
-  var isHostObject
-
-  if (isNode) {
-    isHostObject = function (object) {
-      return object instanceof Buffer || object instanceof FormData
-    }
-  } else {
-    isHostObject = function (object) {
-      var str = Object.prototype.toString.call(object)
-
-      switch (str) {
-        case '[object File]':
-        case '[object Blob]':
-        case '[object FormData]':
-        case '[object ArrayBuffer]':
-          return true
-        default:
-          return false
-      }
-    }
-  }
-
-  /**
    * Convert an object into a form data instance.
    *
    * @param  {Object}   parameters
    * @return {FormData}
    */
-  function toFormData (obj) {
+  function form (obj) {
     var form = new FormData()
 
     if (Object(obj) === obj) {
@@ -392,7 +361,7 @@
     if (JSON_MIME_REGEXP.test(type)) {
       request.body = JSON.stringify(body)
     } else if (FORM_MIME_REGEXP.test(type)) {
-      request.body = toFormData(body)
+      request.body = form(body)
     } else if (QUERY_MIME_REGEXP.test(type)) {
       request.body = stringifyQuery(body)
     }
@@ -586,6 +555,8 @@
    * @param {Request} req
    */
   function setDownloadFinished (req) {
+    delete req._raw
+
     if (req.downloaded === 1) {
       return
     }
@@ -949,12 +920,12 @@
     }
 
     this.aborted = true
-
-    // Set everything to completed.
     this.downloaded = this.uploaded = this.completed = 1
 
-    // Abort and emit the final progress event.
-    abortRequest(this)
+    if (this._raw) {
+      this._raw.abort()
+    }
+
     emitProgress(this, this._progress)
     clearTimeout(this._timer)
 
@@ -1024,6 +995,7 @@
       request.url = self.fullUrl()
       request.method = self.method
       request.jar = self.jar
+      request.rejectUnauthorized = self.rejectUnauthorized
       request.headers = {
         'User-Agent': 'node-popsicle/' + version
       }
@@ -1038,10 +1010,6 @@
         request._form = self.body
       } else {
         request.body = self.body
-      }
-
-      if (self.rejectUnauthorized) {
-        request.rejectUnauthorized = true
       }
 
       return request
@@ -1135,8 +1103,6 @@
         var opts = requestOptions(self)
 
         var req = request(opts, function (err, response) {
-          // Clean up listeners.
-          delete self._request
           setDownloadFinished(self)
 
           if (err) {
@@ -1161,20 +1127,28 @@
           return reject(abortError(self))
         })
 
-        self._request = req
+        self._raw = req
         trackRequestProgress(self, req)
       })
     }
 
     /**
-     * Abort a running node request.
+     * Check for host objects in node.
      *
-     * @param {Request} self
+     * @param  {*}       object
+     * @return {Boolean}
      */
-    abortRequest = function (self) {
-      if (self._request) {
-        self._request.abort()
-      }
+    isHostObject = function (object) {
+      return object instanceof Buffer || object instanceof FormData
+    }
+
+    /**
+     * Create a cookie jar in node.
+     *
+     * @return {Object}
+     */
+    jar = function () {
+      return request.jar()
     }
   } else {
     /**
@@ -1236,7 +1210,7 @@
           return reject(blockedError(self))
         }
 
-        var xhr = self._xhr = getXHR()
+        var xhr = self._raw = getXHR()
 
         xhr.onreadystatechange = function () {
           if (xhr.readyState === 2) {
@@ -1254,8 +1228,6 @@
           }
 
           if (xhr.readyState === 4) {
-            // Clean up listeners.
-            delete self._xhr
             setDownloadFinished(self)
 
             // Handle the aborted state internally, PhantomJS doesn't reset
@@ -1285,8 +1257,6 @@
 
         // No upload will occur with these requests.
         if (method === 'GET' || method === 'HEAD' || !xhr.upload) {
-          xhr.upload = {}
-
           self.uploadTotal = 0
           setUploadSize(self, 0)
         } else {
@@ -1321,14 +1291,32 @@
     }
 
     /**
-     * Abort a running XMLHttpRequest.
+     * Check for host objects in the browser.
      *
-     * @param {Request} self
+     * @param  {*}       object
+     * @return {Boolean}
      */
-    abortRequest = function (self) {
-      if (self._xhr) {
-        self._xhr.abort()
+    isHostObject = function (object) {
+      var str = Object.prototype.toString.call(object)
+
+      switch (str) {
+        case '[object File]':
+        case '[object Blob]':
+        case '[object FormData]':
+        case '[object ArrayBuffer]':
+          return true
+        default:
+          return false
       }
+    }
+
+    /**
+     * Throw an error in browsers where `jar` is not supported.
+     *
+     * @throws {Error}
+     */
+    jar = function () {
+      throw new Error('Cookie jars are not supported on the browser')
     }
   }
 
@@ -1355,26 +1343,10 @@
   }
 
   /**
-   * Initialize a form data instance.
+   * Expose utilities.
    */
-  popsicle.form = function (params) {
-    return toFormData(params)
-  }
-
-  /**
-   * Support cookie jars (on Node).
-   *
-   * @return {Object}
-   */
-  if (isNode) {
-    popsicle.jar = function () {
-      return request.jar()
-    }
-  } else {
-    popsicle.jar = function () {
-      throw new Error('Cookie jars are not supported on the browser')
-    }
-  }
+  popsicle.jar = jar
+  popsicle.form = form
 
   /**
    * Expose the `Request` and `Response` constructors.
