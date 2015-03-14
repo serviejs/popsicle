@@ -77,9 +77,9 @@ popsicle({
 * **agent** Custom HTTP pooling agent (default: [infinity-agent](https://github.com/floatdrop/infinity-agent))
 * **maxRedirects** Override the number of redirects to allow (default: `10`)
 * **rejectUnauthorized** Reject invalid SSL certificates (default: `true`)
-* **stream** Stream the HTTP response body (default: `false`, disables `parse`)
-* **raw** Return the raw stream without unzipping (default: `false`, disables `parse`)
-* **encoding** Specify the response body format when not streaming (default: `string`, allowed: `string`, `buffer`, `array`, `uint8`, disables `parse`)
+* **stream** Stream the HTTP response body (default: `false`, disables `parse` when enabled)
+* **raw** Return the raw stream without unzipping (default: `false`, disables `parse` when enabled)
+* **encoding** Specify the response body format when not streaming (default: `string`, allowed: `string`, `buffer`, `array`, `uint8`, disables `parse` when not `string`)
 
 **Browser only**
 
