@@ -162,6 +162,20 @@
   }
 
   /**
+   * Create a stringify error instance.
+   *
+   * @param  {Request} req
+   * @param  {Error}   e
+   * @return {Error}
+   */
+  function stringifyError (req, e) {
+    var err = req.error('Unable to stringify the request body')
+    err.stringify = true
+    err.original = e
+    return err
+  }
+
+  /**
    * Create a CSP error instance (Cross-.
    *
    * @param  {Request} req
@@ -370,12 +384,16 @@
       req.type(type)
     }
 
-    if (JSON_MIME_REGEXP.test(type)) {
-      req.body = JSON.stringify(body)
-    } else if (FORM_MIME_REGEXP.test(type)) {
-      req.body = form(body)
-    } else if (QUERY_MIME_REGEXP.test(type)) {
-      req.body = stringifyQuery(body)
+    try {
+      if (JSON_MIME_REGEXP.test(type)) {
+        req.body = JSON.stringify(body)
+      } else if (FORM_MIME_REGEXP.test(type)) {
+        req.body = form(body)
+      } else if (QUERY_MIME_REGEXP.test(type)) {
+        req.body = stringifyQuery(body)
+      }
+    } catch (e) {
+      return Promise.reject(stringifyError(req, e))
     }
   }
 

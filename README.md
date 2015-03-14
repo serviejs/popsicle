@@ -225,6 +225,7 @@ Every Popsicle response will give a `Response` object on success. The object pro
 All response handling methods can return an error. The errors can be categorized by checking properties on the error instance.
 
 * **parse error** Response body failed to parse - invalid body or incorrect type (`err.parse`)
+* **stringify error** Request body failed to stringify - invalid body or incorrect type (`err.stringify`)
 * **abort error** The request was aborted by user intervention (`err.abort`)
 * **timeout error** The request timed out (`err.timeout`)
 * **unavailable error** Unable to connect to the remote URL (`err.unavailable`)

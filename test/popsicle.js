@@ -572,6 +572,30 @@ describe('popsicle', function () {
           expect(errored).to.be.true
         })
     })
+
+    it('should give a stringify error on invalid request body', function () {
+      var errored = false
+      var obj = {}
+
+      // Recursive link will fail to stringify.
+      obj.obj = obj
+
+      return popsicle({
+        url: REMOTE_URL + '/echo',
+        method: 'POST',
+        body: obj
+      })
+        .catch(function (err) {
+          errored = true
+
+          expect(err.message).to.match(/Unable to stringify the request body/i)
+          expect(err.stringify).to.be.true
+          expect(err.popsicle).to.be.an.instanceOf(popsicle.Request)
+        })
+        .then(function () {
+          expect(errored).to.be.true
+        })
+    })
   })
 
   describe('plugin', function () {
