@@ -1157,18 +1157,27 @@
      * @return {Object}
      */
     parseRawHeaders = function (response) {
-      if (!response.rawHeaders) {
-        return response.headers
-      }
-
       var headers = {}
-      var rawHeaders = response.rawHeaders
 
-      for (var i = 0; i < rawHeaders.length; i = i + 2) {
-        var name = rawHeaders[i]
-        var value = rawHeaders[i + 1]
+      if (!response.rawHeaders) {
+        Object.keys(response.headers).forEach(function (key) {
+          var value = response.headers[key]
 
-        append(headers, name, value)
+          // Need to normalize `Set-Cookie` header under node 0.10 which
+          // always comes back as an array.
+          if (Array.isArray(value) && value.length === 1) {
+            value = value[0]
+          }
+
+          headers[key] = value
+        })
+      } else {
+        for (var i = 0; i < response.rawHeaders.length; i = i + 2) {
+          var name = response.rawHeaders[i]
+          var value = response.rawHeaders[i + 1]
+
+          append(headers, name, value)
+        }
       }
 
       return headers
