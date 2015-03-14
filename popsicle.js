@@ -884,8 +884,6 @@
     Headers.call(this)
 
     var query = options.query
-    var stream = options.stream === true
-    var parse = options.parse !== false
 
     // Request options.
     this.body = options.body
@@ -899,6 +897,10 @@
     this.maxRedirects = num(options.maxRedirects)
     this.rejectUnauthorized = options.rejectUnauthorized !== false
     this.agent = options.agent
+    this.stream = options.stream === true
+    this.raw = options.raw === true
+    this.encoding = options.encoding || 'string'
+    this.parse = !this.raw && this.encoding === 'string' && options.parse !== false
 
     // Default redirect count.
     if (isNaN(this.maxRedirects) || this.maxRedirects < 0) {
@@ -934,22 +936,33 @@
     this.before(stringifyRequest)
     this.before(defaultHeaders)
 
-    if (this.jar && isNode) {
-      this.before(getCookieJar)
-      this.after(setCookieJar)
+    if (this.jar) {
+      if (isNode) {
+        this.before(getCookieJar)
+        this.after(setCookieJar)
+      } else {
+        throw new TypeError('Option `jar` is not available in browsers')
+      }
     }
 
-    // Support streaming responses under node.
-    if (!stream) {
+    if (this.raw) {
+      if (!isNode) {
+        throw new TypeError('Option `raw` is not available in browsers')
+      }
+    } else if (isNode) {
+      this.after(unzipResponse)
+    }
+
+    if (!this.stream) {
       if (isNode) {
         this.after(streamResponse)
       }
 
-      if (parse) {
+      if (this.parse) {
         this.after(parseResponse)
       }
     } else if (!isNode) {
-      throw new Error('Streaming is only available in node')
+      throw new TypeError('Option `stream` is not available in browsers')
     }
 
     this.always(removeListeners)
@@ -1090,7 +1103,7 @@
 
       return new Promise(function (resolve, reject) {
         var concatStream = concat({
-          encoding: 'string'
+          encoding: res.request.encoding
         }, function (data) {
           // Update the response `body`.
           res.body = data
@@ -1101,6 +1114,19 @@
         res.body.once('error', reject)
         res.body.pipe(concatStream)
       })
+    }
+
+    /**
+     * Automatically unzip response bodies.
+     *
+     * @param {Response} res
+     */
+    var unzipResponse = function (res) {
+      if (['gzip', 'deflate'].indexOf(res.get('Content-Encoding')) !== -1) {
+        var unzip = zlib.createUnzip()
+        res.body.pipe(unzip)
+        res.body = unzip
+      }
     }
 
     /**
@@ -1243,7 +1269,6 @@
 
           request.once('response', function (response) {
             var statusCode = response.statusCode
-            var stream = response
 
             // Handle HTTP redirections.
             if (statuses.redirect[statusCode] && response.headers.location) {
@@ -1262,19 +1287,11 @@
             req.downloadTotal = num(response.headers['content-length'])
 
             // Track download progress.
-            stream.pipe(responseProxy)
-            stream = responseProxy
-
-            // Decode zipped responses.
-            if (['gzip', 'deflate'].indexOf(response.headers['content-encoding']) !== -1) {
-              var unzip = zlib.createUnzip()
-              stream.pipe(unzip)
-              stream = unzip
-            }
+            response.pipe(responseProxy)
 
             var res = new Response(req)
 
-            res.body = stream
+            res.body = responseProxy
             res.status = response.statusCode
             res.set(parseRawHeaders(response))
 

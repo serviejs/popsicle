@@ -69,7 +69,7 @@ popsicle({
 * **query** An object or string to be appended to the URL
 * **body** An object, string or form data to pass with the request
 * **timeout** The number of milliseconds before cancelling the request (default: `Infinity`)
-* **parse** Optionally skip response parsing (default: `true`)
+* **parse** Skip automatic response parsing (default: `true`)
 
 **Node only**
 
@@ -77,7 +77,9 @@ popsicle({
 * **agent** Custom HTTP pooling agent (default: [infinity-agent](https://github.com/floatdrop/infinity-agent))
 * **maxRedirects** Override the number of redirects to allow (default: `10`)
 * **rejectUnauthorized** Reject invalid SSL certificates (default: `true`)
-* **stream** Stream the HTTP response body (default: `false`)
+* **stream** Stream the HTTP response body (default: `false`, disables `parse`)
+* **raw** Return the raw stream without unzipping (default: `false`, disables `parse`)
+* **encoding** Specify the response body format when not streaming (default: `string`, allowed: `string`, `buffer`, `array`, `uint8`, disables `parse`)
 
 **Browser only**
 
