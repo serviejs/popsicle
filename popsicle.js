@@ -1274,7 +1274,7 @@
             return resolve(res)
           })
 
-          request.once('error', function (err) {
+          request.once('error', function () {
             return reject(req.aborted ? abortError(req) : unavailableError(req))
           })
 
