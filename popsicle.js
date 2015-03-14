@@ -451,7 +451,7 @@
     req._after = undefined
     req._always = undefined
     req._progress = undefined
-    req._errored = undefined
+    req._error = undefined
 
     req._raw = undefined
 
@@ -1265,9 +1265,12 @@
             return resolve(res)
           })
 
-          request.once('error', function () {
+          request.once('error', function (err) {
             return reject(req.aborted ? abortError(req) : unavailableError(req))
           })
+
+          // TODO: Figure out why there's two errors proxying under `0.10`.
+          requestProxy.once('error', function () {})
 
           req._raw = request
           req.uploadTotal = num(request.getHeader('Content-Length'))
