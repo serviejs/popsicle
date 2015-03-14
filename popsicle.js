@@ -1292,11 +1292,11 @@
     /**
      * Check for host objects in node.
      *
-     * @param  {*}       object
+     * @param  {*}       obj
      * @return {Boolean}
      */
-    isHostObject = function (object) {
-      return object instanceof Buffer || object instanceof FormData
+    isHostObject = function (obj) {
+      return obj instanceof Buffer || typeof obj.pipe === 'function'
     }
 
     /**
