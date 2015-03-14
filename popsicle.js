@@ -1278,8 +1278,8 @@
             return reject(req.aborted ? abortError(req) : unavailableError(req))
           })
 
-          // TODO: Figure out why there's two errors proxying under `0.10`.
-          requestProxy.once('error', function () {})
+          // Node 0.10 needs to catch errors on the request proxy.
+          requestProxy.once('error', reject)
 
           req._raw = request
           req.uploadTotal = num(request.getHeader('Content-Length'))
