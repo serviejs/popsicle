@@ -419,23 +419,44 @@
       req.set('Accept', '*/*')
     }
 
-    // Specify a default user agent in node.
-    if (!req.get('User-Agent')) {
-      req.set('User-Agent', 'https://github.com/blakeembrey/popsicle')
-    }
+    if (isNode) {
+      // Specify a default user agent in node.
+      if (!req.get('User-Agent')) {
+        req.set('User-Agent', 'https://github.com/blakeembrey/popsicle')
+      }
 
-    // Accept zipped responses.
-    if (!req.get('Accept-Encoding')) {
-      req.set('Accept-Encoding', 'gzip,deflate')
-    }
+      // Accept zipped responses.
+      if (!req.get('Accept-Encoding')) {
+        req.set('Accept-Encoding', 'gzip,deflate')
+      }
 
-    // Remove the `Content-Type` header from form data requests. The node
-    // `request` module supports `form-data` to automatically add headers,
-    // and the browser will set it on `xhr.send` (only when it doesn't exist).
-    if (req.body instanceof FormData) {
-      if (isNode) {
+      // Set the `Content-Type` headers, which contains a boundary.
+      if (req.body instanceof FormData) {
         req.set(req.body.getHeaders())
-      } else {
+      }
+
+      var length = 0
+      var body = req.body
+
+      if (body && !req.get('Content-Length')) {
+        if (Array.isArray(body)) {
+          for (var i = 0; i < body.length; i++) {
+            length += body[i].length
+          }
+        } else if (typeof body === 'string') {
+          length = Buffer.byteLength(body)
+        } else if (Buffer.isBuffer(body)) {
+          length = body.length
+        }
+
+        if (length) {
+          req.set('Content-Length', length)
+        }
+      }
+    } else {
+      // Remove the `Content-Type` header from form data requests. Browsers
+      // will only fill it automatically when it doesn't exist.
+      if (req.body instanceof FormData) {
         req.remove('Content-Type')
       }
     }
@@ -894,13 +915,9 @@
     this.before(stringifyRequest)
     this.before(defaultHeaders)
 
-    if (isNode) {
-      this.before(contentLength)
-
-      if (this.jar) {
-        this.before(getCookieJar)
-        this.after(setCookieJar)
-      }
+    if (this.jar && isNode) {
+      this.before(getCookieJar)
+      this.after(setCookieJar)
     }
 
     // Support streaming responses under node.
@@ -1065,35 +1082,6 @@
         res.body.once('error', reject)
         res.body.pipe(concatStream)
       })
-    }
-
-    /**
-     * Set the default content length.
-     *
-     * @param {Request} req
-     */
-    var contentLength = function (req) {
-      var length = 0
-      var body = req.body
-
-      if (body && !req.get('Content-Length')) {
-        if (!Buffer.isBuffer(body)) {
-          if (Array.isArray(body)) {
-            for (var i = 0; i < body.length; i++) {
-              length += body[i].length
-            }
-          } else {
-            body = new Buffer(body)
-            length = body.length
-          }
-        } else {
-          length = body.length
-        }
-
-        if (length) {
-          req.set('Content-Length', length)
-        }
-      }
     }
 
     /**
