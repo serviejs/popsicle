@@ -7,7 +7,7 @@
 **Popsicle** is designed to be easiest way for making HTTP requests, offering a consistent and intuitive API that works on both node and the browser.
 
 ```javascript
-request('/users.json')
+popsicle('/users.json')
   .then(function (res) {
     console.log(res.body) //=> { ... }
   })
@@ -40,10 +40,10 @@ window.ES6Promise.polyfill()
 ## Usage
 
 ```javascript
-var request = require('popsicle')
-// var request = window.popsicle
+var popsicle = require('popsicle')
+// var popsicle = window.popsicle
 
-request({
+popsicle({
   method: 'POST',
   url: 'http://example.com/api/users',
   body: {
@@ -69,11 +69,15 @@ request({
 * **query** An object or string to be appended to the URL
 * **body** An object, string or form data to pass with the request
 * **timeout** The number of milliseconds before cancelling the request (default: `Infinity`)
+* **parse** Optionally skip response parsing (default: `true`)
 
 **Node only**
 
 * **jar** An instance of a cookie jar (default: `null`)
+* **agent** Custom HTTP pooling agent (default: [infinity-agent](https://github.com/floatdrop/infinity-agent))
+* **maxRedirects** Override the number of redirects to allow (default: `10`)
 * **rejectUnauthorized** Reject invalid SSL certificates (default: `true`)
+* **stream** Stream the HTTP response body (default: `false`)
 
 **Browser only**
 
@@ -84,14 +88,13 @@ request({
 Popsicle can automatically serialize the request body to a string. If an object is supplied, it'll automatically stringify as JSON unless the `Content-Type` header was set otherwise. If the `Content-Type` is `multipart/form-data` or `application/x-www-form-urlencoded`, it can also be automatically serialized.
 
 ```javascript
-request({
+popsicle({
   url: 'http://example.com/api/users',
   body: {
-    username: 'blakeembrey',
-    profileImage: fs.createReadStream('image.png')
+    username: 'blakeembrey'
   },
   headers: {
-    'Content-Type': 'multipart/form-data'
+    'Content-Type': 'application/x-www-form-urlencoded'
   }
 })
 ```
@@ -101,12 +104,12 @@ request({
 You can manually create a form data instance by calling `popsicle.form`. When you pass a form data instance, it'll automatically set the correct `Content-Type` - complete with boundary.
 
 ```javascript
-var form = request.form({
-  name: 'Blake Embrey',
-  image: '...'
+var form = popsicle.form({
+  username: 'blakeembrey',
+  profileImage: fs.createReadStream('image.png')
 })
 
-request({
+popsicle({
   method: 'POST',
   url: '/users',
   body: form
@@ -115,10 +118,10 @@ request({
 
 #### Aborting Requests
 
-All requests can be aborted during execution by calling `Request#abort`. Requests won't normally start until chained anyway, but this will also abort the request before it starts.
+All requests can be aborted before or during execution by calling `Request#abort`.
 
 ```javascript
-var req = request('http://example.com')
+var req = popsicle('http://example.com')
 
 setTimeout(function () {
   req.abort()
@@ -144,7 +147,7 @@ The request object can also be used to check progress at any time.
 All percentage properties (`req.uploaded`, `req.downloaded`, `req.completed`) will be a number between `0` and `1`. When the total size is unknown (no `Content-Length` header), the percentage will automatically increment on each chunk of data returned (this will not be accurate). Aborting a request will automatically emit a completed progress event.
 
 ```javascript
-var req = request('http://example.com')
+var req = popsicle('http://example.com')
 
 req.uploaded //=> 0
 req.downloaded //=> 0
@@ -165,7 +168,7 @@ You can create a reusable cookie jar instance for requests by calling `popsicle.
 ```javascript
 var jar = request.jar()
 
-request({
+popsicle({
   method: 'POST',
   url: '/users',
   jar: jar
@@ -181,7 +184,7 @@ Promises and node-style callbacks are supported.
 Promises are the most expressive interface. Just chain using `Request#then` or `Request#catch` and continue.
 
 ```javascript
-request('/users')
+popsicle('/users')
   .then(function (res) {
     // Things worked!
   })
@@ -195,7 +198,7 @@ request('/users')
 For tooling that expect node-style callbacks, you can use `Request#exec`. This accepts a single function to call when the response is complete.
 
 ```javascript
-request('/users')
+popsicle('/users')
   .exec(function (err, res) {
     if (err) {
       // Something broke.
@@ -213,10 +216,6 @@ Every Popsicle response will give a `Response` object on success. The object pro
 * **body** An object (if parsable) or string that was the response HTTP body
 * **headers** An object of lower-cased keys to header values
 * **statusType()** Return an integer with the HTTP status type (E.g. `200 -> 2`)
-* **info()** Return a boolean indicating a HTTP status code between 100 and 199
-* **ok()** Return a boolean indicating a HTTP status code between 200 and 299
-* **clientError()** Return a boolean indicating a HTTP status code between 400 and 499
-* **serverError()** Return a boolean indicating a HTTP status code between 500 and 599
 * **get(key)** Retrieve a HTTP header using a case-insensitive key
 * **name(key)** Retrieve the original HTTP header name using a case-insensitive key
 * **type()** Return the response type (E.g. `application/json`)
@@ -231,6 +230,7 @@ All response handling methods can return an error. The errors can be categorized
 * **unavailable error** Unable to connect to the remote URL (`err.unavailable`)
 * **blocked error** The request was blocked (HTTPS -> HTTP) (browsers, `err.blocked`)
 * **csp error** Request violates the documents Content Security Policy (browsers, `err.csp`)
+* **max redirects error** Number of HTTP redirects exceeded (node, `err.maxRedirects`)
 
 ### Plugins
 
@@ -257,7 +257,7 @@ function prefix (url) {
   }
 }
 
-request('/user')
+popsicle('/user')
   .use(prefix('http://example.com'))
   .then(function (res) {
     console.log(res.request.url) //=> "http://example.com/user"

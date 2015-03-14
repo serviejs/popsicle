@@ -9,14 +9,22 @@
     "logo.svg"
   ],
   "browser": {
-    "request": false,
     "form-data": false,
     "buffer": false,
-    "./package.json": false
+    "concat-stream": false,
+    "http": false,
+    "https": false,
+    "url": false,
+    "zlib": false,
+    "infinity-agent": false,
+    "statuses": false,
+    "through2": false,
+    "tough-cookie": false
   },
   "scripts": {
     "lint": "standard",
-    "test": "npm run lint && gulp test"
+    "filesize": "du -hs popsicle.js",
+    "test": "npm run lint && gulp test && npm run filesize"
   },
   "repository": {
     "type": "git",
@@ -43,7 +51,7 @@
   "homepage": "https://github.com/blakeembrey/popsicle",
   "devDependencies": {
     "body-parser": "^1.9.2",
-    "chai": "^1.9.1",
+    "chai": "^2.1.1",
     "es6-promise": "^2.0.0",
     "express": "^4.10.2",
     "gulp": "^3.8.6",
@@ -63,7 +71,11 @@
     "standard": "^2.7.3"
   },
   "dependencies": {
+    "concat-stream": "^1.4.7",
     "form-data": "^0.2.0",
-    "request": "^2.48.0"
+    "infinity-agent": "^1.0.2",
+    "statuses": "^1.2.1",
+    "through2": "^0.6.3",
+    "tough-cookie": "^0.12.1"
   }
 }

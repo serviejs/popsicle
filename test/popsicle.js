@@ -87,10 +87,7 @@ describe('popsicle', function () {
       return popsicle(REMOTE_URL + '/error')
         .then(function (res) {
           expect(res.status).to.equal(500)
-          expect(res.info()).to.be.false
-          expect(res.ok()).to.be.false
-          expect(res.clientError()).to.be.false
-          expect(res.serverError()).to.be.true
+          expect(res.statusType()).to.equal(5)
         })
     })
 
@@ -98,10 +95,7 @@ describe('popsicle', function () {
       return popsicle(REMOTE_URL + '/not-found')
         .then(function (res) {
           expect(res.status).to.equal(404)
-          expect(res.info()).to.be.false
-          expect(res.ok()).to.be.false
-          expect(res.clientError()).to.be.true
-          expect(res.serverError()).to.be.false
+          expect(res.statusType()).to.equal(4)
         })
     })
 
@@ -109,10 +103,7 @@ describe('popsicle', function () {
       return popsicle(REMOTE_URL + '/no-content')
         .then(function (res) {
           expect(res.status).to.equal(204)
-          expect(res.info()).to.be.false
-          expect(res.ok()).to.be.true
-          expect(res.clientError()).to.be.false
-          expect(res.serverError()).to.be.false
+          expect(res.statusType()).to.equal(2)
         })
     })
   })
@@ -122,7 +113,7 @@ describe('popsicle', function () {
       return popsicle(REMOTE_URL + '/echo/header/user-agent')
         .then(function (res) {
           var regexp = isNode ?
-            /^node-popsicle\/\d+\.\d+\.\d+$/ :
+            /^https:\/\/github\.com\/blakeembrey\/popsicle$/ :
             /^Mozilla\/.+$/
 
           expect(res.body).to.match(regexp)
@@ -483,6 +474,17 @@ describe('popsicle', function () {
         })
     })
 
+    it('should disable response parsing', function () {
+      return popsicle({
+        url: REMOTE_URL + '/json',
+        parse: false
+      })
+        .then(function (res) {
+          expect(res.body).to.equal('{"username":"blakeembrey"}')
+          expect(res.type()).to.equal('application/json')
+        })
+    })
+
     it('should set non-parsable responses as null', function () {
       return popsicle({
         url: REMOTE_URL + '/echo',
@@ -506,6 +508,28 @@ describe('popsicle', function () {
           expect(res.type()).to.equal('application/json')
         })
     })
+
+    if (isNode) {
+      var concat = require('concat-stream')
+
+      it('should stream the response', function () {
+        return popsicle({
+          url: REMOTE_URL + '/json',
+          stream: true
+        })
+          .then(function (res) {
+            expect(res.body).to.be.an('object')
+
+            return new Promise(function (resolve) {
+              res.body.pipe(concat(function (data) {
+                expect(data.toString()).to.equal('{"username":"blakeembrey"}')
+
+                return resolve()
+              }))
+            })
+          })
+      })
+    }
   })
 
   describe('request errors', function () {
@@ -727,13 +751,17 @@ describe('popsicle', function () {
     describe('cookie jar', function () {
       it('should work with a cookie jar', function () {
         var jar = popsicle.jar()
+        var cookie
 
         return popsicle({
           url: REMOTE_URL + '/cookie',
           jar: jar
         })
           .then(function (res) {
+            expect(res.get('Cookie')).to.not.exist
             expect(res.get('Set-Cookie')).to.exist
+
+            cookie = res.get('Set-Cookie')
 
             return popsicle({
               url: REMOTE_URL + '/echo',
@@ -741,7 +769,9 @@ describe('popsicle', function () {
             })
           })
           .then(function (res) {
-            expect(res.get('Cookie')).to.deep.equal('hello=world')
+            expect(res.get('Cookie')).to.match(/^hello=world/)
+            expect(res.get('Cookie').toLowerCase()).to.equal(cookie.toLowerCase())
+            expect(res.get('Set-Cookie')).to.not.exist
           })
       })
     })

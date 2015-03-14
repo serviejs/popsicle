@@ -29,8 +29,8 @@
   var parseRawHeaders
 
   if (typeof Promise === 'undefined') {
-    var PROMISE_ERROR_MESSAGE = (isNode ? 'global' : 'window') + '.Promise ' +
-      'is undefined and should be polyfilled. Check out ' +
+    var PROMISE_ERROR_MESSAGE = (!isNode ? 'global' : 'window') +
+      '.Promise is undefined and must be polyfilled. Check out ' +
       'https://github.com/jakearchibald/es6-promise for more information.'
 
     throw new TypeError(PROMISE_ERROR_MESSAGE)
@@ -127,22 +127,22 @@
   /**
    * Create a timeout error instance.
    *
-   * @param  {Popsicle} self
+   * @param  {Request} req
    * @return {Error}
    */
-  function abortError (self) {
-    if (self._error) {
-      return self._error
+  function abortError (req) {
+    if (req._error) {
+      return req._error
     }
 
-    if (!self.timedout) {
-      var abortedError = self.error('Request aborted')
+    if (!req.timedout) {
+      var abortedError = req.error('Request aborted')
       abortedError.abort = true
       return abortedError
     }
 
-    var timeout = self.timeout
-    var timedoutError = self.error('Timeout of ' + timeout + 'ms exceeded')
+    var timeout = req.timeout
+    var timedoutError = req.error('Timeout of ' + timeout + 'ms exceeded')
     timedoutError.timeout = timeout
     return timedoutError
   }
@@ -150,12 +150,12 @@
   /**
    * Create a parse error instance.
    *
-   * @param  {Popsicle} self
-   * @param  {Error}    e
+   * @param  {Request} req
+   * @param  {Error}   e
    * @return {Error}
    */
-  function parseError (self, e) {
-    var err = self.error('Unable to parse the response body')
+  function parseError (req, e) {
+    var err = req.error('Unable to parse the response body')
     err.parse = true
     err.original = e
     return err
@@ -164,12 +164,12 @@
   /**
    * Create a CSP error instance (Cross-.
    *
-   * @param  {Popsicle} self
-   * @param  {Error}    e
+   * @param  {Request} req
+   * @param  {Error}   e
    * @return {Error}
    */
-  function cspError (self, e) {
-    var err = self.error('Refused to connect to "' + self.fullUrl() + '"')
+  function cspError (req, e) {
+    var err = req.error('Refused to connect to "' + req.fullUrl() + '"')
     err.csp = true
     err.original = e
     return err
@@ -178,11 +178,11 @@
   /**
    * Create an unavailable request error (offline, not resolvable, CORS).
    *
-   * @param  {Popsicle} self
+   * @param  {Request} req
    * @return {Error}
    */
-  function unavailableError (self) {
-    var err = self.error('Unable to connect to "' + self.fullUrl() + '"')
+  function unavailableError (req) {
+    var err = req.error('Unable to connect to "' + req.fullUrl() + '"')
     err.unavailable = true
     return err
   }
@@ -190,12 +190,24 @@
   /**
    * Create a blocked error (HTTPS -> HTTP).
    *
-   * @param  {Popsicle} self
+   * @param  {Request} req
    * @return {Error}
    */
-  function blockedError (self) {
-    var err = self.error('The request to "' + self.fullUrl() + '" was blocked')
+  function blockedError (req) {
+    var err = req.error('The request to "' + req.fullUrl() + '" was blocked')
     err.blocked = true
+    return err
+  }
+
+  /**
+   * Create a maximum redirection error.
+   *
+   * @param  {Request} req
+   * @return {Error}
+   */
+  function redirectError (req) {
+    var err = req.error('Maximum number of redirects exceeded')
+    err.maxRedirects = req.maxRedirects
     return err
   }
 
@@ -332,14 +344,14 @@
   /**
    * Convert the request body into a valid string.
    *
-   * @param {Request} request
+   * @param {Request} req
    */
-  function stringifyRequest (request) {
-    var body = request.body
+  function stringifyRequest (req) {
+    var body = req.body
 
     // Convert primitives types into strings.
     if (!isObject(body)) {
-      request.body = body == null ? null : String(body)
+      req.body = body == null ? null : String(body)
 
       return
     }
@@ -349,115 +361,143 @@
       return
     }
 
-    var type = request.type()
+    var type = req.type()
 
     // Set the default mime type to be JSON if none exists.
     if (!type) {
       type = 'application/json'
 
-      request.type(type)
+      req.type(type)
     }
 
     if (JSON_MIME_REGEXP.test(type)) {
-      request.body = JSON.stringify(body)
+      req.body = JSON.stringify(body)
     } else if (FORM_MIME_REGEXP.test(type)) {
-      request.body = form(body)
+      req.body = form(body)
     } else if (QUERY_MIME_REGEXP.test(type)) {
-      request.body = stringifyQuery(body)
+      req.body = stringifyQuery(body)
     }
   }
 
   /**
    * Automatically parse the response body.
    *
-   * @param  {Response} response
+   * @param  {Response} res
    * @return {Promise}
    */
-  function parseResponse (response) {
-    var body = response.body
-    var type = response.type()
+  function parseResponse (res) {
+    var body = res.body
+    var type = res.type()
 
     if (body === '') {
-      response.body = null
+      res.body = null
 
-      return response
+      return res
     }
 
     try {
       if (JSON_MIME_REGEXP.test(type)) {
-        response.body = body === '' ? null : JSON.parse(body)
+        res.body = body === '' ? null : JSON.parse(body)
       } else if (QUERY_MIME_REGEXP.test(type)) {
-        response.body = parseQuery(body)
+        res.body = parseQuery(body)
       }
     } catch (e) {
-      return Promise.reject(parseError(response, e))
+      return Promise.reject(parseError(res, e))
     }
   }
 
   /**
    * Set the default request accept header.
    *
-   * @param {Request} request
+   * @param {Request} req
    */
-  function defaultAccept (request) {
+  function defaultHeaders (req) {
     // If we have no accept header set already, default to accepting
     // everything. This is needed because otherwise Firefox defaults to
     // an accept header of `html/xml`.
-    if (!request.get('Accept')) {
-      request.set('Accept', '*/*')
+    if (!req.get('Accept')) {
+      req.set('Accept', '*/*')
     }
-  }
 
-  /**
-   * Correct the content type request header.
-   *
-   * @param {Request} request
-   */
-  function correctType (request) {
+    // Specify a default user agent in node.
+    if (!req.get('User-Agent')) {
+      req.set('User-Agent', 'https://github.com/blakeembrey/popsicle')
+    }
+
+    // Accept zipped responses.
+    if (!req.get('Accept-Encoding')) {
+      req.set('Accept-Encoding', 'gzip,deflate')
+    }
+
     // Remove the `Content-Type` header from form data requests. The node
     // `request` module supports `form-data` to automatically add headers,
-    // and the browser will ses it on `xhr.send` (when it's not already set).
-    if (request.body instanceof FormData) {
-      request.remove('Content-Type')
+    // and the browser will set it on `xhr.send` (only when it doesn't exist).
+    if (req.body instanceof FormData) {
+      if (isNode) {
+        req.set(req.body.getHeaders())
+      } else {
+        req.remove('Content-Type')
+      }
     }
   }
 
   /**
    * Remove all listener functions.
    *
-   * @param {Request} request
+   * @param {Request} req
    */
-  function removeListeners (request) {
-    delete request._before
-    delete request._after
-    delete request._always
-    delete request._progress
+  function removeListeners (req) {
+    req._before = undefined
+    req._after = undefined
+    req._always = undefined
+    req._progress = undefined
+    req._errored = undefined
+
+    req._raw = undefined
+
+    req.body = undefined
   }
 
   /**
    * Check if the request has been aborted before starting.
    *
-   * @param  {Request} request
+   * @param  {Request} req
    * @return {Promise}
    */
-  function checkAborted (request) {
-    if (request.aborted) {
-      return Promise.reject(abortError(request))
+  function checkAborted (req) {
+    if (req.aborted) {
+      return Promise.reject(abortError(req))
     }
   }
 
   /**
    * Set headers on an instance.
    *
-   * @param {Request} self
+   * @param {Request} req
    * @param {Object}  headers
    */
-  function setHeaders (self, headers) {
+  function setHeaders (req, headers) {
     if (headers) {
       Object.keys(headers).forEach(function (key) {
-        self.set(key, headers[key])
+        req.set(key, headers[key])
       })
     }
+  }
+
+  /**
+   * Get all headers case-sensitive.
+   *
+   * @param  {Request} req
+   * @return {Object}
+   */
+  function getHeaders (req) {
+    var headers = {}
+
+    Object.keys(req.headers).forEach(function (key) {
+      headers[req.name(key)] = req.headers[key]
+    })
+
+    return headers
   }
 
   /**
@@ -555,8 +595,6 @@
    * @param {Request} req
    */
   function setDownloadFinished (req) {
-    delete req._raw
-
     if (req.downloaded === 1) {
       return
     }
@@ -597,7 +635,7 @@
    * @return {Promise}
    */
   function chain (fns, arg) {
-    return fns.reduce(function (promise, fn) {
+    return (fns || []).reduce(function (promise, fn) {
       return promise.then(function () {
         return fn(arg)
       })
@@ -607,59 +645,56 @@
   /**
    * Setup the request instance.
    *
-   * @param {Request} self
+   * @param {Request} req
    */
-  function setup (self) {
-    var timeout = self.timeout
+  function setup (req) {
+    var timeout = req.timeout
 
     if (timeout) {
-      self._timer = setTimeout(function () {
-        self.timedout = true
-        self.abort()
+      req._timer = setTimeout(function () {
+        req.timedout = true
+        req.abort()
       }, timeout)
     }
 
     // Set the request to "opened", disables any new listeners.
-    self.opened = true
+    req.opened = true
 
-    return chain(self._before, self)
+    return chain(req._before, req)
       .then(function () {
-        return createRequest(self)
+        return createRequest(req)
       })
-      .then(function (response) {
-        response.request = self
-        self.response = response
-
-        return chain(self._after, response)
+      .then(function (res) {
+        return chain(req._after, res)
       })
       .catch(function (err) {
         function reject () {
           return Promise.reject(err)
         }
 
-        return chain(self._always, self).then(reject)
+        return chain(req._always, req).then(reject)
       })
       .then(function () {
-        return chain(self._always, self)
+        return chain(req._always, req)
       })
       .then(function () {
-        return self.response
+        return req.response
       })
   }
 
   /**
    * Create the HTTP request promise.
    *
-   * @param  {Request} self
+   * @param  {Request} req
    * @return {Promise}
    */
-  function create (self) {
+  function create (req) {
     // Setup a new promise request if none exists.
-    if (!self._promise) {
-      self._promise = setup(self)
+    if (!req._promise) {
+      req._promise = setup(req)
     }
 
-    return self._promise
+    return req._promise
   }
 
   /**
@@ -673,9 +708,9 @@
   /**
    * Set a header value.
    *
-   * @param  {String} key
-   * @param  {String} value
-   * @return {Header}
+   * @param  {String}  key
+   * @param  {String}  value
+   * @return {Headers}
    */
   Headers.prototype.set = function (key, value) {
     if (typeof key !== 'string') {
@@ -690,6 +725,24 @@
     this.headerNames[lower] = key
 
     return this
+  }
+
+  /**
+   * Append a header value.
+   *
+   * @param  {String}  key
+   * @param  {String}  value
+   * @return {Headers}
+   */
+  Headers.prototype.append = function (key, value) {
+    var prev = this.get(key)
+    var val = value
+
+    if (prev) {
+      val = Array.isArray(prev) ? prev.concat(value) : [prev].concat(value)
+    }
+
+    return this.set(key, val)
   }
 
   /**
@@ -709,6 +762,10 @@
    * @return {String}
    */
   Headers.prototype.get = function (header) {
+    if (header == null) {
+      return getHeaders(this)
+    }
+
     return this.headers[lowerHeader(header)]
   }
 
@@ -744,10 +801,13 @@
   /**
    * Create a response instance.
    *
-   * @param {Request} request
+   * @param {Request} req
    */
-  function Response (request) {
+  function Response (req) {
     Headers.call(this)
+
+    this.request = req
+    req.response = this
   }
 
   /**
@@ -763,42 +823,6 @@
    */
   Response.prototype.statusType = function () {
     return ~~(this.status / 100)
-  }
-
-  /**
-   * Check whether the response was an info response. Status >= 100 < 200.
-   *
-   * @return {Boolean}
-   */
-  Response.prototype.info = function () {
-    return this.statusType() === 1
-  }
-
-  /**
-   * Check whether the response was ok. Status >= 200 < 300.
-   *
-   * @return {Boolean}
-   */
-  Response.prototype.ok = function () {
-    return this.statusType() === 2
-  }
-
-  /**
-   * Check whether the response was a client error. Status >= 400 < 500.
-   *
-   * @return {Boolean}
-   */
-  Response.prototype.clientError = function () {
-    return this.statusType() === 4
-  }
-
-  /**
-   * Check whether the response was a server error. Status >= 500 < 600.
-   *
-   * @return {Boolean}
-   */
-  Response.prototype.serverError = function () {
-    return this.statusType() === 5
   }
 
   /**
@@ -820,6 +844,8 @@
     Headers.call(this)
 
     var query = options.query
+    var stream = options.stream === true
+    var parse = options.parse !== false
 
     // Request options.
     this.body = options.body
@@ -830,8 +856,17 @@
 
     // Node specific options.
     this.jar = options.jar
-    this.withCredentials = options.withCredentials === true
+    this.maxRedirects = num(options.maxRedirects)
     this.rejectUnauthorized = options.rejectUnauthorized !== false
+    this.agent = options.agent
+
+    // Default redirect count.
+    if (isNaN(this.maxRedirects) || this.maxRedirects < 0) {
+      this.maxRedirects = 10
+    }
+
+    // Browser specific options.
+    this.withCredentials = options.withCredentials === true
 
     // Progress state.
     this.uploaded = this.downloaded = this.completed = 0
@@ -839,7 +874,7 @@
     this.uploadTotal = this.downloadTotal = NaN
 
     // Set request headers.
-    setHeaders(this, options.headers)
+    this.set(options.headers)
 
     // Request state.
     this.opened = false
@@ -856,11 +891,30 @@
     }
 
     this.before(checkAborted)
-    this.before(defaultAccept)
     this.before(stringifyRequest)
-    this.before(correctType)
+    this.before(defaultHeaders)
 
-    this.after(parseResponse)
+    if (isNode) {
+      this.before(contentLength)
+
+      if (this.jar) {
+        this.before(getCookieJar)
+        this.after(setCookieJar)
+      }
+    }
+
+    // Support streaming responses under node.
+    if (!stream) {
+      if (isNode) {
+        this.after(streamResponse)
+      }
+
+      if (parse) {
+        this.after(parseResponse)
+      }
+    } else if (!isNode) {
+      throw new Error('Streaming is only available in node')
+    }
 
     this.always(removeListeners)
   }
@@ -980,92 +1034,120 @@
    * Handle requests differently on node and browsers.
    */
   if (isNode) {
-    var request = require('request')
-    var version = require('./package.json').version
+    var http = require('http')
+    var https = require('https')
+    var urlLib = require('url')
+    var zlib = require('zlib')
+    var agent = require('infinity-agent')
+    var statuses = require('statuses')
+    var through2 = require('through2')
+    var tough = require('tough-cookie')
 
     /**
-     * Return options sanitized for the request module.
+     * Stream node response.
      *
-     * @param  {Request} self
-     * @return {Object}
+     * @param  {Response} res
+     * @return {Promise}
      */
-    var requestOptions = function (self) {
-      var request = {}
+    var streamResponse = function (res) {
+      var concat = require('concat-stream')
 
-      request.url = self.fullUrl()
-      request.method = self.method
-      request.jar = self.jar
-      request.rejectUnauthorized = self.rejectUnauthorized
-      request.headers = {
-        'User-Agent': 'node-popsicle/' + version
-      }
+      return new Promise(function (resolve, reject) {
+        var concatStream = concat({
+          encoding: 'string'
+        }, function (data) {
+          // Update the response `body`.
+          res.body = data
 
-      // Add headers with the correct case names.
-      Object.keys(self.headers).forEach(function (header) {
-        request.headers[self.name(header)] = self.get(header)
+          return resolve()
+        })
+
+        res.body.once('error', reject)
+        res.body.pipe(concatStream)
       })
-
-      // The `request` module supports form data under a private property.
-      if (self.body instanceof FormData) {
-        request._form = self.body
-      } else {
-        request.body = self.body
-      }
-
-      return request
     }
 
     /**
-     * Return the byte length of an input.
+     * Set the default content length.
      *
-     * @param  {(String|Buffer)} data
-     * @return {Number}
+     * @param {Request} req
      */
-    var byteLength = function (data) {
-      if (Buffer.isBuffer(data)) {
-        return data.length
-      }
+    var contentLength = function (req) {
+      var length = 0
+      var body = req.body
 
-      if (typeof data === 'string') {
-        return Buffer.byteLength(data)
-      }
+      if (body && !req.get('Content-Length')) {
+        if (!Buffer.isBuffer(body)) {
+          if (Array.isArray(body)) {
+            for (var i = 0; i < body.length; i++) {
+              length += body[i].length
+            }
+          } else {
+            body = new Buffer(body)
+            length = body.length
+          }
+        } else {
+          length = body.length
+        }
 
-      return 0
-    }
-
-    /**
-     * Track the current download size.
-     *
-     * @param {Request} self
-     * @param {request} request
-     */
-    var trackRequestProgress = function (self, request) {
-      function onRequest (request) {
-        var write = request.write
-
-        self.uploadTotal = num(request.getHeader('Content-Length'))
-
-        // Override `Request.prototype.write` to track amount of sent data.
-        request.write = function (data) {
-          setUploadSize(self, self.uploadSize + byteLength(data))
-
-          return write.apply(this, arguments)
+        if (length) {
+          req.set('Content-Length', length)
         }
       }
+    }
 
-      function onResponse (response) {
-        response.on('data', onResponseData)
-        self.downloadTotal = num(response.headers['content-length'])
-        setUploadFinished(self)
-      }
+    /**
+     * Read cookies from the cookie jar.
+     *
+     * @param  {Request} req
+     * @return {Promise}
+     */
+    var getCookieJar = function (req) {
+      return new Promise(function (resolve, reject) {
+        req.jar.getCookies(req.url, function (err, cookies) {
+          if (err) {
+            return reject(err)
+          }
 
-      function onResponseData (data) {
-        // Data should always be a `Buffer` instance.
-        setDownloadSize(self, self.downloadSize + data.length)
-      }
+          if (cookies.length) {
+            req.append('Cookie', cookies.join('; '))
+          }
 
-      request.on('request', onRequest)
-      request.on('response', onResponse)
+          return resolve()
+        })
+      })
+    }
+
+    /**
+     * Put cookies in the cookie jar.
+     *
+     * @param  {Response} res
+     * @return {Promise}
+     */
+    var setCookieJar = function (res) {
+      return new Promise(function (resolve, reject) {
+        var cookies = res.get('Set-Cookie')
+
+        if (!cookies) {
+          return resolve()
+        }
+
+        if (!Array.isArray(cookies)) {
+          cookies = [cookies]
+        }
+
+        var setCookies = cookies.map(function (cookie) {
+          return new Promise(function (resolve, reject) {
+            var req = res.request
+
+            req.jar.setCookie(cookie, req.url, function (err) {
+              return err ? reject(err) : resolve()
+            })
+          })
+        })
+
+        return resolve(Promise.all(setCookies))
+      })
     }
 
     /**
@@ -1095,40 +1177,115 @@
     /**
      * Trigger the request in node.
      *
-     * @param  {Request} self
+     * @param  {Request} req
      * @return {Promise}
      */
-    createRequest = function (self) {
+    createRequest = function (req) {
       return new Promise(function (resolve, reject) {
-        var opts = requestOptions(self)
+        var body = req.body
+        var redirectCount = 0
+        var headers = req.get()
 
-        var req = request(opts, function (err, response) {
-          setDownloadFinished(self)
+        /**
+         * Track upload progress through a stream.
+         */
+        var requestProxy = through2(function (chunk, enc, callback) {
+          setUploadSize(req, req.uploadSize + chunk.length)
+          callback(null, chunk)
+        }, function (callback) {
+          setUploadFinished(req)
+          callback(req.aborted ? abortError(req) : null)
+        })
 
-          if (err) {
-            // Node.js core error (ECONNRESET, EPIPE).
-            if (typeof err.code === 'string') {
-              return reject(unavailableError(self))
+        /**
+         * Track download progress through a stream.
+         */
+        var responseProxy = through2(function (chunk, enc, callback) {
+          setDownloadSize(req, req.downloadSize + chunk.length)
+          callback(null, chunk)
+        }, function (callback) {
+          setDownloadFinished(req)
+          callback(req.aborted ? abortError(req) : null)
+        })
+
+        /**
+         * Create the HTTP request.
+         *
+         * @param {String} url
+         */
+        function get (url) {
+          var arg = urlLib.parse(url)
+          var fn = arg.protocol === 'https:' ? https : http
+
+          arg.headers = headers
+          arg.method = req.method
+          arg.rejectUnauthorized = req.rejectUnauthorized
+
+          arg.agent = req.agent || agent(arg)
+
+          var request = fn.request(arg)
+
+          request.once('response', function (response) {
+            var statusCode = response.statusCode
+            var stream = response
+
+            // Handle HTTP redirections.
+            if (statuses.redirect[statusCode] && response.headers.location) {
+              // Discard response.
+              response.resume()
+
+              if (++redirectCount > req.maxRedirects) {
+                reject(redirectError(req))
+                return
+              }
+
+              get(urlLib.resolve(url, response.headers.location))
+              return
             }
 
-            return reject(err)
+            req.downloadTotal = num(response.headers['content-length'])
+
+            // Track download progress.
+            stream.pipe(responseProxy)
+            stream = responseProxy
+
+            // Decode zipped responses.
+            if (['gzip', 'deflate'].indexOf(response.headers['content-encoding']) !== -1) {
+              var unzip = zlib.createUnzip()
+              stream.pipe(unzip)
+              stream = unzip
+            }
+
+            var res = new Response(req)
+
+            res.body = stream
+            res.status = response.statusCode
+            res.set(parseRawHeaders(response))
+
+            return resolve(res)
+          })
+
+          request.once('error', function (err) {
+            return reject(req.aborted ? abortError(req) : unavailableError(req))
+          })
+
+          req._raw = request
+          req.uploadTotal = num(request.getHeader('Content-Length'))
+          requestProxy.pipe(request)
+
+          // Pipe the body to the stream.
+          if (body) {
+            if (typeof body.pipe === 'function') {
+              body.pipe(requestProxy)
+            } else {
+              requestProxy.end(body)
+            }
+          } else {
+            requestProxy.end()
           }
+        }
 
-          var res = new Response()
-
-          res.body = response.body
-          res.status = response.statusCode
-          res.set(parseRawHeaders(response))
-
-          return resolve(res)
-        })
-
-        req.on('abort', function () {
-          return reject(abortError(self))
-        })
-
-        self._raw = req
-        trackRequestProgress(self, req)
+        get(req.fullUrl())
       })
     }
 
@@ -1148,7 +1305,7 @@
      * @return {Object}
      */
     jar = function () {
-      return request.jar()
+      return new tough.CookieJar()
     }
   } else {
     /**
@@ -1196,21 +1353,21 @@
     /**
      * Trigger the request in a browser.
      *
-     * @param  {Request} self
+     * @param  {Request} req
      * @return {Promise}
      */
-    createRequest = function (self) {
+    createRequest = function (req) {
       return new Promise(function (resolve, reject) {
-        var url = self.fullUrl()
-        var method = self.method
-        var res = new Response()
+        var url = req.fullUrl()
+        var method = req.method
+        var res = new Response(req)
 
         // Loading HTTP resources from HTTPS is restricted and uncatchable.
         if (window.location.protocol === 'https:' && /^http\:/.test(url)) {
-          return reject(blockedError(self))
+          return reject(blockedError(req))
         }
 
-        var xhr = self._raw = getXHR()
+        var xhr = req._raw = getXHR()
 
         xhr.onreadystatechange = function () {
           if (xhr.readyState === 2) {
@@ -1219,25 +1376,25 @@
             res.status = xhr.status === 1223 ? 204 : xhr.status
 
             // Try setting the total download size.
-            self.downloadTotal = num(res.get('Content-Length'))
+            req.downloadTotal = num(res.get('Content-Length'))
 
             // Trigger upload finished after we get the response length.
             // Otherwise, it's possible this method will error and make the
             // `xhr` object invalid.
-            setUploadFinished(self)
+            setUploadFinished(req)
           }
 
           if (xhr.readyState === 4) {
-            setDownloadFinished(self)
+            setDownloadFinished(req)
 
             // Handle the aborted state internally, PhantomJS doesn't reset
             // `xhr.status` to zero on abort.
-            if (self.aborted) {
-              return reject(abortError(self))
+            if (req.aborted) {
+              return reject(abortError(req))
             }
 
             if (xhr.status === 0) {
-              return reject(unavailableError(self))
+              return reject(unavailableError(req))
             }
 
             res.body = xhr.responseText
@@ -1249,23 +1406,23 @@
         // Use `progress` events to avoid calculating byte length.
         xhr.onprogress = function (e) {
           if (e.lengthComputable) {
-            self.downloadTotal = e.total
+            req.downloadTotal = e.total
           }
 
-          setDownloadSize(self, e.loaded)
+          setDownloadSize(req, e.loaded)
         }
 
         // No upload will occur with these requests.
         if (method === 'GET' || method === 'HEAD' || !xhr.upload) {
-          self.uploadTotal = 0
-          setUploadSize(self, 0)
+          req.uploadTotal = 0
+          setUploadSize(req, 0)
         } else {
           xhr.upload.onprogress = function (e) {
             if (e.lengthComputable) {
-              self.uploadTotal = e.total
+              req.uploadTotal = e.total
             }
 
-            setUploadSize(self, e.loaded)
+            setUploadSize(req, e.loaded)
           }
         }
 
@@ -1273,20 +1430,20 @@
         try {
           xhr.open(method, url)
         } catch (e) {
-          return reject(cspError(self, e))
+          return reject(cspError(req, e))
         }
 
         // Send cookies with CORS.
-        if (self.withCredentials) {
+        if (req.withCredentials) {
           xhr.withCredentials = true
         }
 
         // Set all headers with original casing.
-        Object.keys(self.headers).forEach(function (header) {
-          xhr.setRequestHeader(self.name(header), self.get(header))
+        Object.keys(req.headers).forEach(function (header) {
+          xhr.setRequestHeader(req.name(header), req.get(header))
         })
 
-        xhr.send(self.body)
+        xhr.send(req.body)
       })
     }
 
