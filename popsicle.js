@@ -195,9 +195,10 @@
    * @param  {Request} req
    * @return {Error}
    */
-  function unavailableError (req) {
+  function unavailableError (req, e) {
     var err = req.error('Unable to connect to "' + req.fullUrl() + '"')
     err.unavailable = true
+    err.original = e
     return err
   }
 
@@ -1280,8 +1281,8 @@
             return resolve(res)
           })
 
-          request.once('error', function () {
-            return reject(req.aborted ? abortError(req) : unavailableError(req))
+          request.once('error', function (err) {
+            return reject(req.aborted ? abortError(req) : unavailableError(req, err))
           })
 
           // Node 0.10 needs to catch errors on the request proxy.
