@@ -69,7 +69,7 @@ popsicle({
 * **query** An object or string to be appended to the URL
 * **body** An object, string or form data to pass with the request
 * **timeout** The number of milliseconds before cancelling the request (default: `Infinity`)
-* **parse** Skip automatic response parsing (default: `true`)
+* **parse** Disable automatic response parsing (default: `true`)
 
 **Node only**
 
