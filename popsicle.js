@@ -438,6 +438,9 @@
       req.set('Accept', '*/*')
     }
 
+    // Always remove the "Host" HTTP header.
+    req.remove('Host')
+
     if (isNode) {
       // Specify a default user agent in node.
       if (!req.get('User-Agent')) {
