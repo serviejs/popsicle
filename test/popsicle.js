@@ -10,6 +10,8 @@ describe('popsicle', function () {
     password: 'hunter2'
   }
 
+  var BOUNDARY_REGEXP = /^multipart\/form-data; boundary=([^;]+)/
+
   it('should exist', function () {
     expect(popsicle).to.be.a('function')
   })
@@ -176,11 +178,8 @@ describe('popsicle', function () {
 
     describe('host objects', function () {
       describe('form data', function () {
-        var BOUNDARY_REGEXP = /^multipart\/form-data; boundary=([^;]+)/
-
-        function validateResponse (response) {
-          var contentType = response.headers['content-type']
-          var boundary = BOUNDARY_REGEXP.exec(contentType)[1]
+        function validateResponse (res) {
+          var boundary = BOUNDARY_REGEXP.exec(res.headers['content-type'])[1]
 
           var body = [
             '--' + boundary,
@@ -198,7 +197,7 @@ describe('popsicle', function () {
             body += '\r\n'
           }
 
-          expect(response.body).to.equal(body)
+          expect(res.body).to.equal(body)
         }
 
         it('should create form data instance', function () {
@@ -510,7 +509,10 @@ describe('popsicle', function () {
     })
 
     if (isNode) {
+      var fs = require('fs')
       var concat = require('concat-stream')
+      var filename = require('path').join(__dirname, '../popsicle.js')
+      var filecontents = fs.readFileSync(filename, 'utf-8')
 
       it('should stream the response', function () {
         return popsicle({
@@ -527,6 +529,37 @@ describe('popsicle', function () {
                 return resolve()
               }))
             })
+          })
+      })
+
+      it('should pipe streams', function () {
+        return popsicle({
+          url: REMOTE_URL + '/echo',
+          body: fs.createReadStream(filename)
+        })
+          .then(function (res) {
+            expect(res.body).to.equal(filecontents)
+          })
+      })
+
+      it('should pipe streams into forms', function () {
+        return popsicle({
+          url: REMOTE_URL + '/echo',
+          body: popsicle.form({
+            file: fs.createReadStream(filename)
+          })
+        })
+          .then(function (res) {
+            var boundary = BOUNDARY_REGEXP.exec(res.headers['content-type'])[1]
+
+            expect(res.body).to.equal([
+              '--' + boundary,
+              'Content-Disposition: form-data; name="file"; filename="popsicle.js"',
+              'Content-Type: application/javascript',
+              '',
+              filecontents,
+              '--' + boundary + '--'
+            ].join('\r\n'))
           })
       })
     }

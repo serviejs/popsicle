@@ -125,6 +125,16 @@
   }
 
   /**
+   * Check if an object is actually a stream.
+   *
+   * @param  {Object}  obj
+   * @return {Boolean}
+   */
+  function isStream (obj) {
+    return typeof obj.pipe === 'function'
+  }
+
+  /**
    * Create a timeout error instance.
    *
    * @param  {Request} req
@@ -452,14 +462,29 @@
         req.set('Accept-Encoding', 'gzip,deflate')
       }
 
-      // Set the `Content-Type` headers, which contains a boundary.
+      // Manually set the `Content-Length` and `Content-Type` headers from the
+      // form data object because we need to handle boundaries and streams.
       if (req.body instanceof FormData) {
-        req.set(req.body.getHeaders())
+        req.set('Content-Type', 'multipart/form-data; boundary=' + req.body.getBoundary())
+
+        // Asynchronously compute the content length.
+        return new Promise(function (resolve, reject) {
+          req.body.getLength(function (err, length) {
+            if (err) {
+              req.set('Transfer-Encoding', 'chunked')
+            } else {
+              req.set('Content-Length', length)
+            }
+
+            return resolve()
+          })
+        })
       }
 
       var length = 0
       var body = req.body
 
+      // Attempt to manually compute the content length.
       if (body && !req.get('Content-Length')) {
         if (Array.isArray(body)) {
           for (var i = 0; i < body.length; i++) {
@@ -467,20 +492,26 @@
           }
         } else if (typeof body === 'string') {
           length = Buffer.byteLength(body)
-        } else if (Buffer.isBuffer(body)) {
+        } else {
           length = body.length
         }
 
         if (length) {
           req.set('Content-Length', length)
+        } else if (isStream(body)) {
+          req.set('Transfer-Encoding', 'chunked')
+        } else {
+          return Promise.reject(req.error('Argument error, `options.body`'))
         }
       }
-    } else {
-      // Remove the `Content-Type` header from form data requests. Browsers
-      // will only fill it automatically when it doesn't exist.
-      if (req.body instanceof FormData) {
-        req.remove('Content-Type')
-      }
+
+      return
+    }
+
+    // Remove the `Content-Type` header from form data requests. Browsers
+    // will only fill it automatically when it doesn't exist.
+    if (req.body instanceof FormData) {
+      req.remove('Content-Type')
     }
   }
 
@@ -495,9 +526,7 @@
     req._always = undefined
     req._progress = undefined
     req._error = undefined
-
     req._raw = undefined
-
     req.body = undefined
   }
 
@@ -1314,7 +1343,7 @@
 
           // Pipe the body to the stream.
           if (body) {
-            if (typeof body.pipe === 'function') {
+            if (isStream(body)) {
               body.pipe(requestProxy)
             } else {
               requestProxy.end(body)
