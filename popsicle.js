@@ -834,7 +834,7 @@
    * @return {String}
    */
   Headers.prototype.get = function (header) {
-    if (header == null) {
+    if (arguments.length === 0) {
       return getHeaders(this)
     }
 
@@ -863,11 +863,11 @@
    * @return {String}
    */
   Headers.prototype.type = function (value) {
-    if (value) {
-      return this.set('Content-Type', value)
+    if (arguments.length === 0) {
+      return type(this.headers['content-type'])
     }
 
-    return type(this.headers['content-type'])
+    return this.set('Content-Type', value)
   }
 
   /**
