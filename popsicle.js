@@ -566,7 +566,7 @@
     var headers = {}
 
     Object.keys(req.headers).forEach(function (key) {
-      headers[req.name(key)] = req.headers[key]
+      headers[req.name(key)] = req.get(key)
     })
 
     return headers
@@ -793,8 +793,13 @@
 
     var lower = lowerHeader(key)
 
-    this.headers[lower] = value
-    this.headerNames[lower] = key
+    if (value == null) {
+      delete this.headers[lower]
+      delete this.headerNames[lower]
+    } else {
+      this.headers[lower] = value
+      this.headerNames[lower] = key
+    }
 
     return this
   }
