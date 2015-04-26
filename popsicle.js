@@ -55,6 +55,27 @@
   }
 
   /**
+   * Grab properties from an object to create a new object.
+   *
+   * @param  {Object} obj
+   * @param  {Array}  props
+   * @return {Object}
+   */
+  function pluck (obj, props) {
+    var dest = {}
+
+    for (var i = 0; i < props.length; i++) {
+      var prop = props[i]
+
+      if (obj[prop] != null) {
+        dest[prop] = obj[prop]
+      }
+    }
+
+    return dest
+  }
+
+  /**
    * Create a function to set progress properties on a request instance.
    *
    * @param  {String}   property
@@ -913,6 +934,20 @@
   }
 
   /**
+   * Return a JSON stringify-able object.
+   *
+   * @return {Object}
+   */
+  Response.prototype.toJSON = function () {
+    return pluck(this, [
+      'headers',
+      'headerNames',
+      'status',
+      'body'
+    ])
+  }
+
+  /**
    * Initialise a request instance.
    *
    * @param {(Object|String)} options
@@ -1010,6 +1045,38 @@
    */
   Request.prototype = Object.create(Headers.prototype)
   Request.prototype.constructor = Request
+
+  /**
+   * Return a JSON stringify-able object.
+   *
+   * @return {Object}
+   */
+  Request.prototype.toJSON = function () {
+    return pluck(this, [
+      'url',
+      'method',
+      'query',
+      'timeout',
+      'maxRedirects',
+      'rejectUnauthorized',
+      'stream',
+      'raw',
+      'encoding',
+      'parse',
+      'withCredentials',
+      'uploaded',
+      'downloaded',
+      'completed',
+      'uploadSize',
+      'uploadTotal',
+      'downloadSize',
+      'downloadTotal',
+      'headers',
+      'headerNames',
+      'opened',
+      'aborted'
+    ])
+  }
 
   /**
    * Retrieve the current request URL.
