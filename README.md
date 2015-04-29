@@ -273,6 +273,10 @@ If you need to augment the request or response lifecycle, there are a number of 
 * **after(fn)** Register a function to receive the response object
 * **always(fn)** Register a function that always runs on `resolve` or `reject`
 
+## TypeScript
+
+The `popsicle.d.ts` file is being maintained in the current repository.
+
 ## Development and Testing
 
 Install dependencies and run the test runners (node and browsers using Karma).

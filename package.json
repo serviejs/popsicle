@@ -5,6 +5,7 @@
   "main": "popsicle.js",
   "files": [
     "popsicle.js",
+    "popsicle.d.ts",
     "LICENSE",
     "logo.svg"
   ],
@@ -77,5 +78,8 @@
     "statuses": "^1.2.1",
     "through2": "^0.6.3",
     "tough-cookie": "^0.12.1"
+  },
+  "typescript": {
+    "definition": "popsicle.d.ts"
   }
 }
