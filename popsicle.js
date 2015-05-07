@@ -186,7 +186,7 @@
   }
 
   /**
-   * Create a CSP error instance (Cross-.
+   * Create a CSP error instance (Content Security Policy).
    *
    * @param  {Request} req
    * @param  {Error}   e
@@ -1464,6 +1464,12 @@
         // Loading HTTP resources from HTTPS is restricted and uncatchable.
         if (window.location.protocol === 'https:' && /^http\:/.test(url)) {
           return reject(blockedError(req))
+        }
+
+        // Catch URLs that will cause the request to hang indefinitely in
+        // CORS enabled environments like Atom Editor.
+        if (/^https?\:\/*(?:[~#\\\?;\:]|$)/.test(url)) {
+          return reject(unavailableError(req))
         }
 
         var xhr = req._raw = getXHR()
