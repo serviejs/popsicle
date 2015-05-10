@@ -31,8 +31,8 @@ declare module 'popsicle' {
     }
 
     interface Thenable<T> {
-      then(onResolved?: (value: T) => any, onRejected?: (error: any) => any): Thenable<any>;
-      catch(onRejected: (error: any) => any): Thenable<any>;
+      then<U>(onResolved?: (value: T) => U | Thenable<U>, onRejected?: (error: any) => U | Thenable<U>): Thenable<U>;
+      catch<U>(onRejected: (error: any) => U | Thenable<U>): Thenable<U>;
     }
 
     interface Cookie {
@@ -83,7 +83,7 @@ declare module 'popsicle' {
       headers: HeaderMap;
     }
 
-    class Request extends Headers implements Promise<Response> {
+    class Request extends Headers implements Thenable<Response> {
       url: string;
       method: string;
       body: any;
@@ -118,8 +118,8 @@ declare module 'popsicle' {
       before(fn: (request: Request) => any): Request;
       after(fn: (request: Request) => any): Request;
       always(fn: (request: Request) => any): Request;
-      then(fn: (response: Response) => any): Thenable<Response>;
-      catch(fn: (error: Error) => any): Thenable<any>;
+      then<U>(fn: (response: Response) => U | Thenable<U>): Thenable<U>;
+      catch<U>(fn: (error: Error) => U | Thenable<U>): Thenable<U>;
       exec(fn: (err: Error, response: Response) => any): void;
       toJSON(): RequestJSON
     }
