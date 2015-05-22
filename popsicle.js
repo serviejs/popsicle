@@ -581,8 +581,8 @@
   function lowerHeader (key) {
     var lower = key.toLowerCase()
 
-    if (lower === 'referer') {
-      return 'referrer'
+    if (lower === 'referrer') {
+      return 'referer'
     }
 
     return lower
