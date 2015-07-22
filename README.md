@@ -3,13 +3,16 @@
 [![NPM version][npm-image]][npm-url]
 [![NPM downloads][downloads-image]][downloads-url]
 [![Build status][travis-image]][travis-url]
+[![Test coverage][coveralls-image]][coveralls-url]
 
-**Popsicle** is designed to be easiest way for making HTTP requests, offering a consistent and intuitive API that works on both node and the browser.
+**Popsicle** is designed to be easiest way for making HTTP requests by offering a consistent and intuitive API that works with both node and the browser.
 
-```javascript
+```js
 popsicle('/users.json')
   .then(function (res) {
+    console.log(res.status) //=> 200
     console.log(res.body) //=> { ... }
+    console.log(res.headers) //=> { ... }
   })
 ```
 
@@ -29,17 +32,17 @@ bower install es6-promise --save
 
 Apply the polyfill.
 
-```javascript
-// Node and browserify
+```js
+// Node and browserify:
 require('es6-promise').polyfill()
 
-// Browsers
+// Browsers:
 window.ES6Promise.polyfill()
 ```
 
 ## Usage
 
-```javascript
+```js
 var popsicle = require('popsicle')
 // var popsicle = window.popsicle
 
@@ -65,32 +68,49 @@ popsicle({
 
 * **url** The resource URI
 * **method** The HTTP request method (default: `"GET"`)
-* **headers** An object of HTTP headers, header name to value (default: `{}`)
-* **query** An object or string to be appended to the URL
-* **body** An object, string or form data to pass with the request
-* **timeout** The number of milliseconds before cancelling the request (default: `Infinity`)
-* **parse** Disable automatic response parsing (default: `true`)
+* **headers** An object with HTTP headers, header name to value (default: `{}`)
+* **query** An object or string to be appended to the URL as the query string
+* **body** An object, string, form data, stream (node), etc to pass with the request
+* **timeout** The number of milliseconds to wait before aborting the request (default: `Infinity`)
+* **use** An array of plugins to be used (default: `[stringify, headers, parse]`)
+* **options** Raw options used by the transport layer (default: `{}`)
+* **transport** Override the transportation layer (default: `http.request/https.request` (node), `XMLHttpRequest` (brower))
 
-**Node only**
+**Options using node transport**
 
-* **jar** An instance of a cookie jar (default: `null`)
+The default plugins under node are `[stringify, headers, cookieJar, unzip, concatStream('string'), parse]`, since the extra options aren't customizable for the browser.
+
+* **jar** An instance of a cookie jar (`popsicle.jar()`) (default: `null`)
 * **agent** Custom HTTP pooling agent (default: [infinity-agent](https://github.com/floatdrop/infinity-agent))
-* **maxRedirects** Override the number of redirects to allow (default: `10`)
-* **followRedirects** Set whether redirects should be follow (default: `true`)
+* **maxRedirects** Override the number of redirects allowed (default: `5`)
 * **rejectUnauthorized** Reject invalid SSL certificates (default: `true`)
-* **stream** Stream the HTTP response body (default: `false`, disables `parse` when enabled)
-* **raw** Return the raw stream without unzipping (default: `false`, disables `parse` when enabled)
-* **encoding** Specify the response body format when not streaming (default: `string`, allowed: `string`, `buffer`, `array`, `uint8`, disables `parse` when not `string`)
+* **followRedirects** Disable redirects or use a function to accept `307`/`308` redirects (default: `true`)
 
-**Browser only**
+**Options using browser transport**
 
 * **withCredentials** Send cookies with CORS requests (default: `false`)
 
-#### Automatically Serializing Body
+#### Short-hand Methods
 
-Popsicle can automatically serialize the request body to a string. If an object is supplied, it'll automatically stringify as JSON unless the `Content-Type` header was set otherwise. If the `Content-Type` is `multipart/form-data` or `application/x-www-form-urlencoded`, it can also be automatically serialized.
+Every method has a short hand exposed under the main Popsicle function.
 
-```javascript
+```js
+popsicle.post('http://example.com/api/users')
+```
+
+#### Extending with Defaults
+
+Create a new Popsicle function with defaults set. Handy for a consistent cookie jar or transport to be used.
+
+```js
+var cookiePopsicle = popsicle.defaults({ options: { jar: popsicle.jar() } })
+```
+
+#### Automatically Stringify Request Body
+
+Popsicle can automatically serialize the request body with the built-in `stringify` plugin. If an object is supplied, it will automatically be stringified as JSON unless the `Content-Type` was set otherwise. If the `Content-Type` is `multipart/form-data` or `application/x-www-form-urlencoded`, it will be automatically serialized.
+
+```js
 popsicle({
   url: 'http://example.com/api/users',
   body: {
@@ -104,16 +124,15 @@ popsicle({
 
 #### Multipart Request Bodies
 
-You can manually create a form data instance by calling `popsicle.form`. When you pass a form data instance, it'll automatically set the correct `Content-Type` - complete with boundary.
+You can manually create form data by calling `popsicle.form`. When you pass a form data instance as the body, it'll automatically set the correct `Content-Type` - complete with boundary.
 
-```javascript
+```js
 var form = popsicle.form({
   username: 'blakeembrey',
   profileImage: fs.createReadStream('image.png')
 })
 
-popsicle({
-  method: 'POST',
+popsicle.post({
   url: '/users',
   body: form
 })
@@ -123,84 +142,124 @@ popsicle({
 
 All requests can be aborted before or during execution by calling `Request#abort`.
 
-```javascript
-var req = popsicle('http://example.com')
+```js
+var request = popsicle('http://example.com')
 
 setTimeout(function () {
-  req.abort()
+  request.abort()
 }, 100)
 
-req.catch(function (err) {
-  console.log(err) //=> { message: 'Request aborted', aborted: true }
+request.catch(function (err) {
+  console.log(err) //=> { message: 'Request aborted', type: 'EABORTED' }
 })
 ```
 
 #### Progress
 
-The request object can also be used to check progress at any time.
+The request object can be used to check progress at any time.
 
-* **req.uploadSize** Current upload size in bytes
-* **req.uploadTotal** Total upload size in bytes
-* **req.uploaded** Total uploaded as a percentage
-* **req.downloadSize** Current download size in bytes
-* **req.downloadTotal** Total download size in bytes
-* **req.downloaded** Total downloaded as a percentage
-* **req.completed** Total uploaded and downloaded as a percentage
+* **request.uploadedBytes** Current upload size in bytes
+* **request.uploadLength** Total upload size in bytes
+* **request.uploaded** Total uploaded as a percentage
+* **request.downloadedBytes** Current download size in bytes
+* **request.downloadLength** Total download size in bytes
+* **request.downloaded** Total downloaded as a percentage
+* **request.completed** Total uploaded and downloaded as a percentage
 
-All percentage properties (`req.uploaded`, `req.downloaded`, `req.completed`) will be a number between `0` and `1`. When the total size is unknown (no `Content-Length` header), the percentage will automatically increment on each chunk of data returned (this will not be accurate). Aborting a request will automatically emit a completed progress event.
+All percentage properties (`request.uploaded`, `request.downloaded`, `request.completed`) are a number between `0` and `1`. Aborting the request will emit a progress event, if the request had started.
 
-```javascript
-var req = popsicle('http://example.com')
+```js
+var request = popsicle('http://example.com')
 
-req.uploaded //=> 0
-req.downloaded //=> 0
+request.uploaded //=> 0
+request.downloaded //=> 0
 
-req.progress(function (e) {
-  console.log(e) //=> { uploaded: 1, downloaded: 0, completed: 0.5, aborted: false }
+request.progress(function () {
+  console.log(request) //=> { uploaded: 1, downloaded: 0, completed: 0.5, aborted: false }
 })
 
-req.then(function (res) {
-  console.log(req.downloaded) //=> 1
+request.then(function (response) {
+  console.log(request.downloaded) //=> 1
 })
 ```
+
+#### Default Plugins
+
+The default plugins are exposed under `popsicle.plugins`, which allows you to mix, match and omit some plugins for maximum usability with any use-case.
+
+```js
+{
+  headers: [Function: headers],
+  stringify: [Function: stringify],
+  parse: [Function: parse],
+  cookieJar: [Function: cookieJar],
+  unzip: [Function: unzip],
+  concatStream: [Function: concatStream],
+  defaults: [
+    [Function: stringify],
+    [Function: headers],
+    [Function: cookieJar],
+    [Function: unzip],
+    [Function: concatStream],
+    [Function: parse]
+  ]
+}
+```
+
+* **headers** Sets default headers, such as `User-Agent`, `Accept`, `Content-Length` (Highly recommended)
+* **stringify** Stringify object bodies into JSON/form data/url encoding (Recommended)
+* **parse** Automatically parse JSON and url encoding responses
+* **unzip** Automatically unzip response streams (Node only)
+* **concatStream** Buffer the whole stream using [concat-stream](https://www.npmjs.com/package/concat-stream) - accepts an "encoding" type (`string` (default), `buffer`, `array`, `uint8array`, `object`) (Node only)
+* **cookieJar** Support the cookie jar option in node (Recommended, Node only)
 
 #### Cookie Jar (Node only)
 
 You can create a reusable cookie jar instance for requests by calling `popsicle.jar`.
 
-```javascript
+```js
 var jar = request.jar()
 
 popsicle({
   method: 'POST',
   url: '/users',
-  jar: jar
+  options: {
+    jar: jar
+  }
 })
 ```
 
 ### Handling Responses
 
-Promises and node-style callbacks are supported.
+Promises and node-style callbacks are both supported.
 
 #### Promises
 
 Promises are the most expressive interface. Just chain using `Request#then` or `Request#catch` and continue.
 
-```javascript
+```js
 popsicle('/users')
   .then(function (res) {
-    // Things worked!
+    // Success!
   })
   .catch(function (err) {
     // Something broke.
   })
 ```
 
+If you live on the edge, try using it with generators (with [co](https://www.npmjs.com/package/co)) or ES7 `async`.
+
+```js
+co(function * () {
+  yield popsicle('/users')
+})
+```
+
 #### Callbacks
 
-For tooling that expect node-style callbacks, you can use `Request#exec`. This accepts a single function to call when the response is complete.
+For tooling that still expects node-style callbacks, you can use `Request#exec`. This accepts a single function to call when the response is complete.
 
-```javascript
+```js
 popsicle('/users')
   .exec(function (err, res) {
     if (err) {
@@ -215,9 +274,10 @@ popsicle('/users')
 
 Every Popsicle response will give a `Response` object on success. The object provides an intuitive interface for requesting common properties.
 
-* **status** An integer representing the HTTP response status code
-* **body** An object (if parsable) or string that was the response HTTP body
+* **status** The HTTP response status code
+* **body** An object (if parsed using a plugin) or string that was the response HTTP body
 * **headers** An object of lower-cased keys to header values
+* **url** The response URL after redirects (only supported in browser with `responseURL`)
 * **statusType()** Return an integer with the HTTP status type (E.g. `200 -> 2`)
 * **get(key)** Retrieve a HTTP header using a case-insensitive key
 * **name(key)** Retrieve the original HTTP header name using a case-insensitive key
@@ -225,62 +285,75 @@ Every Popsicle response will give a `Response` object on success. The object pro
 
 ### Error Handling
 
-All response handling methods can return an error. The errors can be categorized by checking properties on the error instance.
+All response handling methods can return an error. Errors have a `popsicle` property set to the request object and a `type` string. The built-in types are documented below, but custom errors can be created using `request.error(message, code, originalError)`.
 
-* **parse error** Response body failed to parse - invalid body or incorrect type (`err.parse`)
-* **stringify error** Request body failed to stringify - invalid body or incorrect type (`err.stringify`)
-* **abort error** The request was aborted by user intervention (`err.abort`)
-* **timeout error** The request timed out (`err.timeout`)
-* **unavailable error** Unable to connect to the remote URL (`err.unavailable`)
-* **blocked error** The request was blocked (HTTPS -> HTTP) (browsers, `err.blocked`)
-* **csp error** Request violates the documents Content Security Policy (browsers, `err.csp`)
-* **max redirects error** Number of HTTP redirects exceeded (node, `err.maxRedirects`)
+* **EABORT** Request has been aborted by user
+* **EUNAVAILABLE** Unable to connect to the remote URL
+* **EINVALID** Request URL is invalid
+* **ETIMEOUT** Request has exceeded the allowed timeout
+* **ESTRINGIFY** Request body threw an error during stringification plugin
+* **EPARSE** Response body threw an error during parsing plugin
+* **EMAXREDIRECTS** Maximum number of redirects exceeded (Node only)
+* **EBODY** Unable to handle request body (Node only)
+* **EBLOCKED** The request was blocked (HTTPS -> HTTP) (Browsers only)
+* **ECSP** Request violates the documents Content Security Policy (Browsers only)
 
 ### Plugins
 
-A simple plugin interface is exposed through `Request#use`.
+Plugins can be passed in as an array with the initial options (which overrides default plugins), or they can be used via the chained method `Request#use`.
 
-#### Existing Plugins
+#### External Plugins
 
-* [Server](https://github.com/blakeembrey/popsicle-server) - Automatically mount servers with each request for testing
+* [Server](https://github.com/blakeembrey/popsicle-server) - Automatically mount a server on each request (handy for testing)
 * [Status](https://github.com/blakeembrey/popsicle-status) - Reject responses on HTTP failure status codes
-* [No Cache](https://github.com/blakeembrey/popsicle-no-cache) - Prevent caching of HTTP requests
-* [Basic Auth](https://github.com/blakeembrey/popsicle-basic-auth) - Add basic authentication to requests
-* [Prefix](https://github.com/blakeembrey/popsicle-prefix) - Automatically prefix all HTTP requests
+* [No Cache](https://github.com/blakeembrey/popsicle-no-cache) - Prevent caching of HTTP requests in browsers
+* [Basic Auth](https://github.com/blakeembrey/popsicle-basic-auth) - Add basic authentication headers to each request
+* [Prefix](https://github.com/blakeembrey/popsicle-prefix) - Prefix all HTTP requests
+* [Resolve](https://github.com/blakeembrey/popsicle-resolve) - Resolve all HTTP requests against a base URL
 * [Constants](https://github.com/blakeembrey/popsicle-constants) - Replace constants in the URL string
-* [Limit](https://github.com/blakeembrey/popsicle-limit) - Transparently handle API rate limits
+* [Limit](https://github.com/blakeembrey/popsicle-limit) - Transparently handle API rate limits by grouping requests
 
 #### Creating Plugins
 
 Plugins must be a function that accepts configuration and returns another function. For example, here's a basic URL prefix plugin.
 
-```javascript
+```js
 function prefix (url) {
-  return function (req) {
-    req.url = url + req.url
+  return function (request) {
+    request.url = url + req.url
   }
 }
 
 popsicle('/user')
   .use(prefix('http://example.com'))
-  .then(function (res) {
-    console.log(res.request.url) //=> "http://example.com/user"
+  .then(function (response) {
+    console.log(response.url) //=> "http://example.com/user"
   })
 ```
 
-If you need to augment the request or response lifecycle, there are a number of functions you can register. All listeners accept an optional promise that will resolve before proceeding.
+Popsicle also has a way modify the request and response lifecycle, if needed. Any registered function can return a promise to defer the request or response resolution. This makes plugins such as rate-limiting and response body concatenation possible.
 
 * **before(fn)** Register a function to run before the request is made
 * **after(fn)** Register a function to receive the response object
 * **always(fn)** Register a function that always runs on `resolve` or `reject`
 
+#### Checking The Environment
+
+```js
+popsicle.browser //=> true
+```
+
+#### Transportation Layers
+
+Creating a custom transportation layer is just a matter creating an object with `open`, `close` and `use` options set. The open method should set any request information required between called as `request.raw`. Close must abort the request, and `open` must **always** resolve. Use can be set to an empty array if no plugins should be used by default. It's recommended to keep `use` set to the defaults, or as close as possible.
+
 ## TypeScript
 
-The `popsicle.d.ts` file is being maintained in the current repository.
+This project is written using TypeScript and has an accompanying `.d.ts` file.
 
-## Development and Testing
+## Development
 
-Install dependencies and run the test runners (node and browsers using Karma).
+Install dependencies and run the test runners (node and PhantomJS using Tap).
 
 ```
 npm install && npm test
@@ -302,3 +375,5 @@ MIT
 [downloads-url]: https://npmjs.org/package/popsicle
 [travis-image]: https://img.shields.io/travis/blakeembrey/popsicle.svg?style=flat
 [travis-url]: https://travis-ci.org/blakeembrey/popsicle
+[coveralls-image]: https://img.shields.io/coveralls/blakeembrey/popsicle.svg?style=flat
+[coveralls-url]: https://coveralls.io/r/blakeembrey/popsicle?branch=master

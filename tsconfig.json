@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "es5",
+    "outDir": "dist",
+    "module": "commonjs",
+    "declaration": true,
+    "noImplicitAny": true,
+    "removeComments": true,
+    "sourceMap": true
+  },
+  "files": [
+    "lib/index.ts",
+    "lib/browser.ts",
+    "lib/typings/_env.d.ts",
+    "lib/browser/form-data.ts",
+    "lib/browser/tough-cookie.ts",
+    "lib/plugins/browser.ts",
+    "lib/typings/arrify.d.ts",
+    "lib/typings/xtend.d.ts",
+    "lib/typings/form-data.d.ts",
+    "lib/typings/tough-cookie.d.ts",
+    "lib/typings/infinity-agent.d.ts",
+    "lib/typings/concat-stream.d.ts",
+    "lib/typings/blue-tape.d.ts",
+    "lib/typings/es6-promise.d.ts",
+    "lib/typings/methods.d.ts",
+    "typings/tsd.d.ts",
+    "test/index.ts"
+  ]
+}

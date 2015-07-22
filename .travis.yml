@@ -1,3 +1,4 @@
+sudo: false
 language: node_js
 
 notifications:
@@ -8,3 +9,6 @@ notifications:
 node_js:
   - "0.10"
   - "0.12"
+  - "iojs"
+
+after_script: "npm install coveralls@2 && cat ./coverage/lcov.info | coveralls"
