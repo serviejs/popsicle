@@ -1,4 +1,4 @@
-/* global describe, it, expect, popsicle */
+/* global describe, it, expect, popsicle, FormData */
 
 var isNode = typeof window === 'undefined'
 
