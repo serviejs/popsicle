@@ -946,6 +946,7 @@
     this.jar = options.jar
     this.maxRedirects = num(options.maxRedirects)
     this.rejectUnauthorized = options.rejectUnauthorized !== false
+    this.followRedirects = options.followRedirects !== false
     this.agent = options.agent
     this.stream = options.stream === true
     this.raw = options.raw === true
@@ -1329,7 +1330,7 @@
             var statusCode = response.statusCode
 
             // Handle HTTP redirections.
-            if (statuses.redirect[statusCode] && response.headers.location) {
+            if (req.followRedirects && statuses.redirect[statusCode] && response.headers.location) {
               // Discard response.
               response.resume()
 

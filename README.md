@@ -76,6 +76,7 @@ popsicle({
 * **jar** An instance of a cookie jar (default: `null`)
 * **agent** Custom HTTP pooling agent (default: [infinity-agent](https://github.com/floatdrop/infinity-agent))
 * **maxRedirects** Override the number of redirects to allow (default: `10`)
+* **followRedirects** Set whether redirects should be follow (default: `true`)
 * **rejectUnauthorized** Reject invalid SSL certificates (default: `true`)
 * **stream** Stream the HTTP response body (default: `false`, disables `parse` when enabled)
 * **raw** Return the raw stream without unzipping (default: `false`, disables `parse` when enabled)
