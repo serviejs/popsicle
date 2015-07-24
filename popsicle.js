@@ -1287,9 +1287,7 @@
      */
     createRequest = function (req) {
       return new Promise(function (resolve, reject) {
-        var body = req.body
         var redirectCount = 0
-        var headers = req.get()
 
         /**
          * Track upload progress through a stream.
@@ -1318,15 +1316,12 @@
          *
          * @param {String} url
          */
-        function get (url) {
-          var arg = urlLib.parse(url)
+        function get (url, opts, body) {
+          var arg = assign(urlLib.parse(url), opts)
           var fn = arg.protocol === 'https:' ? https : http
 
-          arg.headers = headers
-          arg.method = req.method
-          arg.rejectUnauthorized = req.rejectUnauthorized
-
           arg.agent = req.agent || agent(arg)
+          arg.rejectUnauthorized = req.rejectUnauthorized
 
           var request = fn.request(arg)
 
@@ -1384,7 +1379,10 @@
           }
         }
 
-        get(req.fullUrl())
+        get(req.fullUrl(), {
+          headers: req.get(),
+          method: req.method
+        }, req.body)
       })
     }
 
