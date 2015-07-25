@@ -1,12 +1,14 @@
 var express = require('express')
 var bodyParser = require('body-parser')
+var zlib = require('zlib')
+var extend = require('xtend')
 
 var app = module.exports = express()
 
 app.use(function (req, res, next) {
   res.set('Access-Control-Allow-Origin', '*')
   res.set('Access-Control-Allow-Credentials', 'true')
-  res.set('Access-Control-Allow-Methods', '*')
+  res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE')
   res.set(
     'Access-Control-Allow-Headers',
     'X-Requested-With, Content-Type, Content-Length, Referrer'
@@ -14,19 +16,33 @@ app.use(function (req, res, next) {
   res.set('Access-Control-Expose-Headers', 'Content-Length')
 
   if (req.method === 'OPTIONS') {
-    return res.sendStatus(200)
+    return res.end()
   }
 
   return next()
 })
 
-app.use(function (req, res, next) {
-  if (req.url !== '/echo') {
-    return next()
-  }
-
+app.all('/echo', function (req, res, next) {
   res.set(req.headers)
   req.pipe(res)
+})
+
+app.all('/echo/zip', function (req, res, next) {
+  var acceptEncoding = req.headers['accept-encoding']
+  var encodings = acceptEncoding ? acceptEncoding.split(/ *, */) : []
+
+  console.log(encodings)
+
+  if (encodings.indexOf('deflate') > -1) {
+    res.writeHead(200, { 'content-encoding': 'deflate' })
+    req.pipe(zlib.createDeflate()).pipe(res)
+  } else if (encodings.indexOf('gzip') > -1) {
+    res.writeHead(200, { 'content-encoding': 'gzip' })
+    req.pipe(zlib.createGzip()).pipe(res)
+  } else {
+    res.writeHead(200, {})
+    req.pipe(res)
+  }
 })
 
 app.use(bodyParser.urlencoded({ extended: true }))
@@ -59,7 +75,7 @@ app.get('/delay/const', function (req, res) {
   res.redirect('/delay/3000')
 })
 
-app.get('/delay/:ms', function (req, res) {
+app.get('/delay/:ms(\\d+)', function (req, res) {
   var ms = ~~req.params.ms
 
   setTimeout(function () {
@@ -73,6 +89,33 @@ app.all('/echo/query', function (req, res) {
 
 app.all('/echo/header/:field', function (req, res) {
   res.send(req.headers[req.params.field])
+})
+
+app.all('/echo/method', function (req, res) {
+  res.send(req.method)
+})
+
+app.all('/redirect/code/:code(\\d+)', function (req, res) {
+  return res.redirect(~~req.params.code, '/destination')
+})
+
+app.all('/redirect/:n(\\d+)', function (req, res) {
+  const n = ~~req.params.n
+
+  if (n < 2) {
+    res.redirect('/destination')
+    return
+  }
+
+  res.redirect('/redirect/' + (n - 1))
+})
+
+app.all('/redirect', function (req, res) {
+  res.redirect('/destination')
+})
+
+app.all('/destination', function (req, res) {
+  res.send('welcome ' + req.method.toLowerCase())
 })
 
 app.get('/json', function (req, res) {
@@ -100,3 +143,7 @@ app.get('/download', function (req, res) {
     res.end()
   }, 200)
 })
+
+if (!module.parent) {
+  app.listen(process.env.PORT || 3000)
+}

@@ -2,31 +2,38 @@
   "name": "popsicle",
   "version": "0.5.13",
   "description": "Simple HTTP requests for node and the browser",
-  "main": "popsicle.js",
+  "main": "dist/lib/index.js",
   "files": [
-    "popsicle.js",
+    "dist/lib/",
     "popsicle.d.ts",
     "LICENSE",
     "logo.svg"
   ],
   "browser": {
-    "form-data": false,
     "buffer": false,
-    "concat-stream": false,
-    "http": false,
-    "https": false,
-    "url": false,
-    "zlib": false,
-    "infinity-agent": false,
-    "statuses": false,
-    "through2": false,
-    "tough-cookie": false
+    "form-data": "./dist/lib/browser/form-data.js",
+    "tough-cookie": "./dist/lib/browser/tough-cookie.js",
+    "./dist/lib/index.js": "./dist/lib/browser.js",
+    "./dist/lib/plugins/index.js": "./dist/lib/plugins/browser.js"
   },
   "scripts": {
-    "lint": "standard",
-    "filesize": "du -hs popsicle.js",
-    "test": "npm run lint && gulp test && npm run filesize"
+    "lint": "# TODO",
+    "build-ts": "tsc",
+    "build-browser": "browserify . -s popsicle > popsicle.js",
+    "build": "rm -rf dist && npm run build-ts && npm run build-browser && npm run build-size",
+    "build-size": "du -h popsicle.js",
+    "test-spec": "npm run test-server-open && PORT=7357 node dist/test/index.js; npm run test-server-close",
+    "test-cov": "PORT=7357 istanbul cover --print none dist/test/index.js | faucet",
+    "test-browser": "PORT=7357 browserify -t envify dist/test/index.js | tape-run | faucet",
+    "test-server-open": "PORT=7357 node test/support/server.js & echo $! > test.pid",
+    "test-server-close": "if [ -f test.pid ]; then kill -9 $(cat test.pid); rm test.pid; fi",
+    "test": "npm run lint && npm run build && npm run test-server-open && npm run test-cov && npm run test-browser; npm run test-server-close",
+    "commit-build": "git add popsicle.js"
   },
+  "pre-commit": [
+    "test",
+    "commit-build"
+  ],
   "repository": {
     "type": "git",
     "url": "git://github.com/blakeembrey/popsicle.git"
@@ -51,33 +58,27 @@
   },
   "homepage": "https://github.com/blakeembrey/popsicle",
   "devDependencies": {
+    "blue-tape": "^0.1.10",
     "body-parser": "^1.9.2",
-    "chai": "^2.1.1",
-    "es6-promise": "^2.0.0",
+    "browserify": "^11.0.0",
+    "envify": "^3.4.0",
+    "es6-promise": "^2.3.0",
     "express": "^4.10.2",
-    "gulp": "^3.8.6",
-    "gulp-jshint": "^1.8.4",
-    "gulp-mocha": "^2.0.0",
-    "is-travis": "^1.0.0",
-    "karma": "^0.12.23",
-    "karma-chrome-launcher": "^0.1.4",
-    "karma-coverage": "^0.2.6",
-    "karma-firefox-launcher": "^0.1.3",
-    "karma-mocha": "^0.1.9",
-    "karma-phantomjs-launcher": "^0.1.4",
-    "karma-sinon-chai": "^0.3.0",
-    "mocha": "^2.1.0",
-    "pre-commit": "^1.0.4",
-    "require-dir": "^0.1.0",
-    "standard": "^2.7.3"
+    "faucet": "0.0.1",
+    "istanbul": "^0.3.17",
+    "pre-commit": "^1.0.10",
+    "tape-run": "^1.0.0",
+    "typescript": "^1.5.0"
   },
   "dependencies": {
+    "arrify": "^1.0.0",
     "concat-stream": "^1.4.7",
     "form-data": "^0.2.0",
-    "infinity-agent": "^1.0.2",
-    "statuses": "^1.2.1",
-    "through2": "^0.6.3",
-    "tough-cookie": "^0.12.1"
+    "infinity-agent": "^2.0.3",
+    "methods": "^1.1.1",
+    "through2": "^2.0.0",
+    "tough-cookie": "^2.0.0",
+    "xtend": "^4.0.0"
   },
   "typescript": {
     "definition": "popsicle.d.ts"
