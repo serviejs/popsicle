@@ -2,16 +2,14 @@ import { Headers } from './base'
 import Request from './request'
 import Response from './response'
 import { defaults, Popsicle } from './common'
-import { defaults as defaultPlugins } from './plugins/index'
+import { defaults as use } from './plugins/index'
 
 /**
- * Set up request for browsers.
+ * Export default instance with browser transportation layer.
  */
-;(<any> Request).prototype._open = open
-;(<any> Request).prototype._abort = abort
-;(<any> Request).prototype._use = defaultPlugins
-
-export = defaults({})
+export = defaults({
+  transport: { open, abort, use }
+})
 
 /**
  * Get the correct XHR object.

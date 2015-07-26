@@ -345,7 +345,7 @@ popsicle.browser //=> true
 
 #### Transportation Layers
 
-Creating a custom transportation layer is just a matter creating an object with `open`, `close` and `use` options set. The open method should set any request information required between called as `request.raw`. Close must abort the request, and `open` must **always** resolve. Use can be set to an empty array if no plugins should be used by default. It's recommended to keep `use` set to the defaults, or as close as possible.
+Creating a custom transportation layer is just a matter creating an object with `open`, `abort` and `use` options set. The open method should set any request information required between called as `request.raw`. Abort must abort the current request instance, while `open` must **always** resolve the promise. You can set `use` to an empty array if no plugins should be used by default. However, it's recommended you keep `use` set to the defaults, or as close as possible using your transport layer.
 
 ## TypeScript
 

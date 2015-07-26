@@ -8,7 +8,15 @@ import { Headers } from './base'
 import Request from './request'
 import Response from './response'
 import { defaults, Popsicle } from './common'
-import { defaults as defaultPlugins } from './plugins/index'
+import { defaults as use } from './plugins/index'
+
+/**
+ * Export default instance with node transportation layer.
+ */
+export = defaults({
+  transport: { open, abort, use }
+})
+
 
 /**
  * Redirection types to handle.
@@ -30,15 +38,6 @@ const REDIRECT_STATUS: { [status: number]: number } = {
   '307': REDIRECT_TYPE.FOLLOW_WITH_CONFIRMATION,
   '308': REDIRECT_TYPE.FOLLOW_WITH_CONFIRMATION
 }
-
-/**
- * Set up request for browsers.
- */
-;(<any> Request).prototype._open = open
-;(<any> Request).prototype._abort = abort
-;(<any> Request).prototype._use = defaultPlugins
-
-export = defaults({})
 
 /**
  * Parse headers from node response object.

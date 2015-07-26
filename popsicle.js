@@ -927,12 +927,8 @@ function extend() {
 }
 
 },{}],19:[function(require,module,exports){
-var request_1 = require('./request');
 var common_1 = require('./common');
 var index_1 = require('./plugins/index');
-request_1.default.prototype._open = open;
-request_1.default.prototype._abort = abort;
-request_1.default.prototype._use = index_1.defaults;
 function getXHR() {
     if (XMLHttpRequest) {
         return new XMLHttpRequest();
@@ -1033,7 +1029,9 @@ function open(request) {
 function abort(request) {
     request.raw.abort();
 }
-module.exports = common_1.defaults({});
+module.exports = common_1.defaults({
+    transport: { open: open, abort: abort, use: index_1.defaults }
+});
 
-},{"./common":4,"./plugins/index":7,"./request":9}]},{},[19])(19)
+},{"./common":4,"./plugins/index":7}]},{},[19])(19)
 });
