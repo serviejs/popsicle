@@ -570,9 +570,9 @@ var Response = (function (_super) {
     };
     Response.prototype.toJSON = function () {
         return {
+            url: this.fullUrl(),
             headers: this.get(),
             body: this.body,
-            url: this.fullUrl(),
             status: this.status
         };
     };

@@ -35,9 +35,9 @@ export default class Response extends Base {
 
   toJSON (): ResponseJSON {
     return {
+      url: this.fullUrl(),
       headers: this.get(),
       body: this.body,
-      url: this.fullUrl(),
       status: this.status
     }
   }
