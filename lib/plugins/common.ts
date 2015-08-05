@@ -100,6 +100,10 @@ function stringifyRequest (request: Request) {
 function parseResponse (response: Response) {
   const body = response.body
 
+  if (typeof body !== 'string') {
+    return
+  }
+
   if (body === '') {
     response.body = null
 

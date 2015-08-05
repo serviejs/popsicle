@@ -16,6 +16,7 @@ function open (request: Request) {
   return new Promise(function (resolve, reject) {
     const url = request.fullUrl()
     const method = request.method
+    const responseType = request.options.responseType
 
     // Loading HTTP resources from HTTPS is restricted and uncatchable.
     if (window.location.protocol === 'https:' && /^http\:/.test(url)) {
@@ -28,7 +29,7 @@ function open (request: Request) {
       return resolve({
         status: xhr.status === 1223 ? 204 : xhr.status,
         headers: getHeaders(xhr.getAllResponseHeaders()),
-        body: xhr.responseText,
+        body: responseType ? xhr.response : xhr.responseText,
         url: xhr.responseURL
       })
     }
@@ -74,6 +75,16 @@ function open (request: Request) {
     // Send cookies with CORS.
     if (request.options.withCredentials) {
       xhr.withCredentials = true
+    }
+
+    if (responseType) {
+      try {
+        xhr.responseType = responseType
+      } finally {
+        if (xhr.responseType !== responseType) {
+          throw request.error(`Unsupported response type: ${responseType}`, 'ERESPONSETYPE')
+        }
+      }
     }
 
     // Set all headers with original casing.

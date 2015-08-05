@@ -988,6 +988,7 @@ function open(request) {
     return new Promise(function (resolve, reject) {
         var url = request.fullUrl();
         var method = request.method;
+        var responseType = request.options.responseType;
         if (window.location.protocol === 'https:' && /^http\:/.test(url)) {
             return reject(request.error("The request to \"" + url + "\" was blocked", 'EBLOCKED'));
         }
@@ -996,7 +997,7 @@ function open(request) {
             return resolve({
                 status: xhr.status === 1223 ? 204 : xhr.status,
                 headers: get_headers_1.parse(xhr.getAllResponseHeaders()),
-                body: xhr.responseText,
+                body: responseType ? xhr.response : xhr.responseText,
                 url: xhr.responseURL
             });
         };
@@ -1032,6 +1033,16 @@ function open(request) {
         }
         if (request.options.withCredentials) {
             xhr.withCredentials = true;
+        }
+        if (responseType) {
+            try {
+                xhr.responseType = responseType;
+            }
+            finally {
+                if (xhr.responseType !== responseType) {
+                    throw request.error("Unsupported response type: " + responseType, 'ERESPONSETYPE');
+                }
+            }
         }
         Object.keys(request.headers).forEach(function (header) {
             xhr.setRequestHeader(request.name(header), request.get(header));

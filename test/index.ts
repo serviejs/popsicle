@@ -561,7 +561,7 @@ test('response body', function (t) {
         })
     })
 
-    t.test('should unzip contents', function (t) {
+    t.test('unzip contents', function (t) {
       return popsicle({
         url: REMOTE_URL + '/echo/zip',
         body: fs.createReadStream(filename)
@@ -572,7 +572,7 @@ test('response body', function (t) {
         })
     })
 
-    t.test('should unzip with gzip encoding', function (t) {
+    t.test('unzip with gzip encoding', function (t) {
       return popsicle({
         url: REMOTE_URL + '/echo/zip',
         body: fs.createReadStream(filename),
@@ -583,6 +583,33 @@ test('response body', function (t) {
         .then(function (res) {
           t.equal(res.get('Content-Encoding'), 'gzip')
           t.equal(res.body, filecontents)
+        })
+    })
+  } else {
+    t.test('browser response type', function (t) {
+      return popsicle({
+        url: REMOTE_URL + '/text',
+        options: {
+          responseType: 'arraybuffer'
+        }
+      })
+        .then(function (res) {
+          t.ok(res.body instanceof ArrayBuffer)
+        })
+    })
+
+    t.test('throw on unsupported response type', function (t) {
+      t.plan(2)
+
+      return popsicle({
+        url: REMOTE_URL + '/text',
+        options: {
+          responseType: 'foobar'
+        }
+      })
+        .catch(function (err) {
+          t.equal(err.message, 'Unsupported response type: foobar')
+          t.equal(err.type, 'ERESPONSETYPE')
         })
     })
   }

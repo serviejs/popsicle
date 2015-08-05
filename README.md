@@ -89,6 +89,7 @@ The default plugins under node are `[stringify, headers, cookieJar, unzip, conca
 **Options using browser transport**
 
 * **withCredentials** Send cookies with CORS requests (default: `false`)
+* **responseType** Set the XHR `responseType` (default: `undefined`)
 
 #### Short-hand Methods
 
