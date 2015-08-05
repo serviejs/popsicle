@@ -1,9 +1,10 @@
-import http = require('http')
-import https = require('https')
+import { request as httpRequest, IncomingMessage } from 'http'
+import { request as httpsRequest } from 'https'
 import agent = require('infinity-agent')
 import through2 = require('through2')
 import urlLib = require('url')
 import extend = require('xtend')
+import { http as getHeaders } from 'get-headers'
 import { Headers } from './base'
 import Request from './request'
 import Response from './response'
@@ -37,42 +38,6 @@ const REDIRECT_STATUS: { [status: number]: number } = {
   '305': REDIRECT_TYPE.FOLLOW_WITH_GET,
   '307': REDIRECT_TYPE.FOLLOW_WITH_CONFIRMATION,
   '308': REDIRECT_TYPE.FOLLOW_WITH_CONFIRMATION
-}
-
-/**
- * Parse headers from node response object.
- */
-function parseRawHeaders (response: any) {
-  var headers: Headers = {}
-
-  if (!response.rawHeaders) {
-    Object.keys(response.headers).forEach(function (key) {
-      var value = response.headers[key]
-
-      // Need to normalize `Set-Cookie` header under node 0.10 which
-      // always comes back as an array.
-      if (Array.isArray(value) && value.length === 1) {
-        value = value[0]
-      }
-
-      headers[key] = value
-    })
-  } else {
-    for (var i = 0; i < response.rawHeaders.length; i = i + 2) {
-      var name = response.rawHeaders[i]
-      var value = response.rawHeaders[i + 1]
-
-      if (!headers.hasOwnProperty(name)) {
-        headers[name] = value
-      } else if (typeof headers[name] === 'string') {
-        headers[name] = [<string> headers[name], value]
-      } else {
-        (<string[]> headers[name]).push(value)
-      }
-    }
-  }
-
-  return headers
 }
 
 /**
@@ -119,15 +84,15 @@ function open (request: Request) {
 
       const arg: any = extend(urlLib.parse(url), opts)
       const isHttp = arg.protocol !== 'https:'
-      const engine = isHttp ? http : https
+      const engine: typeof httpRequest = isHttp ? httpRequest : httpsRequest
 
       // Always attach certain options.
       arg.agent = request.options.agent || (isHttp ? agent.http.globalAgent : agent.https.globalAgent)
       arg.rejectUnauthorized = request.options.rejectUnauthorized !== false
 
-      const req = engine.request(arg)
+      const req = engine(arg)
 
-      req.once('response', function (res: http.IncomingMessage) {
+      req.once('response', function (res: IncomingMessage) {
         const status = res.statusCode
         const redirect = REDIRECT_STATUS[status]
 
@@ -165,7 +130,7 @@ function open (request: Request) {
         return resolve({
           body: responseProxy,
           status: status,
-          headers: parseRawHeaders(res),
+          headers: getHeaders(res),
           url: url
         })
       })

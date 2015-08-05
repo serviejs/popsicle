@@ -3,6 +3,7 @@ import Request from './request'
 import Response from './response'
 import { defaults, Popsicle } from './common'
 import { defaults as use } from './plugins/index'
+import { parse as getHeaders } from 'get-headers'
 
 /**
  * Export default instance with browser transportation layer.
@@ -10,32 +11,6 @@ import { defaults as use } from './plugins/index'
 export = defaults({
   transport: { open, abort, use }
 })
-
-/**
- * Parse XHR for raw headers.
- */
-function parseRawHeaders (xhr: XMLHttpRequest) {
-  const headers: Headers = {}
-  const lines = xhr.getAllResponseHeaders().split(/\r?\n/)
-
-  lines.pop()
-
-  lines.forEach(function (header) {
-    const indexOf = header.indexOf(':')
-    const name = header.substr(0, indexOf)
-    const value = header.substr(indexOf + 1).trim()
-
-    if (!headers.hasOwnProperty(name)) {
-      headers[name] = value
-    } else if (typeof headers[name] === 'string') {
-      headers[name] = [<string> headers[name], value]
-    } else {
-      (<string[]> headers[name]).push(value)
-    }
-  })
-
-  return headers
-}
 
 function open (request: Request) {
   return new Promise(function (resolve, reject) {
@@ -52,7 +27,7 @@ function open (request: Request) {
     xhr.onload = function () {
       return resolve({
         status: xhr.status === 1223 ? 204 : xhr.status,
-        headers: parseRawHeaders(xhr),
+        headers: getHeaders(xhr.getAllResponseHeaders()),
         body: xhr.responseText,
         url: xhr.responseURL
       })

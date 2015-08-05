@@ -100,7 +100,7 @@ var Base = (function () {
 })();
 exports.default = Base;
 
-},{"arrify":11,"querystring":16,"xtend":18}],2:[function(require,module,exports){
+},{"arrify":11,"querystring":16,"xtend":19}],2:[function(require,module,exports){
 module.exports = FormData;
 
 },{}],3:[function(require,module,exports){
@@ -157,7 +157,7 @@ function defaults(defaultsOptions) {
 exports.defaults = defaults;
 
 }).call(this,require('_process'))
-},{"./form":5,"./jar":6,"./plugins/index":7,"./request":9,"./response":10,"_process":13,"methods":17,"xtend":18}],5:[function(require,module,exports){
+},{"./form":5,"./jar":6,"./plugins/index":7,"./request":9,"./response":10,"_process":13,"methods":18,"xtend":19}],5:[function(require,module,exports){
 var FormData = require('form-data');
 function form(obj) {
     var form = new FormData();
@@ -253,6 +253,9 @@ function stringifyRequest(request) {
 }
 function parseResponse(response) {
     var body = response.body;
+    if (typeof body !== 'string') {
+        return;
+    }
     if (body === '') {
         response.body = null;
         return;
@@ -547,7 +550,7 @@ function emitProgress(request) {
 }
 
 }).call(this,require('_process'))
-},{"./base":1,"./response":10,"_process":13,"arrify":11,"xtend":18}],10:[function(require,module,exports){
+},{"./base":1,"./response":10,"_process":13,"arrify":11,"xtend":19}],10:[function(require,module,exports){
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -864,6 +867,57 @@ exports.decode = exports.parse = require('./decode');
 exports.encode = exports.stringify = require('./encode');
 
 },{"./decode":14,"./encode":15}],17:[function(require,module,exports){
+function parse(value) {
+    var headers = {};
+    var lines = value.replace(/\r?\n$/, '').split(/\r?\n/);
+    lines.forEach(function (header) {
+        var indexOf = header.indexOf(':');
+        var name = header.substr(0, indexOf);
+        var value = header.substr(indexOf + 1).trim();
+        if (!headers.hasOwnProperty(name)) {
+            headers[name] = value;
+        }
+        else if (typeof headers[name] === 'string') {
+            headers[name] = [headers[name], value];
+        }
+        else {
+            headers[name].push(value);
+        }
+    });
+    return headers;
+}
+exports.parse = parse;
+function http(response) {
+    var headers = {};
+    if (!response.rawHeaders) {
+        Object.keys(response.headers).forEach(function (key) {
+            var value = response.headers[key];
+            if (Array.isArray(value) && value.length === 1) {
+                value = value[0];
+            }
+            headers[key] = value;
+        });
+    }
+    else {
+        for (var i = 0; i < response.rawHeaders.length; i = i + 2) {
+            var name = response.rawHeaders[i];
+            var value = response.rawHeaders[i + 1];
+            if (!headers.hasOwnProperty(name)) {
+                headers[name] = value;
+            }
+            else if (typeof headers[name] === 'string') {
+                headers[name] = [headers[name], value];
+            }
+            else {
+                headers[name].push(value);
+            }
+        }
+    }
+    return headers;
+}
+exports.http = http;
+
+},{}],18:[function(require,module,exports){
 
 var http = require('http');
 
@@ -907,7 +961,7 @@ if (http.METHODS) {
 
 }
 
-},{"http":12}],18:[function(require,module,exports){
+},{"http":12}],19:[function(require,module,exports){
 module.exports = extend
 
 function extend() {
@@ -926,51 +980,10 @@ function extend() {
     return target
 }
 
-},{}],19:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 var common_1 = require('./common');
 var index_1 = require('./plugins/index');
-function getXHR() {
-    if (XMLHttpRequest) {
-        return new XMLHttpRequest();
-    }
-    try {
-        return new ActiveXObject('Microsoft.XMLHTTP');
-    }
-    catch (e) { }
-    try {
-        return new ActiveXObject('Msxml2.XMLHTTP.6.0');
-    }
-    catch (e) { }
-    try {
-        return new ActiveXObject('Msxml2.XMLHTTP.3.0');
-    }
-    catch (e) { }
-    try {
-        return new ActiveXObject('Msxml2.XMLHTTP');
-    }
-    catch (e) { }
-    throw new TypeError('XMLHttpRequest is not available');
-}
-function parseRawHeaders(xhr) {
-    var headers = {};
-    var lines = xhr.getAllResponseHeaders().split(/\r?\n/);
-    lines.pop();
-    lines.forEach(function (header) {
-        var indexOf = header.indexOf(':');
-        var name = header.substr(0, indexOf);
-        var value = header.substr(indexOf + 1).trim();
-        if (!headers.hasOwnProperty(name)) {
-            headers[name] = value;
-        }
-        else if (typeof headers[name] === 'string') {
-            headers[name] = [headers[name], value];
-        }
-        else {
-            headers[name].push(value);
-        }
-    });
-    return headers;
-}
+var get_headers_1 = require('get-headers');
 function open(request) {
     return new Promise(function (resolve, reject) {
         var url = request.fullUrl();
@@ -978,11 +991,11 @@ function open(request) {
         if (window.location.protocol === 'https:' && /^http\:/.test(url)) {
             return reject(request.error("The request to \"" + url + "\" was blocked", 'EBLOCKED'));
         }
-        var xhr = request.raw = getXHR();
+        var xhr = request.raw = new XMLHttpRequest();
         xhr.onload = function () {
             return resolve({
                 status: xhr.status === 1223 ? 204 : xhr.status,
-                headers: parseRawHeaders(xhr),
+                headers: get_headers_1.parse(xhr.getAllResponseHeaders()),
                 body: xhr.responseText,
                 url: xhr.responseURL
             });
@@ -1033,5 +1046,5 @@ module.exports = common_1.defaults({
     transport: { open: open, abort: abort, use: index_1.defaults }
 });
 
-},{"./common":4,"./plugins/index":7}]},{},[19])(19)
+},{"./common":4,"./plugins/index":7,"get-headers":17}]},{},[20])(20)
 });

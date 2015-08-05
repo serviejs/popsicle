@@ -74,6 +74,7 @@
     "arrify": "^1.0.0",
     "concat-stream": "^1.4.7",
     "form-data": "^0.2.0",
+    "get-headers": "^1.0.0",
     "infinity-agent": "^2.0.3",
     "methods": "^1.1.1",
     "through2": "^2.0.0",
