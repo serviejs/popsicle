@@ -12,22 +12,6 @@ export = defaults({
 })
 
 /**
- * Get the correct XHR object.
- */
-function getXHR (): XMLHttpRequest {
-  if (XMLHttpRequest) {
-    return new XMLHttpRequest()
-  }
-
-  try { return new ActiveXObject('Microsoft.XMLHTTP') } catch (e) {}
-  try { return new ActiveXObject('Msxml2.XMLHTTP.6.0') } catch (e) {}
-  try { return new ActiveXObject('Msxml2.XMLHTTP.3.0') } catch (e) {}
-  try { return new ActiveXObject('Msxml2.XMLHTTP') } catch (e) {}
-
-  throw new TypeError('XMLHttpRequest is not available')
-}
-
-/**
  * Parse XHR for raw headers.
  */
 function parseRawHeaders (xhr: XMLHttpRequest) {
@@ -63,7 +47,7 @@ function open (request: Request) {
       return reject(request.error(`The request to "${url}" was blocked`, 'EBLOCKED'))
     }
 
-    const xhr = request.raw = getXHR()
+    const xhr = request.raw = new XMLHttpRequest()
 
     xhr.onload = function () {
       return resolve({
