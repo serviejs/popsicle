@@ -325,10 +325,8 @@ var Request = (function (_super) {
         this._promise = new Promise(function (resolve, reject) {
             process.nextTick(function () { return start(_this).then(resolve, reject); });
         });
-        if (options.transport) {
-            this._transport(options.transport);
-        }
-        this.use(options.use || this._use);
+        this.transport = options.transport;
+        this.use(options.use || this.transport.use);
         this.always(removeListeners);
     }
     Request.prototype.use = function (fn) {
@@ -342,12 +340,6 @@ var Request = (function (_super) {
         err.type = type;
         err.original = original;
         return err;
-    };
-    Request.prototype._transport = function (_a) {
-        var open = _a.open, abort = _a.abort, use = _a.use;
-        this._open = open;
-        this._abort = abort;
-        this._use = use;
     };
     Request.prototype.then = function (onFulfilled, onRejected) {
         return this._promise.then(onFulfilled, onRejected);
@@ -391,8 +383,8 @@ var Request = (function (_super) {
         if (this.opened) {
             emitProgress(this);
             this._progress = null;
-            if (this._abort) {
-                this._abort(this);
+            if (this.transport.abort) {
+                this.transport.abort(this);
             }
         }
         return this;
@@ -498,7 +490,7 @@ function start(request) {
             }, timeout);
         }
         req.opened = true;
-        return req._open(request);
+        return req.transport.open(request);
     })
         .then(function (options) {
         if (request.errored) {

@@ -54,6 +54,7 @@ export default class Request extends Base {
   response: Response
   raw: any
   errored: Error
+  transport: TransportOptions
 
   aborted = false
   timedout = false
@@ -64,11 +65,6 @@ export default class Request extends Base {
   downloadLength: number = null
   private _uploadedBytes: number = null
   private _downloadedBytes: number = null
-
-  // Properties populated by the request mechanism.
-  private _open: OpenHandler
-  private _abort: AbortHandler
-  private _use: Middleware[]
 
   private _promise: Promise<Response>
 
@@ -91,12 +87,10 @@ export default class Request extends Base {
       process.nextTick(() => start(this).then(resolve, reject))
     })
 
-    if (options.transport) {
-      this._transport(options.transport)
-    }
+    this.transport = options.transport
 
-    // Automatically set up middleware functions.
-    this.use(options.use || this._use)
+    // Automatically `use` default middleware functions.
+    this.use(options.use || this.transport.use)
 
     this.always(removeListeners)
   }
@@ -113,12 +107,6 @@ export default class Request extends Base {
     err.type = type
     err.original = original
     return err
-  }
-
-  private _transport ({ open, abort, use }: TransportOptions) {
-    this._open = open
-    this._abort = abort
-    this._use = use
   }
 
   then (onFulfilled: (response?: Response) => any, onRejected?: (error?: PopsicleError) => any) {
@@ -176,8 +164,8 @@ export default class Request extends Base {
       emitProgress(this)
       this._progress = null
 
-      if (this._abort) {
-        this._abort(this)
+      if (this.transport.abort) {
+        this.transport.abort(this)
       }
     }
 
@@ -286,7 +274,7 @@ function start (request: Request) {
 
       req.opened = true
 
-      return req._open(request)
+      return req.transport.open(request)
     })
     .then(function (options: ResponseOptions) {
       if (request.errored) {
