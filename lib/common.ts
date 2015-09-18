@@ -20,10 +20,10 @@ if (typeof Promise === 'undefined') {
  */
 function extendDefaults (defaults: DefaultsOptions, options: RequestOptions | string): RequestOptions {
   if (typeof options === 'string') {
-    return extend<RequestOptions>(defaults, { url: options })
+    return extend(defaults, { url: options })
   }
 
-  return extend<RequestOptions>(defaults, options)
+  return extend(defaults, <RequestOptions> options)
 }
 
 /**

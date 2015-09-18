@@ -62,13 +62,14 @@
     "body-parser": "^1.9.2",
     "browserify": "^11.0.0",
     "envify": "^3.4.0",
-    "es6-promise": "^2.3.0",
+    "es6-promise": "^3.0.2",
     "express": "^4.10.2",
     "faucet": "0.0.1",
     "istanbul": "^0.3.17",
+    "phantomjs": "^1.9.18",
     "pre-commit": "^1.0.10",
     "tape-run": "^1.0.0",
-    "typescript": "^1.5.0"
+    "typescript": "^1.6.2"
   },
   "dependencies": {
     "arrify": "^1.0.0",

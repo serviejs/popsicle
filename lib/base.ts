@@ -56,10 +56,10 @@ export default class Base {
 
       if (queryIndexOf > -1) {
         this.url = url.substr(0, queryIndexOf)
-        this.query = extend<Query>(queryObject, parse(url.substr(queryIndexOf + 1)))
+        this.query = extend(queryObject, parse(url.substr(queryIndexOf + 1)))
       } else {
         this.url = url
-        this.query = extend<Query>(queryObject)
+        this.query = extend(queryObject)
       }
     }
 

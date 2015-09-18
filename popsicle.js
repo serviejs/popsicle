@@ -98,6 +98,7 @@ var Base = (function () {
     };
     return Base;
 })();
+Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = Base;
 
 },{"arrify":11,"querystring":16,"xtend":19}],2:[function(require,module,exports){
@@ -168,6 +169,7 @@ function form(obj) {
     }
     return form;
 }
+Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = form;
 
 },{"form-data":2}],6:[function(require,module,exports){
@@ -175,6 +177,7 @@ var tough_cookie_1 = require('tough-cookie');
 function cookieJar(store) {
     return new tough_cookie_1.CookieJar(store);
 }
+Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = cookieJar;
 
 },{"tough-cookie":3}],7:[function(require,module,exports){
@@ -292,8 +295,7 @@ exports.parse = parse;
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
-    __.prototype = b.prototype;
-    d.prototype = new __();
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 var arrify = require('arrify');
 var extend = require('xtend');
@@ -458,6 +460,7 @@ var Request = (function (_super) {
     });
     return Request;
 })(base_1.default);
+Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = Request;
 function pluginFunction(request, property, fn) {
     if (request.started) {
@@ -554,8 +557,7 @@ function emitProgress(request) {
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
-    __.prototype = b.prototype;
-    d.prototype = new __();
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 var base_1 = require('./base');
 var Response = (function (_super) {
@@ -581,6 +583,7 @@ var Response = (function (_super) {
     };
     return Response;
 })(base_1.default);
+Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = Response;
 
 },{"./base":1}],11:[function(require,module,exports){
@@ -628,7 +631,9 @@ function drainQueue() {
         currentQueue = queue;
         queue = [];
         while (++queueIndex < len) {
-            currentQueue[queueIndex].run();
+            if (currentQueue) {
+                currentQueue[queueIndex].run();
+            }
         }
         queueIndex = -1;
         len = queue.length;
@@ -680,7 +685,6 @@ process.binding = function (name) {
     throw new Error('process.binding is not supported');
 };
 
-// TODO(shtylman)
 process.cwd = function () { return '/' };
 process.chdir = function (dir) {
     throw new Error('process.chdir is not supported');
@@ -868,54 +872,63 @@ exports.encode = exports.stringify = require('./encode');
 
 },{"./decode":14,"./encode":15}],17:[function(require,module,exports){
 function parse(value) {
-    var headers = {};
+    var arr = [];
     var lines = value.replace(/\r?\n$/, '').split(/\r?\n/);
-    lines.forEach(function (header) {
+    for (var i = 0; i < lines.length; i++) {
+        var header = lines[i];
         var indexOf = header.indexOf(':');
-        var name = header.substr(0, indexOf);
-        var value = header.substr(indexOf + 1).trim();
-        if (!headers.hasOwnProperty(name)) {
-            headers[name] = value;
-        }
-        else if (typeof headers[name] === 'string') {
-            headers[name] = [headers[name], value];
+        var name_1 = header.substr(0, indexOf).trim();
+        var value_1 = header.substr(indexOf + 1).trim();
+        arr.push(name_1, value_1);
+    }
+    return array(arr);
+}
+exports.parse = parse;
+function http(response) {
+    if (response.rawHeaders) {
+        return array(response.rawHeaders);
+    }
+    var headers = {};
+    Object.keys(response.headers).forEach(function (key) {
+        var value = response.headers[key];
+        if (value.length === 1) {
+            headers[key] = value[0];
         }
         else {
-            headers[name].push(value);
+            headers[key] = value;
         }
     });
     return headers;
 }
-exports.parse = parse;
-function http(response) {
+exports.http = http;
+function array(values) {
+    var casing = {};
     var headers = {};
-    if (!response.rawHeaders) {
-        Object.keys(response.headers).forEach(function (key) {
-            var value = response.headers[key];
-            if (Array.isArray(value) && value.length === 1) {
-                value = value[0];
+    for (var i = 0; i < values.length; i = i + 2) {
+        var name_2 = values[i];
+        var lower = name_2.toLowerCase();
+        var oldName = casing[lower];
+        var value = values[i + 1];
+        if (!headers.hasOwnProperty(oldName)) {
+            headers[name_2] = value;
+        }
+        else {
+            if (name_2 !== oldName) {
+                headers[name_2] = headers[oldName];
+                delete headers[oldName];
             }
-            headers[key] = value;
-        });
-    }
-    else {
-        for (var i = 0; i < response.rawHeaders.length; i = i + 2) {
-            var name = response.rawHeaders[i];
-            var value = response.rawHeaders[i + 1];
-            if (!headers.hasOwnProperty(name)) {
-                headers[name] = value;
-            }
-            else if (typeof headers[name] === 'string') {
-                headers[name] = [headers[name], value];
+            if (typeof headers[name_2] === 'string') {
+                headers[name_2] = [headers[name_2], value];
             }
             else {
-                headers[name].push(value);
+                headers[name_2].push(value);
             }
         }
+        casing[lower] = name_2;
     }
     return headers;
 }
-exports.http = http;
+exports.array = array;
 
 },{}],18:[function(require,module,exports){
 
