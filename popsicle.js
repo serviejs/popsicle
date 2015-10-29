@@ -118,12 +118,6 @@ var response_1 = require('./response');
 var plugins = require('./plugins/index');
 var form_1 = require('./form');
 var jar_1 = require('./jar');
-if (typeof Promise === 'undefined') {
-    var context = typeof window === 'object' ? 'window' : 'global';
-    var message = (context + ".Promise is undefined and must be polyfilled. ") +
-        "Try using https://github.com/jakearchibald/es6-promise instead.";
-    throw new TypeError(message);
-}
 function extendDefaults(defaults, options) {
     if (typeof options === 'string') {
         return extend(defaults, { url: options });

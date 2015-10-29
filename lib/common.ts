@@ -6,15 +6,6 @@ import * as plugins from './plugins/index'
 import form from './form'
 import jar from './jar'
 
-if (typeof Promise === 'undefined') {
-  const context = typeof window === 'object' ? 'window' : 'global'
-
-  const message = `${context}.Promise is undefined and must be polyfilled. ` +
-   `Try using https://github.com/jakearchibald/es6-promise instead.`
-
-  throw new TypeError(message)
-}
-
 /**
  * Support Popsicle defaults.
  */

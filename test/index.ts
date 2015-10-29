@@ -2,7 +2,10 @@ import test = require('blue-tape')
 import methods = require('methods')
 import FormData = require('form-data')
 import Promise = require('native-or-bluebird')
+import { polyfill } from 'es6-promise'
 import popsicle = require('../lib/index')
+
+polyfill()
 
 const SUPPORTED_METHODS = typeof window === 'object' ? [
   'get',
