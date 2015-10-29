@@ -101,7 +101,7 @@ var Base = (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = Base;
 
-},{"arrify":11,"querystring":16,"xtend":19}],2:[function(require,module,exports){
+},{"arrify":11,"querystring":16,"xtend":21}],2:[function(require,module,exports){
 module.exports = FormData;
 
 },{}],3:[function(require,module,exports){
@@ -158,7 +158,7 @@ function defaults(defaultsOptions) {
 exports.defaults = defaults;
 
 }).call(this,require('_process'))
-},{"./form":5,"./jar":6,"./plugins/index":7,"./request":9,"./response":10,"_process":13,"methods":18,"xtend":19}],5:[function(require,module,exports){
+},{"./form":5,"./jar":6,"./plugins/index":7,"./request":9,"./response":10,"_process":13,"methods":18,"xtend":21}],5:[function(require,module,exports){
 var FormData = require('form-data');
 function form(obj) {
     var form = new FormData();
@@ -299,6 +299,7 @@ var __extends = (this && this.__extends) || function (d, b) {
 };
 var arrify = require('arrify');
 var extend = require('xtend');
+var Promise = require('native-or-bluebird');
 var base_1 = require('./base');
 var response_1 = require('./response');
 var Request = (function (_super) {
@@ -545,7 +546,7 @@ function emitProgress(request) {
 }
 
 }).call(this,require('_process'))
-},{"./base":1,"./response":10,"_process":13,"arrify":11,"xtend":19}],10:[function(require,module,exports){
+},{"./base":1,"./response":10,"_process":13,"arrify":11,"native-or-bluebird":19,"xtend":21}],10:[function(require,module,exports){
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -967,6 +968,30 @@ if (http.METHODS) {
 }
 
 },{"http":12}],19:[function(require,module,exports){
+(function (process){
+
+module.exports = require('./promise')
+
+/* istanbul ignore next */
+if (!module.exports) {
+  console.error('The file "%s" requires `Promise`,', module.parent.filename)
+  console.error('but neither `bluebird` nor the native `Promise` implementation were found.')
+  console.error('Please install `bluebird` yourself.')
+  process.exit(1)
+}
+
+}).call(this,require('_process'))
+},{"./promise":20,"_process":13}],20:[function(require,module,exports){
+(function (global){
+
+try {
+  module.exports = require('bluebird')
+} catch (_) {
+  module.exports = global.Promise
+}
+
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"bluebird":"bluebird"}],21:[function(require,module,exports){
 module.exports = extend
 
 function extend() {
@@ -985,7 +1010,8 @@ function extend() {
     return target
 }
 
-},{}],20:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
+var Promise = require('native-or-bluebird');
 var common_1 = require('./common');
 var index_1 = require('./plugins/index');
 var get_headers_1 = require('get-headers');
@@ -1062,5 +1088,5 @@ module.exports = common_1.defaults({
     transport: { open: open, abort: abort, use: index_1.defaults }
 });
 
-},{"./common":4,"./plugins/index":7,"get-headers":17}]},{},[20])(20)
+},{"./common":4,"./plugins/index":7,"get-headers":17,"native-or-bluebird":19}]},{},[22])(22)
 });

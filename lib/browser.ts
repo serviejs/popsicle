@@ -1,3 +1,4 @@
+import Promise = require('native-or-bluebird')
 import { Headers } from './base'
 import Request from './request'
 import Response from './response'

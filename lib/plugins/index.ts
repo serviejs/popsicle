@@ -3,6 +3,7 @@ import concat = require('concat-stream')
 import FormData = require('form-data')
 import { createUnzip } from 'zlib'
 import { Cookie } from 'tough-cookie'
+import Promise = require('native-or-bluebird')
 export * from './common'
 import { headers as defaultHeaders, parse, stringify } from './common'
 import Request, { Middleware } from '../request'

@@ -25,6 +25,7 @@
     "lib/typings/es6-promise.d.ts",
     "lib/typings/methods.d.ts",
     "lib/typings/get-headers.d.ts",
+    "lib/typings/native-or-bluebird.d.ts",
     "typings/tsd.d.ts",
     "test/index.ts"
   ]

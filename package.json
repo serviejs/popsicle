@@ -19,7 +19,7 @@
   "scripts": {
     "lint": "# TODO",
     "build-ts": "tsc",
-    "build-browser": "browserify . -s popsicle > popsicle.js",
+    "build-browser": "browserify . -s popsicle --external bluebird > popsicle.js",
     "build": "rm -rf dist && npm run build-ts && npm run build-browser && npm run build-size",
     "build-size": "du -h popsicle.js",
     "test-spec": "npm run test-server-open && PORT=7357 node dist/test/index.js; npm run test-server-close",
@@ -78,6 +78,7 @@
     "get-headers": "^1.0.0",
     "infinity-agent": "^2.0.3",
     "methods": "^1.1.1",
+    "native-or-bluebird": "^1.2.0",
     "through2": "^2.0.0",
     "tough-cookie": "^2.0.0",
     "xtend": "^4.0.0"

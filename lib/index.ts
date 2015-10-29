@@ -5,6 +5,7 @@ import through2 = require('through2')
 import urlLib = require('url')
 import extend = require('xtend')
 import { http as getHeaders } from 'get-headers'
+import Promise = require('native-or-bluebird')
 import { Headers } from './base'
 import Request from './request'
 import Response from './response'

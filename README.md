@@ -23,23 +23,6 @@ npm install popsicle --save
 bower install popsicle --save
 ```
 
-You will need a [promise polyfill](https://github.com/jakearchibald/es6-promise) for older browsers and node <= `0.11.12`.
-
-```bash
-npm install es6-promise --save
-bower install es6-promise --save
-```
-
-Apply the polyfill.
-
-```js
-// Node and browserify:
-require('es6-promise').polyfill()
-
-// Browsers:
-window.ES6Promise.polyfill()
-```
-
 ## Usage
 
 ```js
