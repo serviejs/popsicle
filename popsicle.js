@@ -320,7 +320,7 @@ var Request = (function (_super) {
         this._promise = new Promise(function (resolve, reject) {
             process.nextTick(function () { return start(_this).then(resolve, reject); });
         });
-        this.transport = options.transport;
+        this.transport = extend(options.transport);
         this.use(options.use || this.transport.use);
         this.always(removeListeners);
     }
