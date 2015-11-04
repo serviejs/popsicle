@@ -101,7 +101,7 @@ var Base = (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = Base;
 
-},{"arrify":11,"querystring":16,"xtend":21}],2:[function(require,module,exports){
+},{"arrify":11,"querystring":21,"xtend":22}],2:[function(require,module,exports){
 module.exports = FormData;
 
 },{}],3:[function(require,module,exports){
@@ -152,7 +152,7 @@ function defaults(defaultsOptions) {
 exports.defaults = defaults;
 
 }).call(this,require('_process'))
-},{"./form":5,"./jar":6,"./plugins/index":7,"./request":9,"./response":10,"_process":13,"methods":18,"xtend":21}],5:[function(require,module,exports){
+},{"./form":5,"./jar":6,"./plugins/index":7,"./request":9,"./response":10,"_process":18,"methods":15,"xtend":22}],5:[function(require,module,exports){
 var FormData = require('form-data');
 function form(obj) {
     var form = new FormData();
@@ -183,7 +183,7 @@ var common_2 = require('./common');
 exports.defaults = [common_2.stringify, common_2.headers, common_2.parse];
 
 },{"./common":8}],8:[function(require,module,exports){
-(function (process,Buffer){
+(function (Buffer,process){
 var FormData = require('form-data');
 var querystring_1 = require('querystring');
 var form_1 = require('../form');
@@ -283,8 +283,8 @@ function parse(request) {
 }
 exports.parse = parse;
 
-}).call(this,require('_process'),require("buffer").Buffer)
-},{"../form":5,"_process":13,"buffer":12,"form-data":2,"querystring":16}],9:[function(require,module,exports){
+}).call(this,{"isBuffer":require("../../../node_modules/is-buffer/index.js")},require('_process'))
+},{"../../../node_modules/is-buffer/index.js":14,"../form":5,"_process":18,"form-data":2,"querystring":21}],9:[function(require,module,exports){
 (function (process){
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
@@ -320,7 +320,7 @@ var Request = (function (_super) {
         this._promise = new Promise(function (resolve, reject) {
             process.nextTick(function () { return start(_this).then(resolve, reject); });
         });
-        this.transport = options.transport;
+        this.transport = extend(options.transport);
         this.use(options.use || this.transport.use);
         this.always(removeListeners);
     }
@@ -540,7 +540,7 @@ function emitProgress(request) {
 }
 
 }).call(this,require('_process'))
-},{"./base":1,"./response":10,"_process":13,"arrify":11,"native-or-bluebird":19,"xtend":21}],10:[function(require,module,exports){
+},{"./base":1,"./response":10,"_process":18,"arrify":11,"native-or-bluebird":16,"xtend":22}],10:[function(require,module,exports){
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -586,6 +586,153 @@ module.exports = function (val) {
 },{}],12:[function(require,module,exports){
 
 },{}],13:[function(require,module,exports){
+function parse(value) {
+    var arr = [];
+    var lines = value.replace(/\r?\n$/, '').split(/\r?\n/);
+    for (var i = 0; i < lines.length; i++) {
+        var header = lines[i];
+        var indexOf = header.indexOf(':');
+        var name_1 = header.substr(0, indexOf).trim();
+        var value_1 = header.substr(indexOf + 1).trim();
+        arr.push(name_1, value_1);
+    }
+    return array(arr);
+}
+exports.parse = parse;
+function http(response) {
+    if (response.rawHeaders) {
+        return array(response.rawHeaders);
+    }
+    var headers = {};
+    Object.keys(response.headers).forEach(function (key) {
+        var value = response.headers[key];
+        if (value.length === 1) {
+            headers[key] = value[0];
+        }
+        else {
+            headers[key] = value;
+        }
+    });
+    return headers;
+}
+exports.http = http;
+function array(values) {
+    var casing = {};
+    var headers = {};
+    for (var i = 0; i < values.length; i = i + 2) {
+        var name_2 = values[i];
+        var lower = name_2.toLowerCase();
+        var oldName = casing[lower];
+        var value = values[i + 1];
+        if (!headers.hasOwnProperty(oldName)) {
+            headers[name_2] = value;
+        }
+        else {
+            if (name_2 !== oldName) {
+                headers[name_2] = headers[oldName];
+                delete headers[oldName];
+            }
+            if (typeof headers[name_2] === 'string') {
+                headers[name_2] = [headers[name_2], value];
+            }
+            else {
+                headers[name_2].push(value);
+            }
+        }
+        casing[lower] = name_2;
+    }
+    return headers;
+}
+exports.array = array;
+
+},{}],14:[function(require,module,exports){
+/**
+ * Determine if an object is Buffer
+ *
+ * Author:   Feross Aboukhadijeh <feross@feross.org> <http://feross.org>
+ * License:  MIT
+ *
+ * `npm install is-buffer`
+ */
+
+module.exports = function (obj) {
+  return !!(obj != null &&
+    (obj._isBuffer || // For Safari 5-7 (missing Object.prototype.constructor)
+      (obj.constructor &&
+      typeof obj.constructor.isBuffer === 'function' &&
+      obj.constructor.isBuffer(obj))
+    ))
+}
+
+},{}],15:[function(require,module,exports){
+
+var http = require('http');
+
+/* istanbul ignore next: implementation differs on version */
+if (http.METHODS) {
+
+  module.exports = http.METHODS.map(function(method){
+    return method.toLowerCase();
+  });
+
+} else {
+
+  module.exports = [
+    'get',
+    'post',
+    'put',
+    'head',
+    'delete',
+    'options',
+    'trace',
+    'copy',
+    'lock',
+    'mkcol',
+    'move',
+    'purge',
+    'propfind',
+    'proppatch',
+    'unlock',
+    'report',
+    'mkactivity',
+    'checkout',
+    'merge',
+    'm-search',
+    'notify',
+    'subscribe',
+    'unsubscribe',
+    'patch',
+    'search',
+    'connect'
+  ];
+
+}
+
+},{"http":12}],16:[function(require,module,exports){
+(function (process){
+
+module.exports = require('./promise')
+
+/* istanbul ignore next */
+if (!module.exports) {
+  console.error('The file "%s" requires `Promise`,', module.parent.filename)
+  console.error('but neither `bluebird` nor the native `Promise` implementation were found.')
+  console.error('Please install `bluebird` yourself.')
+  process.exit(1)
+}
+
+}).call(this,require('_process'))
+},{"./promise":17,"_process":18}],17:[function(require,module,exports){
+(function (global){
+
+try {
+  module.exports = require('bluebird')
+} catch (_) {
+  module.exports = global.Promise
+}
+
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"bluebird":"bluebird"}],18:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -678,7 +825,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],14:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -764,7 +911,7 @@ var isArray = Array.isArray || function (xs) {
   return Object.prototype.toString.call(xs) === '[object Array]';
 };
 
-},{}],15:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -851,142 +998,16 @@ var objectKeys = Object.keys || function (obj) {
   return res;
 };
 
-},{}],16:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 'use strict';
 
 exports.decode = exports.parse = require('./decode');
 exports.encode = exports.stringify = require('./encode');
 
-},{"./decode":14,"./encode":15}],17:[function(require,module,exports){
-function parse(value) {
-    var arr = [];
-    var lines = value.replace(/\r?\n$/, '').split(/\r?\n/);
-    for (var i = 0; i < lines.length; i++) {
-        var header = lines[i];
-        var indexOf = header.indexOf(':');
-        var name_1 = header.substr(0, indexOf).trim();
-        var value_1 = header.substr(indexOf + 1).trim();
-        arr.push(name_1, value_1);
-    }
-    return array(arr);
-}
-exports.parse = parse;
-function http(response) {
-    if (response.rawHeaders) {
-        return array(response.rawHeaders);
-    }
-    var headers = {};
-    Object.keys(response.headers).forEach(function (key) {
-        var value = response.headers[key];
-        if (value.length === 1) {
-            headers[key] = value[0];
-        }
-        else {
-            headers[key] = value;
-        }
-    });
-    return headers;
-}
-exports.http = http;
-function array(values) {
-    var casing = {};
-    var headers = {};
-    for (var i = 0; i < values.length; i = i + 2) {
-        var name_2 = values[i];
-        var lower = name_2.toLowerCase();
-        var oldName = casing[lower];
-        var value = values[i + 1];
-        if (!headers.hasOwnProperty(oldName)) {
-            headers[name_2] = value;
-        }
-        else {
-            if (name_2 !== oldName) {
-                headers[name_2] = headers[oldName];
-                delete headers[oldName];
-            }
-            if (typeof headers[name_2] === 'string') {
-                headers[name_2] = [headers[name_2], value];
-            }
-            else {
-                headers[name_2].push(value);
-            }
-        }
-        casing[lower] = name_2;
-    }
-    return headers;
-}
-exports.array = array;
-
-},{}],18:[function(require,module,exports){
-
-var http = require('http');
-
-/* istanbul ignore next: implementation differs on version */
-if (http.METHODS) {
-
-  module.exports = http.METHODS.map(function(method){
-    return method.toLowerCase();
-  });
-
-} else {
-
-  module.exports = [
-    'get',
-    'post',
-    'put',
-    'head',
-    'delete',
-    'options',
-    'trace',
-    'copy',
-    'lock',
-    'mkcol',
-    'move',
-    'purge',
-    'propfind',
-    'proppatch',
-    'unlock',
-    'report',
-    'mkactivity',
-    'checkout',
-    'merge',
-    'm-search',
-    'notify',
-    'subscribe',
-    'unsubscribe',
-    'patch',
-    'search',
-    'connect'
-  ];
-
-}
-
-},{"http":12}],19:[function(require,module,exports){
-(function (process){
-
-module.exports = require('./promise')
-
-/* istanbul ignore next */
-if (!module.exports) {
-  console.error('The file "%s" requires `Promise`,', module.parent.filename)
-  console.error('but neither `bluebird` nor the native `Promise` implementation were found.')
-  console.error('Please install `bluebird` yourself.')
-  process.exit(1)
-}
-
-}).call(this,require('_process'))
-},{"./promise":20,"_process":13}],20:[function(require,module,exports){
-(function (global){
-
-try {
-  module.exports = require('bluebird')
-} catch (_) {
-  module.exports = global.Promise
-}
-
-}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"bluebird":"bluebird"}],21:[function(require,module,exports){
+},{"./decode":19,"./encode":20}],22:[function(require,module,exports){
 module.exports = extend
+
+var hasOwnProperty = Object.prototype.hasOwnProperty;
 
 function extend() {
     var target = {}
@@ -995,7 +1016,7 @@ function extend() {
         var source = arguments[i]
 
         for (var key in source) {
-            if (source.hasOwnProperty(key)) {
+            if (hasOwnProperty.call(source, key)) {
                 target[key] = source[key]
             }
         }
@@ -1004,7 +1025,7 @@ function extend() {
     return target
 }
 
-},{}],22:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 var Promise = require('native-or-bluebird');
 var common_1 = require('./common');
 var index_1 = require('./plugins/index');
@@ -1082,5 +1103,5 @@ module.exports = common_1.defaults({
     transport: { open: open, abort: abort, use: index_1.defaults }
 });
 
-},{"./common":4,"./plugins/index":7,"get-headers":17,"native-or-bluebird":19}]},{},[22])(22)
+},{"./common":4,"./plugins/index":7,"get-headers":13,"native-or-bluebird":16}]},{},[23])(23)
 });

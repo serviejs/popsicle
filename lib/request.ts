@@ -88,7 +88,8 @@ export default class Request extends Base {
       process.nextTick(() => start(this).then(resolve, reject))
     })
 
-    this.transport = options.transport
+    // Extend to avoid mutations of the transport object.
+    this.transport = extend(options.transport)
 
     // Automatically `use` default middleware functions.
     this.use(options.use || this.transport.use)

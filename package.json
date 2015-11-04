@@ -18,7 +18,7 @@
   },
   "scripts": {
     "lint": "# TODO",
-    "build-ts": "tsc",
+    "build-ts": "rm -rf dist/ && tsc",
     "build-browser": "browserify . -s popsicle --external bluebird > popsicle.js",
     "build": "rm -rf dist && npm run build-ts && npm run build-browser && npm run build-size",
     "build-size": "du -h popsicle.js",
@@ -28,6 +28,7 @@
     "test-server-open": "PORT=7357 node test/support/server.js & echo $! > test.pid",
     "test-server-close": "if [ -f test.pid ]; then kill -9 $(cat test.pid); rm test.pid; fi",
     "test": "npm run lint && npm run build && npm run test-server-open && npm run test-cov && npm run test-browser; npm run test-server-close",
+    "prepublish": "npm run build-ts",
     "commit-build": "git add popsicle.js"
   },
   "pre-commit": [
@@ -59,6 +60,7 @@
   "homepage": "https://github.com/blakeembrey/popsicle",
   "devDependencies": {
     "blue-tape": "^0.1.10",
+    "bluebird": "^3.0.5",
     "body-parser": "^1.9.2",
     "browserify": "^11.0.0",
     "envify": "^3.4.0",
