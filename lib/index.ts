@@ -9,6 +9,8 @@ import Promise = require('native-or-bluebird')
 import { Headers } from './base'
 import Request from './request'
 import Response from './response'
+import { Cookie } from 'tough-cookie'
+import arrify = require('arrify')
 import { defaults, Popsicle } from './common'
 import { defaults as use } from './plugins/index'
 
@@ -40,6 +42,56 @@ const REDIRECT_STATUS: { [status: number]: number } = {
   '307': REDIRECT_TYPE.FOLLOW_WITH_CONFIRMATION,
   '308': REDIRECT_TYPE.FOLLOW_WITH_CONFIRMATION
 }
+
+/**
+ * Read cookies from the cookie jar.
+ */
+function getCookieJar (request: Request) {
+  return new Promise(function (resolve, reject) {
+    if (!request.options.jar) {
+      return resolve()
+    }
+    request.options.jar.getCookies(request.url, function (err: Error, cookies: Cookie[]) {
+      if (err) {
+        return reject(err)
+      }
+
+      if (cookies.length) {
+        request.append('Cookie', cookies.join('; '))
+      }
+
+      return resolve()
+    })
+  })
+}
+
+/**
+ * Put cookies in the cookie jar.
+ */
+function setCookieJar (message: IncomingMessage, request: Request) {
+  return new Promise(function (resolve, reject) {
+    if (!request.options.jar) {
+      return resolve()
+    }
+    //const cookies = arrify(message.headers.cookie)
+    const cookies = arrify(message.headers['set-cookie'])
+
+    if (!cookies.length) {
+      return resolve()
+    }
+
+    const setCookies = cookies.map(function (cookie) {
+      return new Promise(function (resolve, reject) {
+        request.options.jar.setCookie(cookie, request.url, function (err: Error) {
+          return err ? reject(err) : resolve()
+        })
+      })
+    })
+
+    return resolve(Promise.all(setCookies))
+  })
+}
+
 
 /**
  * Open a HTTP request with node.
@@ -77,97 +129,111 @@ function open (request: Request) {
      * Create the HTTP request.
      */
     function get (url: string, opts?: any, body?: any) {
-      // Check redirection count before executing request.
-      if (requestCount++ > maxRedirects) {
-        reject(request.error(`Exceeded maximum of ${maxRedirects} redirects`, 'EMAXREDIRECTS'))
-        return
-      }
-
-      const arg: any = extend(urlLib.parse(url), opts)
-      const isHttp = arg.protocol !== 'https:'
-      const engine: typeof httpRequest = isHttp ? httpRequest : httpsRequest
-
-      // Always attach certain options.
-      arg.agent = request.options.agent || (isHttp ? agent.http.globalAgent : agent.https.globalAgent)
-      arg.rejectUnauthorized = request.options.rejectUnauthorized !== false
-
-      const req = engine(arg)
-
-      req.once('response', function (res: IncomingMessage) {
-        const status = res.statusCode
-        const redirect = REDIRECT_STATUS[status]
-
-        // Handle HTTP redirects.
-        if (followRedirects && redirect != null && res.headers.location) {
-          const newUrl = urlLib.resolve(url, res.headers.location)
-
-          res.resume()
-
-          if (redirect === REDIRECT_TYPE.FOLLOW_WITH_GET) {
-            get(newUrl, { method: 'GET' })
-            return
-          }
-
-          if (redirect === REDIRECT_TYPE.FOLLOW_WITH_CONFIRMATION) {
-            // Following HTTP spec by automatically redirecting with GET/HEAD.
-            if (arg.method === 'GET' || arg.method === 'HEAD') {
-              get(newUrl, opts, body)
-              return
-            }
-
-            // Allow the user to confirm redirect according to HTTP spec.
-            if (confirmRedirect(req, res)) {
-              get(newUrl, opts, body)
-              return
-            }
-          }
+      
+      return getCookieJar(request)
+      .then(function() {
+        // Check redirection count before executing request.
+        if (requestCount++ > maxRedirects) {
+          reject(request.error(`Exceeded maximum of ${maxRedirects} redirects`, 'EMAXREDIRECTS'))
+          return
         }
 
-        request.downloadLength = num(res.headers['content-length'], 0)
+        const arg: any = extend(urlLib.parse(url), opts)
+        const isHttp = arg.protocol !== 'https:'
+        const engine: typeof httpRequest = isHttp ? httpRequest : httpsRequest
 
-        // Track download progress.
-        res.pipe(responseProxy)
+        // Always attach certain options.
+        arg.agent = request.options.agent || (isHttp ? agent.http.globalAgent : agent.https.globalAgent)
+        arg.rejectUnauthorized = request.options.rejectUnauthorized !== false
+        arg.headers = request.get()
 
-        return resolve({
-          body: responseProxy,
-          status: status,
-          headers: getHeaders(res),
-          url: url
+        const req = engine(arg)
+
+
+        req.once('response', function (res: IncomingMessage) {
+          const status = res.statusCode
+          const redirect = REDIRECT_STATUS[status]
+
+          setCookieJar(res, request)
+          .then(function() {
+            // Handle HTTP redirects.
+            if (followRedirects && redirect != null && res.headers.location) {
+              const newUrl = urlLib.resolve(url, res.headers.location)
+
+              res.resume()
+
+              if (redirect === REDIRECT_TYPE.FOLLOW_WITH_GET) {
+                get(newUrl, { method: 'GET' })
+                return
+              }
+
+              if (redirect === REDIRECT_TYPE.FOLLOW_WITH_CONFIRMATION) {
+                // Following HTTP spec by automatically redirecting with GET/HEAD.
+                if (arg.method === 'GET' || arg.method === 'HEAD') {
+                  get(newUrl, opts, body)
+                  return
+                }
+
+                // Allow the user to confirm redirect according to HTTP spec.
+                if (confirmRedirect(req, res)) {
+                  get(newUrl, opts, body)
+                  return
+                }
+              }
+            }
+
+            request.downloadLength = num(res.headers['content-length'], 0)
+
+            // Track download progress.
+            res.pipe(responseProxy)
+
+            return resolve({
+              body: responseProxy,
+              status: status,
+              headers: getHeaders(res),
+              url: url
+            })
+          
+          })
+          .catch(function(e) {
+            console.log(e)
+            throw e
+          })
+
         })
-      })
 
-      // io.js has an abort event instead of "error".
-      req.once('abort', function () {
-        return reject(request.error('Request aborted', 'EABORT'))
-      })
+        // io.js has an abort event instead of "error".
+        req.once('abort', function () {
+          return reject(request.error('Request aborted', 'EABORT'))
+        })
 
-      req.once('error', function (error: Error) {
-        return reject(request.error(`Unable to connect to "${url}"`, 'EUNAVAILABLE', error))
-      })
+        req.once('error', function (error: Error) {
+          return reject(request.error(`Unable to connect to "${url}"`, 'EUNAVAILABLE', error))
+        })
 
-      // Node 0.10 needs to catch errors on the request proxy.
-      requestProxy.once('error', reject)
+        // Node 0.10 needs to catch errors on the request proxy.
+        requestProxy.once('error', reject)
 
-      request.raw = req
-      request.uploadLength = num(req.getHeader('content-length'), 0)
-      requestProxy.pipe(req)
+        request.raw = req
+        request.uploadLength = num(req.getHeader('content-length'), 0)
+        requestProxy.pipe(req)
 
-      // Pipe the body to the stream.
-      if (body) {
-        if (typeof body.pipe === 'function') {
-          body.pipe(requestProxy)
+        // Pipe the body to the stream.
+        if (body) {
+          if (typeof body.pipe === 'function') {
+            body.pipe(requestProxy)
+          } else {
+            requestProxy.end(body)
+          }
         } else {
-          requestProxy.end(body)
+          requestProxy.end()
         }
-      } else {
-        requestProxy.end()
-      }
+      })
     }
 
     get(request.fullUrl(), {
-      headers: request.get(),
-      method: request.method
-    }, request.body)
+        method: request.method
+      }, request.body)
   })
 }
 

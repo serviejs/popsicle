@@ -75,6 +75,7 @@
   },
   "dependencies": {
     "arrify": "^1.0.0",
+    "bluebird": "^3.0.5",
     "concat-stream": "^1.4.7",
     "form-data": "^0.2.0",
     "get-headers": "^1.0.0",

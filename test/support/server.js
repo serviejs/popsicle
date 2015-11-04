@@ -63,6 +63,16 @@ app.get('/cookie', function (req, res) {
   res.sendStatus(200)
 })
 
+app.get('/cookie-redirect-target', function (req, res) {
+  res.sendStatus(200)
+})
+app.get('/cookie-redirect', function (req, res) {
+  var expires = new Date(Date.now() + 10 * 60 * 60).toGMTString()
+
+  res.set('set-cookie', 'hello=mundo; expires=' + expires + '; path=/')
+  res.redirect(301, '/cookie-redirect-target');
+})
+
 app.get('/not-found', function (req, res) {
   res.sendStatus(404)
 })

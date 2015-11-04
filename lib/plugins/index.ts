@@ -1,69 +1,12 @@
-import arrify = require('arrify')
 import concat = require('concat-stream')
 import FormData = require('form-data')
 import { createUnzip } from 'zlib'
-import { Cookie } from 'tough-cookie'
 import Promise = require('native-or-bluebird')
 export * from './common'
 import { headers as defaultHeaders, parse, stringify } from './common'
 import Request, { Middleware } from '../request'
 import Response from '../response'
 
-/**
- * Read cookies from the cookie jar.
- */
-function getCookieJar (request: Request) {
-  return new Promise(function (resolve, reject) {
-    request.options.jar.getCookies(request.url, function (err: Error, cookies: Cookie[]) {
-      if (err) {
-        return reject(err)
-      }
-
-      if (cookies.length) {
-        request.append('Cookie', cookies.join('; '))
-      }
-
-      return resolve()
-    })
-  })
-}
-
-/**
- * Put cookies in the cookie jar.
- */
-function setCookieJar (response: Response) {
-  return new Promise(function (resolve, reject) {
-    const cookies = arrify(response.get('Set-Cookie'))
-    const { request } = response
-
-    if (!cookies.length) {
-      return resolve()
-    }
-
-    const setCookies = cookies.map(function (cookie) {
-      return new Promise(function (resolve, reject) {
-        request.options.jar.setCookie(cookie, request.url, function (err: Error) {
-          return err ? reject(err) : resolve()
-        })
-      })
-    })
-
-    return resolve(Promise.all(setCookies))
-  })
-}
-
-/**
- * Support the cookie jar under node.
- */
-export function cookieJar (request: Request) {
-  // Skip cookie jar middleware when none is set.
-  if (!request.options.jar) {
-    return
-  }
-
-  request.before(getCookieJar)
-  request.after(setCookieJar)
-}
 
 function unzipResponse (response: Response) {
   if (['gzip', 'deflate'].indexOf(response.get('Content-Encoding')) > -1) {
@@ -168,4 +111,4 @@ export function headers (request: Request) {
   request.before(defaultHeadersNode)
 }
 
-export const defaults: Middleware[] = [stringify, headers, cookieJar, unzip, concatStream('string'), parse]
+export const defaults: Middleware[] = [stringify, headers, unzip, concatStream('string'), parse]
