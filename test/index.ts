@@ -1,6 +1,7 @@
 import test = require('blue-tape')
 import methods = require('methods')
 import FormData = require('form-data')
+import { Cookie } from 'tough-cookie'
 import Promise = require('native-or-bluebird')
 import { polyfill } from 'es6-promise'
 import popsicle = require('../lib/index')
@@ -837,7 +838,57 @@ if (!process.browser) {
           t.ok(res.get('Set-Cookie'))
 
           cookie = res.get('Set-Cookie')
+          t.equal('hello=world', cookie.substr(0,11))
 
+        })
+    })
+    t.test('should persist to another request with a cookie jar', function (t) {
+      let cookie: string
+
+      const instance = popsicle.defaults({
+        options: {
+          jar: popsicle.jar()
+        }
+      })
+
+      return instance(REMOTE_URL + '/cookie')
+        .then(function (res) {
+          t.notOk(res.get('Cookie'))
+          t.ok(res.get('Set-Cookie'))
+
+          cookie = res.get('Set-Cookie')
+          t.equal('hello=world', cookie.substr(0,11))
+
+          return instance(REMOTE_URL + '/echo')
+        })
+        .then(function (res) {
+          t.equal(res.get('Cookie').toLowerCase(), cookie.toLowerCase())
+          t.notOk(res.get('Set-Cookie'))
+        })
+    })
+    t.test('should work with a cookie jar and redirects', function (t) {
+      let cookie: string
+      const jar = popsicle.jar()
+      const instance = popsicle.defaults({
+        options: {
+          jar: jar
+        }
+      })
+
+      return instance(REMOTE_URL + '/cookie-redirect')
+        .then(function (res) {
+          t.notOk(res.get('Cookie'))
+          t.notOk(res.get('Set-Cookie'))
+          return new Promise(function (resolve, reject) {
+            jar.getCookies(res.request.url, function (err: Error, cookies: Cookie[]) {
+              cookie = cookies.join('; ')
+              return resolve()
+            })
+          })
+        })
+        .then(function () {
+          t.ok(cookie)
+          t.equal('hello=mundo', cookie.substr(0,11))
           return instance(REMOTE_URL + '/echo')
         })
         .then(function (res) {
@@ -890,7 +941,6 @@ if (!popsicle.browser) {
     t.test('should follow 303 redirect with post', function (t) {
       return popsicle.post({
         url: REMOTE_URL + '/redirect/code/303',
-        body: { foo: 'bar' }
       })
         .then(function (res) {
           t.equal(res.body, 'welcome get')
