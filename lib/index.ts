@@ -9,6 +9,8 @@ import Promise = require('native-or-bluebird')
 import { Headers } from './base'
 import Request from './request'
 import Response from './response'
+import { Cookie } from 'tough-cookie'
+import arrify = require('arrify')
 import { defaults, Popsicle } from './common'
 import { defaults as use } from './plugins/index'
 
@@ -40,6 +42,56 @@ const REDIRECT_STATUS: { [status: number]: number } = {
   '307': REDIRECT_TYPE.FOLLOW_WITH_CONFIRMATION,
   '308': REDIRECT_TYPE.FOLLOW_WITH_CONFIRMATION
 }
+
+/**
+ * Read cookies from the cookie jar.
+ */
+function getCookieJar (request: Request) {
+  return new Promise(function (resolve, reject) {
+    if (!request.options.jar) {
+      return resolve()
+    }
+    request.options.jar.getCookies(request.url, function (err: Error, cookies: Cookie[]) {
+      if (err) {
+        return reject(err)
+      }
+
+      if (cookies.length) {
+        request.append('Cookie', cookies.join('; '))
+      }
+
+      return resolve()
+    })
+  })
+}
+
+/**
+ * Put cookies in the cookie jar.
+ */
+function setCookieJar (message: IncomingMessage, request: Request) {
+  return new Promise(function (resolve, reject) {
+    if (!request.options.jar) {
+      return resolve()
+    }
+    const cookies = arrify(message.headers['set-cookie'])
+    console.log(cookies)
+
+    if (!cookies.length) {
+      return resolve()
+    }
+
+    const setCookies = cookies.map(function (cookie) {
+      return new Promise(function (resolve, reject) {
+        request.options.jar.setCookie(cookie, request.url, function (err: Error) {
+          return err ? reject(err) : resolve()
+        })
+      })
+    })
+
+    return resolve(Promise.all(setCookies))
+  })
+}
+
 
 /**
  * Open a HTTP request with node.
@@ -97,43 +149,48 @@ function open (request: Request) {
         const status = res.statusCode
         const redirect = REDIRECT_STATUS[status]
 
-        // Handle HTTP redirects.
-        if (followRedirects && redirect != null && res.headers.location) {
-          const newUrl = urlLib.resolve(url, res.headers.location)
+        setCookieJar(res, request)
+        .then(function() {
+          // Handle HTTP redirects.
+          if (followRedirects && redirect != null && res.headers.location) {
+            const newUrl = urlLib.resolve(url, res.headers.location)
 
-          res.resume()
+            res.resume()
 
-          if (redirect === REDIRECT_TYPE.FOLLOW_WITH_GET) {
-            get(newUrl, { method: 'GET' })
-            return
-          }
-
-          if (redirect === REDIRECT_TYPE.FOLLOW_WITH_CONFIRMATION) {
-            // Following HTTP spec by automatically redirecting with GET/HEAD.
-            if (arg.method === 'GET' || arg.method === 'HEAD') {
-              get(newUrl, opts, body)
+            if (redirect === REDIRECT_TYPE.FOLLOW_WITH_GET) {
+              get(newUrl, { method: 'GET' })
               return
             }
 
-            // Allow the user to confirm redirect according to HTTP spec.
-            if (confirmRedirect(req, res)) {
-              get(newUrl, opts, body)
-              return
+            if (redirect === REDIRECT_TYPE.FOLLOW_WITH_CONFIRMATION) {
+              // Following HTTP spec by automatically redirecting with GET/HEAD.
+              if (arg.method === 'GET' || arg.method === 'HEAD') {
+                get(newUrl, opts, body)
+                return
+              }
+
+              // Allow the user to confirm redirect according to HTTP spec.
+              if (confirmRedirect(req, res)) {
+                get(newUrl, opts, body)
+                return
+              }
             }
           }
-        }
 
-        request.downloadLength = num(res.headers['content-length'], 0)
+          request.downloadLength = num(res.headers['content-length'], 0)
 
-        // Track download progress.
-        res.pipe(responseProxy)
+          // Track download progress.
+          res.pipe(responseProxy)
 
-        return resolve({
-          body: responseProxy,
-          status: status,
-          headers: getHeaders(res),
-          url: url
+          return resolve({
+            body: responseProxy,
+            status: status,
+            headers: getHeaders(res),
+            url: url
+          })
+        
         })
+
       })
 
       // io.js has an abort event instead of "error".
@@ -164,10 +221,13 @@ function open (request: Request) {
       }
     }
 
-    get(request.fullUrl(), {
-      headers: request.get(),
-      method: request.method
-    }, request.body)
+    getCookieJar(request)
+      .then(function() {
+        get(request.fullUrl(), {
+          headers: request.get(),
+          method: request.method
+        }, request.body)
+      })
   })
 }
 
