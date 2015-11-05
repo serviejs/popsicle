@@ -31,8 +31,6 @@ app.all('/echo/zip', function (req, res, next) {
   var acceptEncoding = req.headers['accept-encoding']
   var encodings = acceptEncoding ? acceptEncoding.split(/ *, */) : []
 
-  console.log(encodings)
-
   if (encodings.indexOf('deflate') > -1) {
     res.writeHead(200, { 'content-encoding': 'deflate' })
     req.pipe(zlib.createDeflate()).pipe(res)
@@ -61,6 +59,13 @@ app.get('/cookie', function (req, res) {
 
   res.set('set-cookie', 'hello=world; expires=' + expires + '; path=/')
   res.sendStatus(200)
+})
+
+app.all('/cookie/redirect', function (req, res) {
+  var expires = new Date(Date.now() + 10 * 60 * 60).toGMTString()
+
+  res.set('set-cookie', 'new=cookie; expires=' + expires + '; path=/')
+  res.redirect('/echo/header/cookie')
 })
 
 app.get('/not-found', function (req, res) {

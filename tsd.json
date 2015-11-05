@@ -10,9 +10,6 @@
     },
     "node/node.d.ts": {
       "commit": "f0aa5507070dc74859b636bd2dac37f3e8cab8d1"
-    },
-    "through2/through2.d.ts": {
-      "commit": "159b808f9b035ca971d19d93ac675030e87048d8"
     }
   }
 }

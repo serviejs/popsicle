@@ -1,9 +1,11 @@
 import { request as httpRequest, IncomingMessage } from 'http'
 import { request as httpsRequest } from 'https'
 import agent = require('infinity-agent')
-import through2 = require('through2')
+import { PassThrough } from 'stream'
 import urlLib = require('url')
 import extend = require('xtend')
+import arrify = require('arrify')
+import { Cookie } from 'tough-cookie'
 import { http as getHeaders } from 'get-headers'
 import Promise = require('native-or-bluebird')
 import { Headers } from './base'
@@ -45,130 +47,148 @@ const REDIRECT_STATUS: { [status: number]: number } = {
  * Open a HTTP request with node.
  */
 function open (request: Request) {
-  return new Promise(function (resolve, reject) {
-    const maxRedirects = num(request.options.maxRedirects, 5)
-    const followRedirects = request.options.followRedirects !== false
-    let requestCount = 0
+  const maxRedirects = num(request.options.maxRedirects, 5)
+  const followRedirects = request.options.followRedirects !== false
+  let requestCount = 0
 
-    const confirmRedirect = typeof request.options.followRedirects === 'function' ?
-      request.options.followRedirects : falsey
+  const confirmRedirect = typeof request.options.followRedirects === 'function' ?
+    request.options.followRedirects : falsey
 
-    // Track upload progress through a stream.
-    const requestProxy = through2(function (chunk, enc, cb) {
-      request.uploadedBytes = request.uploadedBytes + chunk.length
-      this.push(chunk)
-      cb()
-    }, function (cb) {
-      request.uploadedBytes = request.uploadLength
-      cb()
-    })
-
-    // Track download progress through a stream.
-    const responseProxy = through2(function (chunk, enc, cb) {
-      request.downloadedBytes = request.downloadedBytes + chunk.length
-      this.push(chunk)
-      cb()
-    }, function (cb) {
-      request.downloadedBytes = request.downloadLength
-      cb()
-    })
-
-    /**
-     * Create the HTTP request.
-     */
-    function get (url: string, opts?: any, body?: any) {
-      // Check redirection count before executing request.
-      if (requestCount++ > maxRedirects) {
-        reject(request.error(`Exceeded maximum of ${maxRedirects} redirects`, 'EMAXREDIRECTS'))
-        return
-      }
-
-      const arg: any = extend(urlLib.parse(url), opts)
-      const isHttp = arg.protocol !== 'https:'
-      const engine: typeof httpRequest = isHttp ? httpRequest : httpsRequest
-
-      // Always attach certain options.
-      arg.agent = request.options.agent || (isHttp ? agent.http.globalAgent : agent.https.globalAgent)
-      arg.rejectUnauthorized = request.options.rejectUnauthorized !== false
-
-      const req = engine(arg)
-
-      req.once('response', function (res: IncomingMessage) {
-        const status = res.statusCode
-        const redirect = REDIRECT_STATUS[status]
-
-        // Handle HTTP redirects.
-        if (followRedirects && redirect != null && res.headers.location) {
-          const newUrl = urlLib.resolve(url, res.headers.location)
-
-          res.resume()
-
-          if (redirect === REDIRECT_TYPE.FOLLOW_WITH_GET) {
-            get(newUrl, { method: 'GET' })
-            return
-          }
-
-          if (redirect === REDIRECT_TYPE.FOLLOW_WITH_CONFIRMATION) {
-            // Following HTTP spec by automatically redirecting with GET/HEAD.
-            if (arg.method === 'GET' || arg.method === 'HEAD') {
-              get(newUrl, opts, body)
-              return
-            }
-
-            // Allow the user to confirm redirect according to HTTP spec.
-            if (confirmRedirect(req, res)) {
-              get(newUrl, opts, body)
-              return
-            }
-          }
-        }
-
-        request.downloadLength = num(res.headers['content-length'], 0)
-
-        // Track download progress.
-        res.pipe(responseProxy)
-
-        return resolve({
-          body: responseProxy,
-          status: status,
-          headers: getHeaders(res),
-          url: url
-        })
-      })
-
-      // io.js has an abort event instead of "error".
-      req.once('abort', function () {
-        return reject(request.error('Request aborted', 'EABORT'))
-      })
-
-      req.once('error', function (error: Error) {
-        return reject(request.error(`Unable to connect to "${url}"`, 'EUNAVAILABLE', error))
-      })
-
-      // Node 0.10 needs to catch errors on the request proxy.
-      requestProxy.once('error', reject)
-
-      request.raw = req
-      request.uploadLength = num(req.getHeader('content-length'), 0)
-      requestProxy.pipe(req)
-
-      // Pipe the body to the stream.
-      if (body) {
-        if (typeof body.pipe === 'function') {
-          body.pipe(requestProxy)
-        } else {
-          requestProxy.end(body)
-        }
-      } else {
-        requestProxy.end()
-      }
+  /**
+   * Create the HTTP request, in a way we can re-use this.
+   */
+  function get (url: string, method: string, body?: any) {
+    // Check redirection count before executing request.
+    if (requestCount++ > maxRedirects) {
+      return Promise.reject(
+        request.error(`Exceeded maximum of ${maxRedirects} redirects`, 'EMAXREDIRECTS')
+      )
     }
 
-    get(request.fullUrl(), {
-      headers: request.get(),
-      method: request.method
-    }, request.body)
-  })
+    return appendCookies(request)
+      .then(function () {
+        return new Promise((resolve, reject) => {
+          const arg: any = urlLib.parse(url)
+          const isHttp = arg.protocol !== 'https:'
+          const engine: typeof httpRequest = isHttp ? httpRequest : httpsRequest
+
+          // Always attach certain options.
+          arg.method = method
+          arg.headers = request.get()
+          arg.agent = request.options.agent
+          arg.rejectUnauthorized = request.options.rejectUnauthorized !== false
+
+          // Fallback to infinity agents.
+          if (!arg.agent) {
+            arg.agent = isHttp ? agent.http.globalAgent : agent.https.globalAgent
+          }
+
+          const req = engine(arg)
+
+          // Track upload progress through a stream.
+          const requestProxy = new PassThrough()
+          const responseProxy = new PassThrough()
+
+          requestProxy.on('data', function (chunk: Buffer) {
+            request.uploadedBytes = request.uploadedBytes + chunk.length
+          })
+
+          requestProxy.on('end', function () {
+            request.uploadedBytes = request.uploadLength
+          })
+
+          responseProxy.on('data', function (chunk: Buffer) {
+            request.downloadedBytes = request.downloadedBytes + chunk.length
+          })
+
+          responseProxy.on('end', function () {
+            request.downloadedBytes = request.downloadLength
+          })
+
+          // Handle the HTTP response.
+          function response (res: IncomingMessage) {
+            const status = res.statusCode
+            const redirect = REDIRECT_STATUS[status]
+
+            // Handle HTTP redirects.
+            if (followRedirects && redirect != null && res.headers.location) {
+              const newUrl = urlLib.resolve(url, res.headers.location)
+
+              // Ignore the result of the response on redirect.
+              res.resume()
+
+              // Kill the old cookies on redirect.
+              request.remove('Cookie')
+
+              if (redirect === REDIRECT_TYPE.FOLLOW_WITH_GET) {
+                // Update the "Content-Length" for updated redirection body.
+                request.set('Content-Length', '0')
+
+                return get(newUrl, 'GET')
+              }
+
+              if (redirect === REDIRECT_TYPE.FOLLOW_WITH_CONFIRMATION) {
+                // Following HTTP spec by automatically redirecting with GET/HEAD.
+                if (arg.method === 'GET' || arg.method === 'HEAD') {
+                  return get(newUrl, method, body)
+                }
+
+                // Allow the user to confirm redirect according to HTTP spec.
+                if (confirmRedirect(req, res)) {
+                  return get(newUrl, method, body)
+                }
+              }
+            }
+
+            request.downloadLength = num(res.headers['content-length'], 0)
+
+            // Track download progress.
+            res.pipe(responseProxy)
+
+            return Promise.resolve({
+              body: responseProxy,
+              status: status,
+              headers: getHeaders(res),
+              url: url
+            })
+          }
+
+          // Handle the response.
+          req.once('response', function (message: IncomingMessage) {
+            return resolve(setCookies(request, message).then(() => response(message)))
+          })
+
+          // io.js has an abort event instead of "error".
+          req.once('abort', function () {
+            return reject(request.error('Request aborted', 'EABORT'))
+          })
+
+          req.once('error', function (error: Error) {
+            return reject(request.error(`Unable to connect to "${url}"`, 'EUNAVAILABLE', error))
+          })
+
+          // Node 0.10 needs to catch errors on the request proxy.
+          requestProxy.once('error', reject)
+
+          request.raw = req
+          request.uploadLength = num(req.getHeader('content-length'), 0)
+          requestProxy.pipe(req)
+
+          // Pipe the body to the stream.
+          if (body) {
+            if (typeof body.pipe === 'function') {
+              body.pipe(requestProxy)
+            } else {
+              requestProxy.end(body)
+            }
+          } else {
+            requestProxy.end()
+          }
+        })
+      })
+  }
+
+  return get(request.fullUrl(), request.method, request.body)
 }
 
 /**
@@ -194,4 +214,55 @@ function num (value: any, fallback?: number) {
  */
 function falsey () {
   return false
+}
+
+
+/**
+ * Read cookies from the cookie jar.
+ */
+function appendCookies (request: Request) {
+  return new Promise(function (resolve, reject) {
+    if (!request.options.jar) {
+      return resolve()
+    }
+
+    request.options.jar.getCookies(request.url, function (err: Error, cookies: Cookie[]) {
+      if (err) {
+        return reject(err)
+      }
+
+      if (cookies.length) {
+        request.append('Cookie', cookies.join('; '))
+      }
+
+      return resolve()
+    })
+  })
+}
+
+/**
+ * Put cookies in the cookie jar.
+ */
+function setCookies (request: Request, message: IncomingMessage) {
+  return new Promise(function (resolve, reject) {
+    if (!request.options.jar) {
+      return resolve()
+    }
+
+    const cookies = arrify(message.headers['set-cookie'])
+
+    if (!cookies.length) {
+      return resolve()
+    }
+
+    const setCookies = cookies.map(function (cookie) {
+      return new Promise(function (resolve, reject) {
+        request.options.jar.setCookie(cookie, request.url, function (err: Error) {
+          return err ? reject(err) : resolve()
+        })
+      })
+    })
+
+    return resolve(Promise.all(setCookies))
+  })
 }
