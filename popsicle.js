@@ -553,6 +553,7 @@ var Response = (function (_super) {
         _super.call(this, options);
         this.body = options.body;
         this.status = options.status;
+        this.statusText = options.statusText;
     }
     Response.prototype.statusType = function () {
         return ~~(this.status / 100);
@@ -565,7 +566,8 @@ var Response = (function (_super) {
             url: this.fullUrl(),
             headers: this.get(),
             body: this.body,
-            status: this.status
+            status: this.status,
+            statusText: this.statusText
         };
     };
     return Response;
@@ -1042,6 +1044,7 @@ function open(request) {
         xhr.onload = function () {
             return resolve({
                 status: xhr.status === 1223 ? 204 : xhr.status,
+                statusText: xhr.statusText,
                 headers: get_headers_1.parse(xhr.getAllResponseHeaders()),
                 body: responseType ? xhr.response : xhr.responseText,
                 url: xhr.responseURL

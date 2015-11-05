@@ -29,6 +29,7 @@ function open (request: Request) {
     xhr.onload = function () {
       return resolve({
         status: xhr.status === 1223 ? 204 : xhr.status,
+        statusText: xhr.statusText,
         headers: getHeaders(xhr.getAllResponseHeaders()),
         body: responseType ? xhr.response : xhr.responseText,
         url: xhr.responseURL
