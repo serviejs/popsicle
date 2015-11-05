@@ -4,6 +4,7 @@ import Request, { PopsicleError } from './request'
 export interface ResponseOptions extends BaseOptions {
   body: any
   status: number
+  statusText: string
 }
 
 export interface ResponseJSON {
@@ -11,10 +12,12 @@ export interface ResponseJSON {
   body: any
   url: string
   status: number
+  statusText: string
 }
 
 export default class Response extends Base {
   status: number
+  statusText: string
   body: any
   request: Request
 
@@ -23,6 +26,7 @@ export default class Response extends Base {
 
     this.body = options.body
     this.status = options.status
+    this.statusText = options.statusText
   }
 
   statusType () {
@@ -38,7 +42,8 @@ export default class Response extends Base {
       url: this.fullUrl(),
       headers: this.get(),
       body: this.body,
-      status: this.status
+      status: this.status,
+      statusText: this.statusText
     }
   }
 

@@ -76,7 +76,7 @@ test('use the same response in promise chains', function (t) {
       t.equal(res.request, req)
 
       t.deepEqual(Object.keys(req.toJSON()), ['url', 'headers', 'body', 'options', 'timeout', 'method'])
-      t.deepEqual(Object.keys(res.toJSON()), ['url', 'headers', 'body', 'status'])
+      t.deepEqual(Object.keys(res.toJSON()), ['url', 'headers', 'body', 'status', 'statusText'])
 
       return req
         .then(function (res2) {
@@ -125,6 +125,7 @@ test('response status', function (t) {
     return popsicle(REMOTE_URL + '/error')
       .then(function (res) {
         t.equal(res.status, 500)
+        t.equal(res.statusText, 'Internal Server Error')
         t.equal(res.statusType(), 5)
       })
   })
@@ -133,6 +134,7 @@ test('response status', function (t) {
     return popsicle(REMOTE_URL + '/not-found')
       .then(function (res) {
         t.equal(res.status, 404)
+        t.equal(res.statusText, 'Not Found')
         t.equal(res.statusType(), 4)
       })
   })
@@ -141,6 +143,7 @@ test('response status', function (t) {
     return popsicle(REMOTE_URL + '/no-content')
       .then(function (res) {
         t.equal(res.status, 204)
+        t.equal(res.statusText, 'No Content')
         t.equal(res.statusType(), 2)
       })
   })
@@ -195,6 +198,8 @@ test('request body', function (t) {
     })
       .then(function (res) {
         t.equal(res.body, 'example data')
+        t.equal(res.status, 200)
+        t.equal(res.statusText, 'OK')
         t.equal(res.type(), 'application/octet-stream')
       })
   })
@@ -870,7 +875,8 @@ test('override request mechanism', function (t) {
           url: '/foo',
           body: 'testing',
           headers: <any> {},
-          status: 200
+          status: 200,
+          statusText: 'OK'
         })
       }
     }

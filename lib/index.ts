@@ -148,6 +148,7 @@ function open (request: Request) {
             return Promise.resolve({
               body: responseProxy,
               status: status,
+              statusText: res.statusMessage,
               headers: getHeaders(res),
               url: url
             })
