@@ -845,6 +845,19 @@ if (!process.browser) {
           t.notOk(res.get('Set-Cookie'))
         })
     })
+
+    t.test('should update over redirects', function (t) {
+      const instance = popsicle.defaults({
+        options: {
+          jar: popsicle.jar()
+        }
+      })
+
+      return instance(REMOTE_URL + '/cookie/redirect')
+        .then(function (res) {
+          t.ok(/^new=cookie/.test(res.body))
+        })
+    })
   })
 }
 
