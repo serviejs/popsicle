@@ -334,7 +334,11 @@ Creating a custom transportation layer is just a matter creating an object with 
 
 ## TypeScript
 
-This project is written using TypeScript and has an accompanying `.d.ts` file.
+This project is written using [TypeScript](https://github.com/Microsoft/TypeScript) and [typings](https://github.com/typings/typings). From version `1.3.1`, you can install the type definition using `typings`.
+
+```
+typings install npm:popsicle --name popsicle
+```
 
 ## Development
 

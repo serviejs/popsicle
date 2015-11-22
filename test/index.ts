@@ -2,10 +2,7 @@ import test = require('blue-tape')
 import methods = require('methods')
 import FormData = require('form-data')
 import Promise = require('native-or-bluebird')
-import { polyfill } from 'es6-promise'
 import popsicle = require('../lib/index')
-
-polyfill()
 
 const SUPPORTED_METHODS = typeof window === 'object' ? [
   'get',
@@ -25,6 +22,8 @@ const EXAMPLE_BODY: any = {
 }
 
 const BOUNDARY_REGEXP = /^multipart\/form-data; boundary=([^;]+)/
+
+const supportsStatusText = parseFloat(process.version.replace(/^v/, '')) >= 0.12
 
 test('should expose default functions', function (t) {
   t.equal(typeof popsicle, 'function')
@@ -46,8 +45,12 @@ test('throw an error when no options are provided', function (t) {
 })
 
 test('create a popsicle#Request instance', function (t) {
-  t.ok(popsicle('/') instanceof popsicle.Request)
-  t.end()
+  const req = popsicle('/')
+
+  t.ok(req instanceof popsicle.Request)
+
+  // Ignore connection error.
+  return req.then(null, function () {})
 })
 
 test('use the same response in promise chains', function (t) {
@@ -125,8 +128,11 @@ test('response status', function (t) {
     return popsicle(REMOTE_URL + '/error')
       .then(function (res) {
         t.equal(res.status, 500)
-        t.equal(res.statusText, 'Internal Server Error')
         t.equal(res.statusType(), 5)
+
+        if (supportsStatusText) {
+          t.equal(res.statusText, 'Internal Server Error')
+        }
       })
   })
 
@@ -134,8 +140,11 @@ test('response status', function (t) {
     return popsicle(REMOTE_URL + '/not-found')
       .then(function (res) {
         t.equal(res.status, 404)
-        t.equal(res.statusText, 'Not Found')
         t.equal(res.statusType(), 4)
+
+        if (supportsStatusText) {
+          t.equal(res.statusText, 'Not Found')
+        }
       })
   })
 
@@ -143,8 +152,11 @@ test('response status', function (t) {
     return popsicle(REMOTE_URL + '/no-content')
       .then(function (res) {
         t.equal(res.status, 204)
-        t.equal(res.statusText, 'No Content')
         t.equal(res.statusType(), 2)
+
+        if (supportsStatusText) {
+          t.equal(res.statusText, 'No Content')
+        }
       })
   })
 })
@@ -199,8 +211,11 @@ test('request body', function (t) {
       .then(function (res) {
         t.equal(res.body, 'example data')
         t.equal(res.status, 200)
-        t.equal(res.statusText, 'OK')
         t.equal(res.type(), 'application/octet-stream')
+
+        if (supportsStatusText) {
+          t.equal(res.statusText, 'OK')
+        }
       })
   })
 
