@@ -184,6 +184,7 @@ exports.defaults = [common_2.stringify, common_2.headers, common_2.parse];
 
 },{"./common":8}],8:[function(require,module,exports){
 (function (Buffer,process){
+var Promise = require('native-or-bluebird');
 var FormData = require('form-data');
 var querystring_1 = require('querystring');
 var form_1 = require('../form');
@@ -284,7 +285,7 @@ function parse(request) {
 exports.parse = parse;
 
 }).call(this,{"isBuffer":require("../../../node_modules/is-buffer/index.js")},require('_process'))
-},{"../../../node_modules/is-buffer/index.js":14,"../form":5,"_process":18,"form-data":2,"querystring":21}],9:[function(require,module,exports){
+},{"../../../node_modules/is-buffer/index.js":14,"../form":5,"_process":18,"form-data":2,"native-or-bluebird":16,"querystring":21}],9:[function(require,module,exports){
 (function (process){
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];

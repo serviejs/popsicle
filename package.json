@@ -20,15 +20,15 @@
     "lint": "# TODO",
     "build-ts": "rm -rf dist/ && tsc",
     "build-browser": "browserify . -s popsicle --external bluebird > popsicle.js",
-    "build": "rm -rf dist && npm run build-ts && npm run build-browser && npm run build-size",
+    "build": "npm run build-ts && npm run build-browser && npm run build-size",
     "build-size": "du -h popsicle.js",
-    "test-spec": "npm run test-server-open && PORT=7357 node dist/test/index.js; npm run test-server-close",
-    "test-cov": "PORT=7357 istanbul cover --print none dist/test/index.js | tap-dot",
-    "test-browser": "PORT=7357 browserify -t envify dist/test/index.js | tape-run | tap-dot",
+    "test-spec": "npm run test-server-open && PORT=7357 node dist/test/index.js | tap-spec; EXIT=$?; npm run test-server-close; exit $EXIT",
+    "test-cov": "PORT=7357 istanbul cover --print none dist/test/index.js | tap-spec",
+    "test-browser": "PORT=7357 browserify -d -t envify dist/test/index.js | tape-run --browser phantom --render tap-spec",
     "test-server-open": "PORT=7357 node test/support/server.js & echo $! > test.pid",
     "test-server-close": "if [ -f test.pid ]; then kill -9 $(cat test.pid); rm test.pid; fi",
-    "test": "npm run lint && npm run build && npm run test-server-open && npm run test-cov && npm run test-browser; npm run test-server-close",
-    "prepublish": "npm run build-ts",
+    "test": "npm run lint && npm run build && npm run test-server-open && npm run test-cov && npm run test-browser; EXIT=$?; npm run test-server-close; exit $EXIT",
+    "prepublish": "typings install && npm run build-ts",
     "commit-build": "git add popsicle.js"
   },
   "pre-commit": [
@@ -62,29 +62,27 @@
     "blue-tape": "^0.1.10",
     "bluebird": "^3.0.5",
     "body-parser": "^1.9.2",
-    "browserify": "^11.0.0",
+    "browserify": "^12.0.1",
     "envify": "^3.4.0",
     "es6-promise": "^3.0.2",
     "express": "^4.10.2",
-    "istanbul": "^0.3.17",
+    "istanbul": "^0.4.0",
     "phantomjs": "^1.9.18",
     "pre-commit": "^1.0.10",
-    "tap-dot": "^1.0.0",
-    "tape-run": "^1.0.0",
-    "typescript": "^1.6.2"
+    "tap-spec": "^4.1.1",
+    "tape-run": "^2.1.0",
+    "typescript": "^1.6.2",
+    "typings": "^0.2.2"
   },
   "dependencies": {
     "arrify": "^1.0.0",
     "concat-stream": "^1.4.7",
     "form-data": "^0.2.0",
-    "get-headers": "^1.0.0",
+    "get-headers": "^1.0.3",
     "infinity-agent": "^2.0.3",
     "methods": "^1.1.1",
     "native-or-bluebird": "^1.2.0",
     "tough-cookie": "^2.0.0",
     "xtend": "^4.0.0"
-  },
-  "typescript": {
-    "definition": "popsicle.d.ts"
   }
 }
