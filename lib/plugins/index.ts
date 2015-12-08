@@ -77,13 +77,13 @@ function defaultHeadersNode (request: Request) {
     })
   }
 
-  var length = 0
-  var body = request.body
+  let length = 0
+  const body = request.body
 
   // Attempt to manually compute the content length.
   if (body && !request.get('Content-Length')) {
     if (Array.isArray(body)) {
-      for (var i = 0; i < body.length; i++) {
+      for (let i = 0; i < body.length; i++) {
         length += body[i].length
       }
     } else if (typeof body === 'string') {
