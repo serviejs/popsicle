@@ -6,7 +6,6 @@ import urlLib = require('url')
 import extend = require('xtend')
 import arrify = require('arrify')
 import { Cookie } from 'tough-cookie'
-import { http as getHeaders } from 'get-headers'
 import Promise = require('native-or-bluebird')
 import { Headers } from './base'
 import Request from './request'
@@ -149,7 +148,8 @@ function open (request: Request) {
               body: responseProxy,
               status: status,
               statusText: res.statusMessage,
-              headers: getHeaders(res),
+              headers: res.headers,
+              rawHeaders: res.rawHeaders,
               url: url
             })
           }

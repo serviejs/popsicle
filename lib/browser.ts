@@ -1,10 +1,9 @@
 import Promise = require('native-or-bluebird')
-import { Headers } from './base'
+import { RawHeaders } from './base'
 import Request from './request'
 import Response from './response'
 import { defaults, Popsicle } from './common'
 import { defaults as use } from './plugins/index'
-import { parse as getHeaders } from 'get-headers'
 
 /**
  * Export default instance with browser transportation layer.
@@ -30,7 +29,7 @@ function open (request: Request) {
       return resolve({
         status: xhr.status === 1223 ? 204 : xhr.status,
         statusText: xhr.statusText,
-        headers: getHeaders(xhr.getAllResponseHeaders()),
+        rawHeaders: parseToRawHeaders(xhr.getAllResponseHeaders()),
         body: responseType ? xhr.response : xhr.responseText,
         url: xhr.responseURL
       })
@@ -103,4 +102,22 @@ function open (request: Request) {
  */
 function abort (request: Request) {
   request.raw.abort()
+}
+
+/**
+ * Parse a headers string into an array of raw headers.
+ */
+function parseToRawHeaders (headers: string): RawHeaders {
+  const rawHeaders: RawHeaders = []
+  const lines = headers.replace(/\r?\n$/, '').split(/\r?\n/)
+
+  for (const header of lines) {
+    const indexOf = header.indexOf(':')
+    const name = header.substr(0, indexOf).trim()
+    const value = header.substr(indexOf + 1).trim()
+
+    rawHeaders.push(name, value)
+  }
+
+  return rawHeaders
 }

@@ -14,17 +14,20 @@ export interface HeaderNames {
   [name: string]: string
 }
 
+export type RawHeaders = string[]
+
 export interface BaseOptions {
   url?: string
   query?: string | Query
   headers?: Headers
+  rawHeaders?: RawHeaders
 }
 
 /**
  * Consistently lower case a header name.
  */
 function lowerHeader (key: string) {
-  var lower = key.toLowerCase()
+  const lower = key.toLowerCase()
 
   if (lower === 'referrer') {
     return 'referer'
@@ -48,8 +51,9 @@ export default class Base {
   headers: Headers = {}
   headerNames: HeaderNames = {}
   query: Query = {}
+  rawHeaders: RawHeaders
 
-  constructor ({ url, headers, query }: BaseOptions) {
+  constructor ({ url, headers, rawHeaders, query }: BaseOptions) {
     if (typeof url === 'string') {
       const queryIndexOf = url.indexOf('?')
       const queryObject = typeof query === 'string' ? parse(query) : query
@@ -63,7 +67,19 @@ export default class Base {
       }
     }
 
-    this.set(headers)
+    if (rawHeaders) {
+      this.rawHeaders = rawHeaders
+
+      // Set up headers using the `rawHeaders`. Mainly used with responses.
+      for (let i = 0; i < rawHeaders.length; i += 2) {
+        const name = rawHeaders[i]
+        const value = rawHeaders[i + 1]
+
+        this.append(name, value)
+      }
+    } else {
+      this.set(headers)
+    }
   }
 
   set (headers: Headers): Base
@@ -82,7 +98,7 @@ export default class Base {
         delete this.headers[lower]
         delete this.headerNames[lower]
       } else {
-        this.headers[lower] = value
+        this.headers[lower] = typeof value === 'string' ? value : value.join(', ')
         this.headerNames[lower] = name
       }
     }
@@ -91,10 +107,13 @@ export default class Base {
   }
 
   append (name: string, value: string | string[]) {
-    const prev = this.get(name)
-    const val = arrify(prev).concat(<string> value)
+    const previous = this.get(name)
 
-    return this.set(name, val)
+    if (previous != null) {
+      value = `${previous}, ${typeof value === 'string' ? value : value.join(', ')}`
+    }
+
+    return this.set(name, value)
   }
 
   name (name: string): string {
@@ -105,7 +124,7 @@ export default class Base {
   get (name: string): string
   get (name?: string): any {
     if (arguments.length === 0) {
-      var headers: Headers = {}
+      const headers: Headers = {}
 
       Object.keys(this.headers).forEach((key) => {
         headers[this.name(key)] = this.get(key)

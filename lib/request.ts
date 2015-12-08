@@ -341,8 +341,8 @@ function emitProgress (request: Request) {
   }
 
   try {
-    for (var i = 0; i < fns.length; i++) {
-      fns[i](request)
+    for (let fn of fns) {
+      fn(request)
     }
   } catch (err) {
     request.errored = err

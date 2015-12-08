@@ -1,5 +1,4 @@
 (function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.popsicle = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-var arrify = require('arrify');
 var querystring_1 = require('querystring');
 var extend = require('xtend');
 function lowerHeader(key) {
@@ -14,7 +13,7 @@ function type(str) {
 }
 var Base = (function () {
     function Base(_a) {
-        var url = _a.url, headers = _a.headers, query = _a.query;
+        var url = _a.url, headers = _a.headers, rawHeaders = _a.rawHeaders, query = _a.query;
         this.url = null;
         this.headers = {};
         this.headerNames = {};
@@ -31,7 +30,17 @@ var Base = (function () {
                 this.query = extend(queryObject);
             }
         }
-        this.set(headers);
+        if (rawHeaders) {
+            this.rawHeaders = rawHeaders;
+            for (var i = 0; i < rawHeaders.length; i += 2) {
+                var name_1 = rawHeaders[i];
+                var value = rawHeaders[i + 1];
+                this.append(name_1, value);
+            }
+        }
+        else {
+            this.set(headers);
+        }
     }
     Base.prototype.set = function (name, value) {
         var _this = this;
@@ -49,16 +58,18 @@ var Base = (function () {
                 delete this.headerNames[lower];
             }
             else {
-                this.headers[lower] = value;
+                this.headers[lower] = typeof value === 'string' ? value : value.join(', ');
                 this.headerNames[lower] = name;
             }
         }
         return this;
     };
     Base.prototype.append = function (name, value) {
-        var prev = this.get(name);
-        var val = arrify(prev).concat(value);
-        return this.set(name, val);
+        var previous = this.get(name);
+        if (previous != null) {
+            value = previous + ", " + (typeof value === 'string' ? value : value.join(', '));
+        }
+        return this.set(name, value);
     };
     Base.prototype.name = function (name) {
         return this.headerNames[lowerHeader(name)];
@@ -101,7 +112,7 @@ var Base = (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = Base;
 
-},{"arrify":11,"querystring":21,"xtend":22}],2:[function(require,module,exports){
+},{"querystring":20,"xtend":21}],2:[function(require,module,exports){
 module.exports = FormData;
 
 },{}],3:[function(require,module,exports){
@@ -152,7 +163,7 @@ function defaults(defaultsOptions) {
 exports.defaults = defaults;
 
 }).call(this,require('_process'))
-},{"./form":5,"./jar":6,"./plugins/index":7,"./request":9,"./response":10,"_process":18,"methods":15,"xtend":22}],5:[function(require,module,exports){
+},{"./form":5,"./jar":6,"./plugins/index":7,"./request":9,"./response":10,"_process":17,"methods":14,"xtend":21}],5:[function(require,module,exports){
 var FormData = require('form-data');
 function form(obj) {
     var form = new FormData();
@@ -285,7 +296,7 @@ function parse(request) {
 exports.parse = parse;
 
 }).call(this,{"isBuffer":require("../../../node_modules/is-buffer/index.js")},require('_process'))
-},{"../../../node_modules/is-buffer/index.js":14,"../form":5,"_process":18,"form-data":2,"native-or-bluebird":16,"querystring":21}],9:[function(require,module,exports){
+},{"../../../node_modules/is-buffer/index.js":13,"../form":5,"_process":17,"form-data":2,"native-or-bluebird":15,"querystring":20}],9:[function(require,module,exports){
 (function (process){
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
@@ -530,8 +541,9 @@ function emitProgress(request) {
         return;
     }
     try {
-        for (var i = 0; i < fns.length; i++) {
-            fns[i](request);
+        for (var _i = 0; _i < fns.length; _i++) {
+            var fn = fns[_i];
+            fn(request);
         }
     }
     catch (err) {
@@ -541,7 +553,7 @@ function emitProgress(request) {
 }
 
 }).call(this,require('_process'))
-},{"./base":1,"./response":10,"_process":18,"arrify":11,"native-or-bluebird":16,"xtend":22}],10:[function(require,module,exports){
+},{"./base":1,"./response":10,"_process":17,"arrify":11,"native-or-bluebird":15,"xtend":21}],10:[function(require,module,exports){
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -589,66 +601,6 @@ module.exports = function (val) {
 },{}],12:[function(require,module,exports){
 
 },{}],13:[function(require,module,exports){
-function parse(value) {
-    var arr = [];
-    var lines = value.replace(/\r?\n$/, '').split(/\r?\n/);
-    for (var i = 0; i < lines.length; i++) {
-        var header = lines[i];
-        var indexOf = header.indexOf(':');
-        var name_1 = header.substr(0, indexOf).trim();
-        var value_1 = header.substr(indexOf + 1).trim();
-        arr.push(name_1, value_1);
-    }
-    return array(arr);
-}
-exports.parse = parse;
-function http(response) {
-    if (response.rawHeaders) {
-        return array(response.rawHeaders);
-    }
-    var headers = {};
-    Object.keys(response.headers).forEach(function (key) {
-        var value = response.headers[key];
-        if (value.length === 1) {
-            headers[key] = value[0];
-        }
-        else {
-            headers[key] = value;
-        }
-    });
-    return headers;
-}
-exports.http = http;
-function array(values) {
-    var casing = {};
-    var headers = {};
-    for (var i = 0; i < values.length; i = i + 2) {
-        var name_2 = values[i];
-        var lower = name_2.toLowerCase();
-        var oldName = casing[lower];
-        var value = values[i + 1];
-        if (!headers.hasOwnProperty(oldName)) {
-            headers[name_2] = value;
-        }
-        else {
-            if (name_2 !== oldName) {
-                headers[name_2] = headers[oldName];
-                delete headers[oldName];
-            }
-            if (typeof headers[name_2] === 'string') {
-                headers[name_2] = [headers[name_2], value];
-            }
-            else {
-                headers[name_2].push(value);
-            }
-        }
-        casing[lower] = name_2;
-    }
-    return headers;
-}
-exports.array = array;
-
-},{}],14:[function(require,module,exports){
 /**
  * Determine if an object is Buffer
  *
@@ -667,7 +619,7 @@ module.exports = function (obj) {
     ))
 }
 
-},{}],15:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 
 var http = require('http');
 
@@ -711,7 +663,7 @@ if (http.METHODS) {
 
 }
 
-},{"http":12}],16:[function(require,module,exports){
+},{"http":12}],15:[function(require,module,exports){
 (function (process){
 
 module.exports = require('./promise')
@@ -725,7 +677,7 @@ if (!module.exports) {
 }
 
 }).call(this,require('_process'))
-},{"./promise":17,"_process":18}],17:[function(require,module,exports){
+},{"./promise":16,"_process":17}],16:[function(require,module,exports){
 (function (global){
 
 try {
@@ -735,7 +687,7 @@ try {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"bluebird":"bluebird"}],18:[function(require,module,exports){
+},{"bluebird":"bluebird"}],17:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -828,7 +780,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],19:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -914,7 +866,7 @@ var isArray = Array.isArray || function (xs) {
   return Object.prototype.toString.call(xs) === '[object Array]';
 };
 
-},{}],20:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -1001,13 +953,13 @@ var objectKeys = Object.keys || function (obj) {
   return res;
 };
 
-},{}],21:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 'use strict';
 
 exports.decode = exports.parse = require('./decode');
 exports.encode = exports.stringify = require('./encode');
 
-},{"./decode":19,"./encode":20}],22:[function(require,module,exports){
+},{"./decode":18,"./encode":19}],21:[function(require,module,exports){
 module.exports = extend
 
 var hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -1028,11 +980,10 @@ function extend() {
     return target
 }
 
-},{}],23:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 var Promise = require('native-or-bluebird');
 var common_1 = require('./common');
 var index_1 = require('./plugins/index');
-var get_headers_1 = require('get-headers');
 function open(request) {
     return new Promise(function (resolve, reject) {
         var url = request.fullUrl();
@@ -1046,7 +997,7 @@ function open(request) {
             return resolve({
                 status: xhr.status === 1223 ? 204 : xhr.status,
                 statusText: xhr.statusText,
-                headers: get_headers_1.parse(xhr.getAllResponseHeaders()),
+                rawHeaders: parseToRawHeaders(xhr.getAllResponseHeaders()),
                 body: responseType ? xhr.response : xhr.responseText,
                 url: xhr.responseURL
             });
@@ -1103,9 +1054,21 @@ function open(request) {
 function abort(request) {
     request.raw.abort();
 }
+function parseToRawHeaders(headers) {
+    var rawHeaders = [];
+    var lines = headers.replace(/\r?\n$/, '').split(/\r?\n/);
+    for (var _i = 0; _i < lines.length; _i++) {
+        var header = lines[_i];
+        var indexOf = header.indexOf(':');
+        var name_1 = header.substr(0, indexOf).trim();
+        var value = header.substr(indexOf + 1).trim();
+        rawHeaders.push(name_1, value);
+    }
+    return rawHeaders;
+}
 module.exports = common_1.defaults({
     transport: { open: open, abort: abort, use: index_1.defaults }
 });
 
-},{"./common":4,"./plugins/index":7,"get-headers":13,"native-or-bluebird":16}]},{},[23])(23)
+},{"./common":4,"./plugins/index":7,"native-or-bluebird":15}]},{},[22])(22)
 });
