@@ -134,7 +134,7 @@ setTimeout(function () {
 }, 100)
 
 request.catch(function (err) {
-  console.log(err) //=> { message: 'Request aborted', type: 'EABORTED' }
+  console.log(err) //=> { message: 'Request aborted', code: 'EABORTED' }
 })
 ```
 
@@ -269,7 +269,7 @@ Every Popsicle response will give a `Response` object on success. The object pro
 
 ### Error Handling
 
-All response handling methods can return an error. Errors have a `popsicle` property set to the request object and a `type` string. The built-in types are documented below, but custom errors can be created using `request.error(message, code, originalError)`.
+All response handling methods can return an error. Errors have a `popsicle` property set to the request object and a `code` string. The built-in codes are documented below, but custom errors can be created using `request.error(message, code, cause)`.
 
 * **EABORT** Request has been aborted by user
 * **EUNAVAILABLE** Unable to connect to the remote URL
