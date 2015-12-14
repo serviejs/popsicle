@@ -3,6 +3,7 @@
     "target": "es5",
     "outDir": "dist",
     "module": "commonjs",
+    "moduleResolution": "classic",
     "declaration": true,
     "noImplicitAny": true,
     "removeComments": true,
@@ -14,6 +15,7 @@
     "lib/browser/form-data.ts",
     "lib/browser/tough-cookie.ts",
     "lib/plugins/browser.ts",
+    "custom_typings/env.d.ts",
     "typings/main.d.ts",
     "test/index.ts"
   ]

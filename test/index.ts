@@ -354,7 +354,7 @@ test('timeout', function (t) {
     })
       .catch(function (err) {
         t.equal(err.message, 'Timeout of 500ms exceeded')
-        t.equal(err.type, 'ETIMEOUT')
+        t.equal(err.code, 'ETIMEOUT')
         t.ok(err.popsicle instanceof popsicle.Request)
       })
   })
@@ -371,7 +371,7 @@ test('abort', function (t) {
     return req
       .catch(function (err) {
         t.equal(err.message, 'Request aborted')
-        t.equal(err.type, 'EABORT')
+        t.equal(err.code, 'EABORT')
         t.ok(err.popsicle instanceof popsicle.Request)
       })
   })
@@ -388,7 +388,7 @@ test('abort', function (t) {
     return req
       .catch(function (err) {
         t.equal(err.message, 'Request aborted')
-        t.equal(err.type, 'EABORT')
+        t.equal(err.code, 'EABORT')
         t.ok(err.popsicle instanceof popsicle.Request)
       })
   })
@@ -404,7 +404,7 @@ test('abort', function (t) {
     return req
       .catch(function (err) {
         t.equal(err.message, 'Request aborted')
-        t.equal(err.type, 'EABORT')
+        t.equal(err.code, 'EABORT')
         t.ok(err.popsicle instanceof popsicle.Request)
       })
   })
@@ -630,7 +630,7 @@ test('response body', function (t) {
       })
         .catch(function (err) {
           t.equal(err.message, 'Unsupported response type: foobar')
-          t.equal(err.type, 'ERESPONSETYPE')
+          t.equal(err.code, 'ERESPONSETYPE')
         })
     })
   }
@@ -643,7 +643,7 @@ test('request errors', function (t) {
     return popsicle('http://fdahkfjhuehfakjbvdahjfds.fdsa')
       .catch(function (err) {
         t.ok(/Unable to connect/i.exec(err.message))
-        t.equal(err.type, 'EUNAVAILABLE')
+        t.equal(err.code, 'EUNAVAILABLE')
         t.ok(err.popsicle instanceof popsicle.Request)
       })
   })
@@ -661,7 +661,7 @@ test('request errors', function (t) {
     })
       .catch(function (err) {
         t.ok(/Unable to parse response body/i.test(err.message))
-        t.equal(err.type, 'EPARSE')
+        t.equal(err.code, 'EPARSE')
         t.ok(err.popsicle instanceof popsicle.Request)
       })
   })
@@ -681,7 +681,7 @@ test('request errors', function (t) {
     })
       .catch(function (err) {
         t.ok(/Unable to stringify request body/i.test(err.message))
-        t.equal(err.type, 'ESTRINGIFY')
+        t.equal(err.code, 'ESTRINGIFY')
         t.ok(err.popsicle instanceof popsicle.Request)
       })
   })
@@ -952,7 +952,7 @@ if (!popsicle.browser) {
       return popsicle(REMOTE_URL + '/redirect/6')
         .catch(function (err) {
           t.equal(err.message, 'Exceeded maximum of 5 redirects')
-          t.equal(err.type, 'EMAXREDIRECTS')
+          t.equal(err.code, 'EMAXREDIRECTS')
         })
     })
 

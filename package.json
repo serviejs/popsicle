@@ -72,13 +72,14 @@
     "tap-spec": "^4.1.1",
     "tape-run": "^2.1.0",
     "typescript": "^1.7.3",
-    "typings": "^0.2.2"
+    "typings": "^0.3.1"
   },
   "dependencies": {
     "arrify": "^1.0.0",
     "concat-stream": "^1.4.7",
     "form-data": "^0.2.0",
     "infinity-agent": "^2.0.3",
+    "make-error-cause": "^1.0.1",
     "methods": "^1.1.1",
     "native-or-bluebird": "^1.2.0",
     "tough-cookie": "^2.0.0",

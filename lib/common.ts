@@ -5,6 +5,7 @@ import Response from './response'
 import * as plugins from './plugins/index'
 import form from './form'
 import jar from './jar'
+import PopsicleError from './error'
 
 /**
  * Support Popsicle defaults.
@@ -26,6 +27,7 @@ export interface Popsicle {
   plugins: typeof plugins
   Request: typeof Request
   Response: typeof Response
+  Error: typeof PopsicleError
   defaults: (defaults: DefaultsOptions) => Popsicle
   form: typeof form
   jar: typeof jar
@@ -63,7 +65,7 @@ export interface Popsicle {
  * Generate a default popsicle instance.
  */
 export function defaults (defaultsOptions: DefaultsOptions): Popsicle {
-  const popsicle: Popsicle = <any> function popsicle (options: RequestOptions | string) {
+  const popsicle = function popsicle (options: RequestOptions | string) {
     const opts = extendDefaults(defaultsOptions, options)
 
     if (typeof opts.url !== 'string') {
@@ -71,10 +73,11 @@ export function defaults (defaultsOptions: DefaultsOptions): Popsicle {
     }
 
     return new Request(opts)
-  }
+  } as Popsicle
 
   popsicle.Request = Request
   popsicle.Response = Response
+  popsicle.Error = PopsicleError
   popsicle.plugins = plugins
   popsicle.form = form
   popsicle.jar = jar
