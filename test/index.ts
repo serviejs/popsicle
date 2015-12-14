@@ -530,7 +530,7 @@ test('response body', function (t) {
   if (!process.browser) {
     const fs = require('fs')
     const concat = require('concat-stream')
-    const filename = require('path').join(__dirname, '../../popsicle.js')
+    const filename = require('path').join(__dirname, '../../test/support/server.js')
     const filecontents = fs.readFileSync(filename, 'utf-8')
 
     t.test('stream the response body', function (t) {
@@ -573,7 +573,7 @@ test('response body', function (t) {
 
           t.equal(res.body, [
             '--' + boundary,
-            'Content-Disposition: form-data; name="file"; filename="popsicle.js"',
+            'Content-Disposition: form-data; name="file"; filename="server.js"',
             'Content-Type: application/javascript',
             '',
             filecontents,

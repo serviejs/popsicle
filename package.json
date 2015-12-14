@@ -18,23 +18,15 @@
   },
   "scripts": {
     "lint": "# TODO",
-    "build-ts": "rm -rf dist/ && tsc",
-    "build-browser": "browserify . -s popsicle --external bluebird > popsicle.js",
-    "build": "npm run build-ts && npm run build-browser && npm run build-size",
-    "build-size": "du -h popsicle.js",
+    "build": "rm -rf dist/ && tsc",
     "test-spec": "npm run test-server-open && PORT=7357 node dist/test/index.js | tap-spec; EXIT=$?; npm run test-server-close; exit $EXIT",
     "test-cov": "PORT=7357 istanbul cover --print none dist/test/index.js | tap-spec",
     "test-browser": "PORT=7357 browserify -d -t envify dist/test/index.js | tape-run --browser phantom --render tap-spec",
     "test-server-open": "PORT=7357 node test/support/server.js & echo $! > test.pid",
     "test-server-close": "if [ -f test.pid ]; then kill -9 $(cat test.pid); rm test.pid; fi",
     "test": "npm run lint && npm run build && npm run test-server-open && npm run test-cov && npm run test-browser; EXIT=$?; npm run test-server-close; exit $EXIT",
-    "prepublish": "typings install && npm run build-ts",
-    "commit-build": "git add popsicle.js"
+    "prepublish": "typings install && npm run build"
   },
-  "pre-commit": [
-    "test",
-    "commit-build"
-  ],
   "repository": {
     "type": "git",
     "url": "git://github.com/blakeembrey/popsicle.git"
