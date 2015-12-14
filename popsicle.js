@@ -112,7 +112,7 @@ var Base = (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = Base;
 
-},{"querystring":20,"xtend":21}],2:[function(require,module,exports){
+},{"querystring":23,"xtend":24}],2:[function(require,module,exports){
 module.exports = FormData;
 
 },{}],3:[function(require,module,exports){
@@ -129,6 +129,7 @@ var response_1 = require('./response');
 var plugins = require('./plugins/index');
 var form_1 = require('./form');
 var jar_1 = require('./jar');
+var error_1 = require('./error');
 function extendDefaults(defaults, options) {
     if (typeof options === 'string') {
         return extend(defaults, { url: options });
@@ -145,6 +146,7 @@ function defaults(defaultsOptions) {
     };
     popsicle.Request = request_1.default;
     popsicle.Response = response_1.default;
+    popsicle.Error = error_1.default;
     popsicle.plugins = plugins;
     popsicle.form = form_1.default;
     popsicle.jar = jar_1.default;
@@ -163,7 +165,26 @@ function defaults(defaultsOptions) {
 exports.defaults = defaults;
 
 }).call(this,require('_process'))
-},{"./form":5,"./jar":6,"./plugins/index":7,"./request":9,"./response":10,"_process":17,"methods":14,"xtend":21}],5:[function(require,module,exports){
+},{"./error":5,"./form":6,"./jar":7,"./plugins/index":8,"./request":10,"./response":11,"_process":20,"methods":17,"xtend":24}],5:[function(require,module,exports){
+var __extends = (this && this.__extends) || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+};
+var makeErrorCause = require('make-error-cause');
+var PopsicleError = (function (_super) {
+    __extends(PopsicleError, _super);
+    function PopsicleError(message, code, original, popsicle) {
+        _super.call(this, message, original);
+        this.code = code;
+        this.popsicle = popsicle;
+    }
+    return PopsicleError;
+})(makeErrorCause.BaseError);
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.default = PopsicleError;
+
+},{"make-error-cause":15}],6:[function(require,module,exports){
 var FormData = require('form-data');
 function form(obj) {
     var form = new FormData();
@@ -177,7 +198,7 @@ function form(obj) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = form;
 
-},{"form-data":2}],6:[function(require,module,exports){
+},{"form-data":2}],7:[function(require,module,exports){
 var tough_cookie_1 = require('tough-cookie');
 function cookieJar(store) {
     return new tough_cookie_1.CookieJar(store);
@@ -185,7 +206,7 @@ function cookieJar(store) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = cookieJar;
 
-},{"tough-cookie":3}],7:[function(require,module,exports){
+},{"tough-cookie":3}],8:[function(require,module,exports){
 function __export(m) {
     for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
@@ -193,7 +214,7 @@ __export(require('./common'));
 var common_2 = require('./common');
 exports.defaults = [common_2.stringify, common_2.headers, common_2.parse];
 
-},{"./common":8}],8:[function(require,module,exports){
+},{"./common":9}],9:[function(require,module,exports){
 (function (Buffer,process){
 var Promise = require('native-or-bluebird');
 var FormData = require('form-data');
@@ -296,7 +317,7 @@ function parse(request) {
 exports.parse = parse;
 
 }).call(this,{"isBuffer":require("../../../node_modules/is-buffer/index.js")},require('_process'))
-},{"../../../node_modules/is-buffer/index.js":13,"../form":5,"_process":17,"form-data":2,"native-or-bluebird":15,"querystring":20}],9:[function(require,module,exports){
+},{"../../../node_modules/is-buffer/index.js":14,"../form":6,"_process":20,"form-data":2,"native-or-bluebird":18,"querystring":23}],10:[function(require,module,exports){
 (function (process){
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
@@ -308,6 +329,7 @@ var extend = require('xtend');
 var Promise = require('native-or-bluebird');
 var base_1 = require('./base');
 var response_1 = require('./response');
+var error_1 = require('./error');
 var Request = (function (_super) {
     __extends(Request, _super);
     function Request(options) {
@@ -341,12 +363,8 @@ var Request = (function (_super) {
         arrify(fn).forEach(function (fn) { return fn(_this); });
         return this;
     };
-    Request.prototype.error = function (message, type, original) {
-        var err = new Error(message);
-        err.popsicle = this;
-        err.type = type;
-        err.original = original;
-        return err;
+    Request.prototype.error = function (message, code, original) {
+        return new error_1.default(message, code, original, this);
     };
     Request.prototype.then = function (onFulfilled, onRejected) {
         return this._promise.then(onFulfilled, onRejected);
@@ -463,7 +481,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = Request;
 function pluginFunction(request, property, fn) {
     if (request.started) {
-        throw new Error('Plugins can not be used after the request has started');
+        throw new TypeError('Plugins can not be used after the request has started');
     }
     if (typeof fn !== 'function') {
         throw new TypeError("Expected a function, but got " + fn + " instead");
@@ -553,7 +571,7 @@ function emitProgress(request) {
 }
 
 }).call(this,require('_process'))
-},{"./base":1,"./response":10,"_process":17,"arrify":11,"native-or-bluebird":15,"xtend":21}],10:[function(require,module,exports){
+},{"./base":1,"./error":5,"./response":11,"_process":20,"arrify":12,"native-or-bluebird":18,"xtend":24}],11:[function(require,module,exports){
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -588,19 +606,19 @@ var Response = (function (_super) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = Response;
 
-},{"./base":1}],11:[function(require,module,exports){
+},{"./base":1}],12:[function(require,module,exports){
 'use strict';
 module.exports = function (val) {
-	if (val == null) {
+	if (val === null || val === undefined) {
 		return [];
 	}
 
 	return Array.isArray(val) ? val : [val];
 };
 
-},{}],12:[function(require,module,exports){
-
 },{}],13:[function(require,module,exports){
+
+},{}],14:[function(require,module,exports){
 /**
  * Determine if an object is Buffer
  *
@@ -619,7 +637,135 @@ module.exports = function (obj) {
     ))
 }
 
-},{}],14:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
+var __extends = (this && this.__extends) || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+};
+var makeError = require('make-error');
+function makeErrorCause(value, super_) {
+    if (super_ === void 0) { super_ = makeErrorCause.BaseError; }
+    return makeError(value, super_);
+}
+var makeErrorCause;
+(function (makeErrorCause) {
+    var BaseError = (function (_super) {
+        __extends(BaseError, _super);
+        function BaseError(message, cause) {
+            _super.call(this, message);
+            this.cause = cause;
+        }
+        BaseError.prototype.toString = function () {
+            return _super.prototype.toString.call(this) + (this.cause ? "\nCaused by: " + this.cause.toString() : '');
+        };
+        return BaseError;
+    })(makeError.BaseError);
+    makeErrorCause.BaseError = BaseError;
+})(makeErrorCause || (makeErrorCause = {}));
+module.exports = makeErrorCause;
+
+},{"make-error":16}],16:[function(require,module,exports){
+// ISC @ Julien Fontanet
+
+'use strict'
+
+// ===================================================================
+
+var defineProperty = Object.defineProperty
+
+// -------------------------------------------------------------------
+
+var isString = (function (toS) {
+  var ref = toS.call('')
+  return function isString (val) {
+    return toS.call(val) === ref
+  }
+})(Object.prototype.toString)
+
+// -------------------------------------------------------------------
+
+var captureStackTrace
+if (Error.captureStackTrace) {
+  captureStackTrace = Error.captureStackTrace
+} else {
+  captureStackTrace = function captureStackTrace (error) {
+    var container = new Error()
+
+    defineProperty(error, 'stack', {
+      configurable: true,
+      get: function getStack () {
+        var stack = container.stack
+
+        // Replace property with value for faster future accesses.
+        defineProperty(this, 'stack', {
+          value: stack
+        })
+
+        return stack
+      }
+    })
+  }
+}
+
+// -------------------------------------------------------------------
+
+function BaseError (message) {
+  if (message) {
+    defineProperty(this, 'message', {
+      configurable: true,
+      value: message,
+      writable: true
+    })
+  }
+
+  // The name property has to be defined directly on the object for V8
+  // to use it in stack traces.
+  defineProperty(this, 'name', {
+    configurable: true,
+    value: this.constructor.name,
+    writable: true
+  })
+
+  captureStackTrace(this, this.constructor)
+}
+
+BaseError.prototype = Object.create(Error.prototype, {
+  constructor: {
+    value: BaseError
+  }
+})
+
+// -------------------------------------------------------------------
+
+function makeError (constructor, super_) {
+  if (!super_ || super_ === Error) {
+    super_ = BaseError
+  }
+
+  if (isString(constructor)) {
+    /* eslint no-eval: 0 */
+    eval('constructor = function ' + constructor + '() { super_.apply(this, arguments) }')
+  }
+
+  constructor.super = super_
+
+  // Register the super constructor also as `constructor.super_` just
+  // like Node's `util.inherits()`.
+  constructor.super_ = constructor.super
+
+  constructor.prototype = Object.create(super_.prototype, {
+    constructor: {
+      value: constructor
+    }
+  })
+
+  return constructor
+}
+exports = module.exports = makeError
+exports.BaseError = BaseError
+
+},{}],17:[function(require,module,exports){
 
 var http = require('http');
 
@@ -663,7 +809,7 @@ if (http.METHODS) {
 
 }
 
-},{"http":12}],15:[function(require,module,exports){
+},{"http":13}],18:[function(require,module,exports){
 (function (process){
 
 module.exports = require('./promise')
@@ -677,7 +823,7 @@ if (!module.exports) {
 }
 
 }).call(this,require('_process'))
-},{"./promise":16,"_process":17}],16:[function(require,module,exports){
+},{"./promise":19,"_process":20}],19:[function(require,module,exports){
 (function (global){
 
 try {
@@ -687,7 +833,7 @@ try {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"bluebird":"bluebird"}],17:[function(require,module,exports){
+},{"bluebird":"bluebird"}],20:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -780,7 +926,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],18:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -866,7 +1012,7 @@ var isArray = Array.isArray || function (xs) {
   return Object.prototype.toString.call(xs) === '[object Array]';
 };
 
-},{}],19:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -953,13 +1099,13 @@ var objectKeys = Object.keys || function (obj) {
   return res;
 };
 
-},{}],20:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 'use strict';
 
 exports.decode = exports.parse = require('./decode');
 exports.encode = exports.stringify = require('./encode');
 
-},{"./decode":18,"./encode":19}],21:[function(require,module,exports){
+},{"./decode":21,"./encode":22}],24:[function(require,module,exports){
 module.exports = extend
 
 var hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -980,7 +1126,7 @@ function extend() {
     return target
 }
 
-},{}],22:[function(require,module,exports){
+},{}],25:[function(require,module,exports){
 var Promise = require('native-or-bluebird');
 var common_1 = require('./common');
 var index_1 = require('./plugins/index');
@@ -1070,5 +1216,5 @@ module.exports = common_1.defaults({
     transport: { open: open, abort: abort, use: index_1.defaults }
 });
 
-},{"./common":4,"./plugins/index":7,"native-or-bluebird":15}]},{},[22])(22)
+},{"./common":4,"./plugins/index":8,"native-or-bluebird":18}]},{},[25])(25)
 });

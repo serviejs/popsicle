@@ -3,6 +3,7 @@ import extend = require('xtend')
 import Promise = require('native-or-bluebird')
 import Base, { BaseOptions, Headers } from './base'
 import Response, { ResponseOptions } from './response'
+import PopsicleError from './error'
 
 export interface DefaultsOptions extends BaseOptions {
   url?: string
@@ -16,12 +17,6 @@ export interface DefaultsOptions extends BaseOptions {
 
 export interface RequestOptions extends DefaultsOptions {
   url: string
-}
-
-export interface PopsicleError extends Error {
-  type: string
-  popsicle: Request
-  original?: Error
 }
 
 export interface RequestJSON {
@@ -47,14 +42,14 @@ export type ResponsePluginFunction = (response?: Response) => any
 export type OpenHandler = (request: Request) => Promise<ResponseOptions>
 export type AbortHandler = (request: Request) => any
 
-export default class Request extends Base {
+export default class Request extends Base implements Promise<Response> {
   method: string
   timeout: number
   body: any
   options: any
   response: Response
   raw: any
-  errored: Error
+  errored: PopsicleError
   transport: TransportOptions
 
   aborted = false
@@ -103,12 +98,8 @@ export default class Request extends Base {
     return this
   }
 
-  error (message: string, type: string, original?: Error): PopsicleError {
-    const err = <PopsicleError> new Error(message)
-    err.popsicle = this
-    err.type = type
-    err.original = original
-    return err
+  error (message: string, code: string, original?: Error): PopsicleError {
+    return new PopsicleError(message, code, original, this)
   }
 
   then (onFulfilled: (response?: Response) => any, onRejected?: (error?: PopsicleError) => any) {
@@ -119,7 +110,7 @@ export default class Request extends Base {
     return this.then(null, onRejected)
   }
 
-  exec (cb: (err: Error, response?: Response) => any) {
+  exec (cb: (err: PopsicleError, response?: Response) => any) {
     this.then(function (response) {
       cb(null, response)
     }).catch(cb)
@@ -225,7 +216,7 @@ export default class Request extends Base {
  */
 function pluginFunction (request: Request, property: string, fn: Function) {
   if (request.started) {
-    throw new Error('Plugins can not be used after the request has started')
+    throw new TypeError('Plugins can not be used after the request has started')
   }
 
   if (typeof fn !== 'function') {

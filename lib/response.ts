@@ -1,5 +1,6 @@
 import Base, { BaseOptions, Headers } from './base'
-import Request, { PopsicleError } from './request'
+import Request from './request'
+import PopsicleError from './error'
 
 export interface ResponseOptions extends BaseOptions {
   body: any
