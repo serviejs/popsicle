@@ -74,6 +74,8 @@ The default plugins under node are `[stringify, headers, cookieJar, unzip, conca
 * **withCredentials** Send cookies with CORS requests (default: `false`)
 * **responseType** Set the XHR `responseType` (default: `undefined`)
 
+**P.S.:** Need a proxy? Try using [`proxy-agent`](https://github.com/TooTallNate/node-proxy-agent) with the agent option.
+
 #### Short-hand Methods
 
 Every method has a short hand exposed under the main Popsicle function.
