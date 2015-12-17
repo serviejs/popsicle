@@ -5,6 +5,7 @@ export default class PopsicleError extends makeErrorCause.BaseError {
 
   code: string
   popsicle: Request
+  name = 'PopsicleError'
 
   constructor (message: string, code: string, original: Error, popsicle: Request) {
     super(message, original)
