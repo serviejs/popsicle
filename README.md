@@ -60,7 +60,7 @@ popsicle({
 
 **Options using node transport**
 
-The default plugins under node are `[stringify, headers, cookieJar, unzip, concatStream('string'), parse]`, since the extra options aren't customizable for the browser.
+The default plugins under node are `[stringify, headers, unzip, concatStream('string'), parse]`.
 
 * **jar** An instance of a cookie jar (`popsicle.jar()`) (default: `null`)
 * **agent** Custom HTTP pooling agent (default: [infinity-agent](https://github.com/floatdrop/infinity-agent))
@@ -69,6 +69,8 @@ The default plugins under node are `[stringify, headers, cookieJar, unzip, conca
 * **followRedirects** Disable redirects or use a function to accept `307`/`308` redirects (default: `true`)
 
 **Options using browser transport**
+
+The default plugins in the browser are `[stringify, headers, parse]`. Notice that unzipping and various stream parsing is not yet available in browsers.
 
 * **withCredentials** Send cookies with CORS requests (default: `false`)
 * **responseType** Set the XHR `responseType` (default: `undefined`)
@@ -289,10 +291,11 @@ Plugins can be passed in as an array with the initial options (which overrides d
 
 #### External Plugins
 
-* [Server](https://github.com/blakeembrey/popsicle-server) - Automatically mount a server on each request (handy for testing)
+* [Server](https://github.com/blakeembrey/popsicle-server) - Automatically mount a server on an available for the request (helpful for testing a la `supertest`)
 * [Status](https://github.com/blakeembrey/popsicle-status) - Reject responses on HTTP failure status codes
+* [Cache](https://github.com/blakeembrey/popsicle-cache) - Built-in cache handling of HTTP requests under node (customizable store, uses a filesystem store by default)
 * [No Cache](https://github.com/blakeembrey/popsicle-no-cache) - Prevent caching of HTTP requests in browsers
-* [Basic Auth](https://github.com/blakeembrey/popsicle-basic-auth) - Add basic authentication headers to each request
+* [Basic Auth](https://github.com/blakeembrey/popsicle-basic-auth) - Add a basic authentication header to each request
 * [Prefix](https://github.com/blakeembrey/popsicle-prefix) - Prefix all HTTP requests
 * [Resolve](https://github.com/blakeembrey/popsicle-resolve) - Resolve all HTTP requests against a base URL
 * [Constants](https://github.com/blakeembrey/popsicle-constants) - Replace constants in the URL string
