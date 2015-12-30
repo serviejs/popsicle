@@ -20,7 +20,6 @@ popsicle('/users.json')
 
 ```bash
 npm install popsicle --save
-bower install popsicle --save
 ```
 
 ## Usage
