@@ -3,7 +3,7 @@ import FormData = require('form-data')
 import { createUnzip } from 'zlib'
 import Promise = require('native-or-bluebird')
 export * from './common'
-import { headers as defaultHeaders, parse, stringify } from './common'
+import { headers as commonHeaders, parse, stringify } from './common'
 import Request, { Middleware } from '../request'
 import Response from '../response'
 
@@ -15,15 +15,23 @@ function unzipResponse (response: Response) {
   }
 }
 
+function unzipHeaders (request: Request) {
+  if (!request.get('Accept-Encoding')) {
+    request.set('Accept-Encoding', 'gzip,deflate')
+  }
+}
+
 /**
- * Automatically unzip node HTTP responses.
+ * Support gzipped responses.
  */
 export function unzip (request: Request) {
+  request.before(unzipHeaders)
   request.after(unzipResponse)
 }
 
 /**
- * Create a built-in concat stream plugin for node.
+ * The body is normally a stream in node, this turns it into a string for browser
+ * compatibility (and honestly just making it easier to use).
  */
 export function concatStream (encoding: string) {
   return function concatStream (request: Request) {
@@ -44,18 +52,10 @@ export function concatStream (encoding: string) {
   }
 }
 
-/**
- * Set up default headers for node.
- */
-function defaultHeadersNode (request: Request) {
+function defaultHeaders (request: Request) {
   // Specify a default user agent in node.
   if (!request.get('User-Agent')) {
     request.set('User-Agent', 'https://github.com/blakeembrey/popsicle')
-  }
-
-  // Accept zipped responses.
-  if (!request.get('Accept-Encoding')) {
-    request.set('Accept-Encoding', 'gzip,deflate')
   }
 
   // Manually set the `Content-Length` and `Content-Type` headers from the
@@ -102,12 +102,12 @@ function defaultHeadersNode (request: Request) {
   }
 }
 
+/**
+ * Fill default headers with requests (automatic "Content-Length" and "User-Agent").
+ */
 export function headers (request: Request) {
-  // Use the request from common.
-  defaultHeaders(request)
-
-  // Always use node default headers.
-  request.before(defaultHeadersNode)
+  commonHeaders(request)
+  request.before(defaultHeaders)
 }
 
 export const defaults: Middleware[] = [stringify, headers, unzip, concatStream('string'), parse]
