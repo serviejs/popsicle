@@ -1,4 +1,4 @@
-import Base, { BaseOptions, Headers } from './base'
+import Base, { BaseOptions, Headers, RawHeaders } from './base'
 import Request from './request'
 import PopsicleError from './error'
 
@@ -10,6 +10,7 @@ export interface ResponseOptions extends BaseOptions {
 
 export interface ResponseJSON {
   headers: Headers
+  rawHeaders: RawHeaders
   body: any
   url: string
   status: number
@@ -21,6 +22,7 @@ export default class Response extends Base {
   statusText: string
   body: any
   request: Request
+  rawHeaders: RawHeaders
 
   constructor (options: ResponseOptions) {
     super(options)
@@ -28,6 +30,7 @@ export default class Response extends Base {
     this.body = options.body
     this.status = options.status
     this.statusText = options.statusText
+    this.rawHeaders = options.rawHeaders
   }
 
   statusType () {
@@ -40,8 +43,9 @@ export default class Response extends Base {
 
   toJSON (): ResponseJSON {
     return {
-      url: this.fullUrl(),
-      headers: this.get(),
+      url: this.url,
+      headers: this.headers,
+      rawHeaders: this.rawHeaders,
       body: this.body,
       status: this.status,
       statusText: this.statusText

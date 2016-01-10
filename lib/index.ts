@@ -10,16 +10,12 @@ import Promise = require('native-or-bluebird')
 import { Headers } from './base'
 import Request from './request'
 import Response from './response'
-import { defaults, Popsicle } from './common'
 import { defaults as use } from './plugins/index'
 
 /**
  * Export default instance with node transportation layer.
  */
-export = defaults({
-  transport: { open, abort, use }
-})
-
+export { open, abort, use }
 
 /**
  * Redirection types to handle.
@@ -48,6 +44,7 @@ const REDIRECT_STATUS: { [status: number]: number } = {
 function open (request: Request) {
   const maxRedirects = num(request.options.maxRedirects, 5)
   const followRedirects = request.options.followRedirects !== false
+  const { url, method, body } = request
   let requestCount = 0
 
   const confirmRedirect = typeof request.options.followRedirects === 'function' ?
@@ -73,7 +70,7 @@ function open (request: Request) {
 
           // Always attach certain options.
           arg.method = method
-          arg.headers = request.get()
+          arg.headers = request.headers
           arg.agent = request.options.agent
           arg.rejectUnauthorized = request.options.rejectUnauthorized !== false
 
@@ -189,7 +186,7 @@ function open (request: Request) {
       })
   }
 
-  return get(request.fullUrl(), request.method, request.body)
+  return get(url, method, body)
 }
 
 /**

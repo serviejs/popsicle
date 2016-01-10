@@ -1,6 +1,6 @@
 import Promise = require('native-or-bluebird')
 import FormData = require('form-data')
-import { stringify, parse } from 'querystring'
+import { stringify as stringifyQuery, parse as parseQuery } from 'querystring'
 import Request from '../request'
 import Response from '../response'
 import form from '../form'
@@ -82,7 +82,7 @@ function stringifyRequest (request: Request) {
     } else if (FORM_MIME_REGEXP.test(type)) {
       request.body = form(body)
     } else if (QUERY_MIME_REGEXP.test(type)) {
-      request.body = stringify(body)
+      request.body = stringifyQuery(body)
     }
   } catch (err) {
     return Promise.reject(request.error('Unable to stringify request body: ' + err.message, 'ESTRINGIFY', err))
@@ -117,7 +117,7 @@ function parseResponse (response: Response) {
     if (JSON_MIME_REGEXP.test(type)) {
       response.body = body === '' ? null : JSON.parse(body)
     } else if (QUERY_MIME_REGEXP.test(type)) {
-      response.body = parse(body)
+      response.body = parseQuery(body)
     }
   } catch (err) {
     return Promise.reject(response.error('Unable to parse response body: ' + err.message, 'EPARSE', err))
@@ -127,20 +127,26 @@ function parseResponse (response: Response) {
 /**
  * Remove default headers.
  */
-export function headers (request: Request) {
-  request.before(defaultHeaders)
+export function headers () {
+  return function (request: Request) {
+    request.before(defaultHeaders)
+  }
 }
 
 /**
  * Stringify the request body.
  */
-export function stringify (request: Request) {
-  request.before(stringifyRequest)
+export function stringify () {
+  return function (request: Request) {
+    request.before(stringifyRequest)
+  }
 }
 
 /**
  * Automatic stringification and parsing middleware.
  */
-export function parse (request: Request) {
-  request.after(parseResponse)
+export function parse () {
+  return function (request: Request) {
+    request.after(parseResponse)
+  }
 }
