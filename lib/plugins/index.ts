@@ -24,9 +24,11 @@ function unzipHeaders (request: Request) {
 /**
  * Support gzipped responses.
  */
-export function unzip (request: Request) {
-  request.before(unzipHeaders)
-  request.after(unzipResponse)
+export function unzip () {
+  return function (request: Request) {
+    request.before(unzipHeaders)
+    request.after(unzipResponse)
+  }
 }
 
 /**
@@ -105,9 +107,13 @@ function defaultHeaders (request: Request) {
 /**
  * Fill default headers with requests (automatic "Content-Length" and "User-Agent").
  */
-export function headers (request: Request) {
-  commonHeaders(request)
-  request.before(defaultHeaders)
+export function headers () {
+  const defaults = commonHeaders()
+
+  return function (request: Request) {
+    defaults(request)
+    request.before(defaultHeaders)
+  }
 }
 
-export const defaults: Middleware[] = [stringify, headers, unzip, concatStream('string'), parse]
+export const defaults: Middleware[] = [stringify(), headers(), unzip(), concatStream('string'), parse()]

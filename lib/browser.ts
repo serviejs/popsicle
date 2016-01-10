@@ -2,20 +2,16 @@ import Promise = require('native-or-bluebird')
 import { RawHeaders } from './base'
 import Request from './request'
 import Response from './response'
-import { defaults, Popsicle } from './common'
 import { defaults as use } from './plugins/index'
 
 /**
  * Export default instance with browser transportation layer.
  */
-export = defaults({
-  transport: { open, abort, use }
-})
+export { open, abort, use }
 
 function open (request: Request) {
   return new Promise(function (resolve, reject) {
-    const url = request.fullUrl()
-    const method = request.method
+    const { url, method } = request
     const responseType = request.options.responseType
 
     // Loading HTTP resources from HTTPS is restricted and uncatchable.
@@ -40,7 +36,7 @@ function open (request: Request) {
     }
 
     xhr.onerror = function () {
-      return reject(request.error(`Unable to connect to "${request.fullUrl()}"`, 'EUNAVAILABLE'))
+      return reject(request.error(`Unable to connect to "${request.url}"`, 'EUNAVAILABLE'))
     }
 
     // Use `progress` events to avoid calculating byte length.

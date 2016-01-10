@@ -5,10 +5,10 @@
 [![Build status][travis-image]][travis-url]
 [![Test coverage][coveralls-image]][coveralls-url]
 
-**Popsicle** is designed to be easiest way for making HTTP requests by offering a consistent, intuitive and light-weight API that works with both node and the browser.
+**Popsicle** is the easiest way to make HTTP requests - offering a consistent, intuitive and light-weight API that works on node and the browser.
 
 ```js
-popsicle('/users.json')
+popsicle.get('/users.json')
   .then(function (res) {
     console.log(res.status) //=> 200
     console.log(res.body) //=> { ... }
@@ -18,7 +18,7 @@ popsicle('/users.json')
 
 ## Installation
 
-```bash
+```
 npm install popsicle --save
 ```
 
@@ -28,7 +28,7 @@ npm install popsicle --save
 var popsicle = require('popsicle')
 // var popsicle = window.popsicle
 
-popsicle({
+popsicle.default({
   method: 'POST',
   url: 'http://example.com/api/users',
   body: {
@@ -46,21 +46,23 @@ popsicle({
   })
 ```
 
+**Popsicle** is ES6-ready, aliasing `default` to the default export. Try using `import popsicle from 'popsicle'` or import specific methods using `import { get, defaults } from 'popsicle'`.
+
 ### Handling Requests
 
-* **url** The resource URI
+* **url** The resource location
 * **method** The HTTP request method (default: `"GET"`)
 * **headers** An object with HTTP headers, header name to value (default: `{}`)
 * **query** An object or string to be appended to the URL as the query string
 * **body** An object, string, form data, stream (node), etc to pass with the request
 * **timeout** The number of milliseconds to wait before aborting the request (default: `Infinity`)
-* **use** An array of plugins to be used (default: `[stringify, headers, parse]`)
+* **use** An array of plugins to be used (default: see below)
 * **options** Raw options used by the transport layer (default: `{}`)
 * **transport** Override the transportation layer (default: `http.request/https.request` (node), `XMLHttpRequest` (brower))
 
 **Options using node transport**
 
-The default plugins under node are `[stringify, headers, unzip, concatStream('string'), parse]`.
+The default plugins under node are `[stringify(), headers(), unzip(), concatStream('string'), parse()]`.
 
 * **jar** An instance of a cookie jar (`popsicle.jar()`) (default: `null`)
 * **agent** Custom HTTP pooling agent (default: [infinity-agent](https://github.com/floatdrop/infinity-agent))
@@ -70,7 +72,7 @@ The default plugins under node are `[stringify, headers, unzip, concatStream('st
 
 **Options using browser transport**
 
-The default plugins in the browser are `[stringify, headers, parse]`. Notice that unzipping and various stream parsing is not yet available in browsers.
+The default plugins in the browser are `[stringify(), headers(), parse()]`. Notice that unzipping and various stream parsing is not yet available in browsers.
 
 * **withCredentials** Send cookies with CORS requests (default: `false`)
 * **responseType** Set the XHR `responseType` (default: `undefined`)
@@ -79,15 +81,19 @@ The default plugins in the browser are `[stringify, headers, parse]`. Notice tha
 
 #### Short-hand Methods
 
-Every method has a short hand exposed under the main Popsicle function.
+Common methods have a short hand exported (created using `defaults({ method: 'get' })`).
 
 ```js
+popsicle.get('http://example.com/api/users')
 popsicle.post('http://example.com/api/users')
+popsicle.put('http://example.com/api/users')
+popsicle.patch('http://example.com/api/users')
+popsicle.del('http://example.com/api/users')
 ```
 
 #### Extending with Defaults
 
-Create a new Popsicle function with defaults set. Handy for a consistent cookie jar or transport to be used.
+Create a new request function with defaults pre-populated. Handy for a common cookie jar or transport to be used.
 
 ```js
 var cookiePopsicle = popsicle.defaults({ options: { jar: popsicle.jar() } })
@@ -95,10 +101,10 @@ var cookiePopsicle = popsicle.defaults({ options: { jar: popsicle.jar() } })
 
 #### Automatically Stringify Request Body
 
-Popsicle can automatically serialize the request body with the built-in `stringify` plugin. If an object is supplied, it will automatically be stringified as JSON unless the `Content-Type` was set otherwise. If the `Content-Type` is `multipart/form-data` or `application/x-www-form-urlencoded`, it will be automatically serialized.
+Popsicle can automatically serialize the request body using the built-in `stringify` plugin. If an object is supplied, it will automatically be stringified as JSON unless the `Content-Type` was set otherwise. If the `Content-Type` is `multipart/form-data` or `application/x-www-form-urlencoded`, it will be automatically serialized.
 
 ```js
-popsicle({
+popsicle.get({
   url: 'http://example.com/api/users',
   body: {
     username: 'blakeembrey'
@@ -130,7 +136,7 @@ popsicle.post({
 All requests can be aborted before or during execution by calling `Request#abort`.
 
 ```js
-var request = popsicle('http://example.com')
+var request = popsicle.get('http://example.com')
 
 setTimeout(function () {
   request.abort()
@@ -156,7 +162,7 @@ The request object can be used to check progress at any time.
 All percentage properties (`request.uploaded`, `request.downloaded`, `request.completed`) are a number between `0` and `1`. Aborting the request will emit a progress event, if the request had started.
 
 ```js
-var request = popsicle('http://example.com')
+var request = popsicle.get('http://example.com')
 
 request.uploaded //=> 0
 request.downloaded //=> 0
@@ -207,7 +213,7 @@ You can create a reusable cookie jar instance for requests by calling `popsicle.
 ```js
 var jar = request.jar()
 
-popsicle({
+popsicle.default({
   method: 'POST',
   url: '/users',
   options: {
@@ -225,7 +231,7 @@ Promises and node-style callbacks are both supported.
 Promises are the most expressive interface. Just chain using `Request#then` or `Request#catch` and continue.
 
 ```js
-popsicle('/users')
+popsicle.get('/users')
   .then(function (res) {
     // Success!
   })
@@ -234,11 +240,11 @@ popsicle('/users')
   })
 ```
 
-If you live on the edge, try using it with generators (with [co](https://www.npmjs.com/package/co)) or ES7 `async`.
+If you live on the edge, try using it with generators (see [co](https://www.npmjs.com/package/co)) or ES7's `async`.
 
 ```js
 co(function * () {
-  yield popsicle('/users')
+  yield popsicle.get('/users')
 })
 ```
 
@@ -247,7 +253,7 @@ co(function * () {
 For tooling that still expects node-style callbacks, you can use `Request#exec`. This accepts a single function to call when the response is complete.
 
 ```js
-popsicle('/users')
+popsicle.get('/users')
   .exec(function (err, res) {
     if (err) {
       // Something broke.
@@ -313,7 +319,7 @@ function prefix (url) {
   }
 }
 
-popsicle('/user')
+popsicle.default('/user')
   .use(prefix('http://example.com'))
   .then(function (response) {
     console.log(response.url) //=> "http://example.com/user"
@@ -346,7 +352,7 @@ typings install npm:popsicle --name popsicle
 
 ## Development
 
-Install dependencies and run the test runners (node and PhantomJS using Tap).
+Install dependencies and run the test runners (node and Electron using Tape).
 
 ```
 npm install && npm test

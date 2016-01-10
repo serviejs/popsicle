@@ -1,5 +1,6 @@
 import arrify = require('arrify')
-import { stringify, parse } from 'querystring'
+import { parse, format, Url } from 'url'
+import { parse as parseQuery } from 'querystring'
 import extend = require('xtend')
 
 export interface Query {
@@ -10,7 +11,7 @@ export interface Headers {
   [name: string]: string | string[]
 }
 
-export interface HeaderNames {
+export interface HeaderMap {
   [name: string]: string
 }
 
@@ -44,33 +45,31 @@ function type (str?: string) {
 }
 
 /**
+ * Stringify supported header formats.
+ */
+function stringifyHeader (value: string | string[]) {
+  return Array.isArray(value) ? value.join(', ') : String(value)
+}
+
+/**
  * Create a base class for requests and responses.
  */
 export default class Base {
-  url: string = null
-  headers: Headers = {}
-  headerNames: HeaderNames = {}
-  query: Query = {}
-  rawHeaders: RawHeaders
+  Url: Url = {}
+  headerNames: HeaderMap = {}
+  headerValues: HeaderMap = {}
 
   constructor ({ url, headers, rawHeaders, query }: BaseOptions) {
-    if (typeof url === 'string') {
-      const queryIndexOf = url.indexOf('?')
-      const queryObject = typeof query === 'string' ? parse(query) : query
-
-      if (queryIndexOf > -1) {
-        this.url = url.substr(0, queryIndexOf)
-        this.query = extend(queryObject, parse(url.substr(queryIndexOf + 1)))
-      } else {
-        this.url = url
-        this.query = extend(queryObject)
-      }
+    if (url != null) {
+      this.url = url
     }
 
-    if (rawHeaders) {
-      this.rawHeaders = rawHeaders
+    if (query != null) {
+      this.query = extend(this.query, typeof query === 'string' ? parseQuery(query) : query)
+    }
 
-      // Set up headers using the `rawHeaders`. Mainly used with responses.
+    // Enables proxying of `rawHeaders`.
+    if (rawHeaders) {
       for (let i = 0; i < rawHeaders.length; i += 2) {
         const name = rawHeaders[i]
         const value = rawHeaders[i + 1]
@@ -78,29 +77,57 @@ export default class Base {
         this.append(name, value)
       }
     } else {
-      this.set(headers)
+      this.headers = headers
     }
   }
 
-  set (headers: Headers): Base
-  set (name: string, value: string | string[]): Base
-  set (name: string | Headers, value?: string | string[]): Base {
-    if (typeof name !== 'string') {
-      if (name) {
-        Object.keys(name).forEach((key) => {
-          this.set(key, name[key])
-        })
-      }
-    } else {
-      const lower = lowerHeader(name)
+  get url () {
+    return format(this.Url)
+  }
 
-      if (value == null) {
-        delete this.headers[lower]
-        delete this.headerNames[lower]
-      } else {
-        this.headers[lower] = typeof value === 'string' ? value : value.join(', ')
-        this.headerNames[lower] = name
+  set url (url: string) {
+    this.Url = parse(url, true, true)
+  }
+
+  set query (query: string | Query) {
+    this.Url.query = typeof query === 'string' ? parseQuery(query) : query
+    this.Url.search = null
+  }
+
+  get query () {
+    return this.Url.query
+  }
+
+  get headers () {
+    const headers: HeaderMap = {}
+
+    for (const key of Object.keys(this.headerNames)) {
+      headers[key] = this.headerValues[key]
+    }
+
+    return headers
+  }
+
+  set headers (headers: Headers) {
+    this.headerNames = {}
+    this.headerValues = {}
+
+    if (headers) {
+      for (const key of Object.keys(headers)) {
+        this.set(key, headers[key])
       }
+    }
+  }
+
+  set (name: string, value: string | string[]): Base {
+    const lower = lowerHeader(name)
+
+    if (value == null) {
+      delete this.headerNames[lower]
+      delete this.headerValues[lower]
+    } else {
+      this.headerNames[lower] = name
+      this.headerValues[lower] = stringifyHeader(value)
     }
 
     return this
@@ -110,7 +137,7 @@ export default class Base {
     const previous = this.get(name)
 
     if (previous != null) {
-      value = `${previous}, ${typeof value === 'string' ? value : value.join(', ')}`
+      value = `${previous}, ${stringifyHeader(value)}`
     }
 
     return this.set(name, value)
@@ -120,27 +147,15 @@ export default class Base {
     return this.headerNames[lowerHeader(name)]
   }
 
-  get (): Headers
-  get (name: string): string
-  get (name?: string): any {
-    if (arguments.length === 0) {
-      const headers: Headers = {}
-
-      Object.keys(this.headers).forEach((key) => {
-        headers[this.name(key)] = this.get(key)
-      })
-
-      return headers
-    } else {
-      return this.headers[lowerHeader(name)]
-    }
+  get (name: string): string {
+    return this.headerValues[lowerHeader(name)]
   }
 
   remove (name: string) {
     const lower = lowerHeader(name)
 
-    delete this.headers[lower]
     delete this.headerNames[lower]
+    delete this.headerValues[lower]
 
     return this
   }
@@ -149,20 +164,9 @@ export default class Base {
   type (value: string): Base
   type (value?: string): any {
     if (arguments.length === 0) {
-      return type(<string> this.headers['content-type'])
+      return type(this.get('Content-Type') as string)
     }
 
     return this.set('Content-Type', value)
-  }
-
-  fullUrl () {
-    const url = this.url
-    const query = stringify(this.query)
-
-    if (query) {
-      return url + (url.indexOf('?') === -1 ? '?' : '&') + query
-    }
-
-    return url
   }
 }

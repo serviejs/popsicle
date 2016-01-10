@@ -118,8 +118,8 @@ export default class Request extends Base implements Promise<Response> {
 
   toJSON (): RequestJSON {
     return {
-      url: this.fullUrl(),
-      headers: this.get(),
+      url: this.url,
+      headers: this.headers,
       body: this.body,
       options: this.options,
       timeout: this.timeout,
@@ -233,8 +233,7 @@ function pluginFunction (request: Request, property: string, fn: Function) {
  */
 function start (request: Request) {
   const req = <any> request
-  const { timeout } = request
-  const url = request.fullUrl()
+  const { timeout, url } = request
   let timer: any
 
   request.started = true
