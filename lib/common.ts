@@ -30,8 +30,8 @@ export function defaults (defaultsOptions: DefaultsOptions) {
   }
 }
 
-const browser = !!process.browser
-const popsicle = defaults({})
+export const browser = !!process.browser
+export const request = defaults({})
 
 export const get = defaults({ method: 'get' })
 export const post = defaults({ method: 'post' })
@@ -40,6 +40,6 @@ export const patch = defaults({ method: 'patch' })
 export const del = defaults({ method: 'delete' })
 export const head = defaults({ method: 'head' })
 
-export { Request, Response, plugins, form, jar, browser, transport }
+export { Request, Response, plugins, form, jar, transport }
 
-export default popsicle
+export default request

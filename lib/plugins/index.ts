@@ -36,7 +36,7 @@ export function unzip () {
  * compatibility (and honestly just making it easier to use).
  */
 export function concatStream (encoding: string) {
-  return function concatStream (request: Request) {
+  return function (request: Request) {
     request.after(function (response: Response) {
       return new Promise(function (resolve, reject) {
         const stream = concat({

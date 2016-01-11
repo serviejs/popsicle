@@ -28,7 +28,7 @@ npm install popsicle --save
 var popsicle = require('popsicle')
 // var popsicle = window.popsicle
 
-popsicle.default({
+popsicle.request({
   method: 'POST',
   url: 'http://example.com/api/users',
   body: {
@@ -46,7 +46,24 @@ popsicle.default({
   })
 ```
 
-**Popsicle** is ES6-ready, aliasing `default` to the default export. Try using `import popsicle from 'popsicle'` or import specific methods using `import { get, defaults } from 'popsicle'`.
+**Popsicle** is ES6-ready, aliasing `default` to the default export. Try using `import popsicle from 'popsicle'` or import specific methods using `import { get, defaults } from 'popsicle'`. Exports:
+
+* **request(options)** Default request handler - `defaults({})`
+* **get(options)** Alias of `request` (GET is the default method)
+* **del(options)** Alias of `defaults({ method: 'delete' })`
+* **head(options)** Alias of `defaults({ method: 'head' })`
+* **patch(options)** Alias of `defaults({ method: 'patch' })`
+* **post(options)** Alias of `defaults({ method: 'post' })`
+* **put(options)** Alias of `defaults({ method: 'put' })`
+* **default(options)** The ES6 default import, alias of `request`
+* **defaults(options)** Create a new Popsicle instance using `defaults`
+* **form(obj?)** Cross-platform form data object
+* **plugins** Exposes the default plugins (Object)
+* **jar(store?)** Create a cookie jar instance for Node.js
+* **transport** Default transportation layer (Object)
+* **browser** (boolean)
+* **Request(options)** Constructor for the `Request` class
+* **Response(options)** Constructor for the `Response` class
 
 ### Handling Requests
 
@@ -81,7 +98,7 @@ The default plugins in the browser are `[stringify(), headers(), parse()]`. Noti
 
 #### Short-hand Methods
 
-Common methods have a short hand exported (created using `defaults({ method: 'get' })`).
+Common methods have a short hand exported (created using `defaults({ method })`).
 
 ```js
 popsicle.get('http://example.com/api/users')
@@ -185,16 +202,14 @@ The default plugins are exposed under `popsicle.plugins`, which allows you to mi
   headers: [Function: headers],
   stringify: [Function: stringify],
   parse: [Function: parse],
-  cookieJar: [Function: cookieJar],
   unzip: [Function: unzip],
   concatStream: [Function: concatStream],
   defaults: [
-    [Function: stringify],
-    [Function: headers],
-    [Function: cookieJar],
-    [Function: unzip],
-    [Function: concatStream],
-    [Function: parse]
+    [Function],
+    [Function],
+    [Function],
+    [Function],
+    [Function]
   ]
 }
 ```
@@ -204,7 +219,6 @@ The default plugins are exposed under `popsicle.plugins`, which allows you to mi
 * **parse** Automatically parse JSON and url encoding responses
 * **unzip** Automatically unzip response streams (Node only)
 * **concatStream** Buffer the whole stream using [concat-stream](https://www.npmjs.com/package/concat-stream) - accepts an "encoding" type (`string` (default), `buffer`, `array`, `uint8array`, `object`) (Node only)
-* **cookieJar** Support the cookie jar option in node (Recommended, Node only)
 
 #### Cookie Jar (Node only)
 
@@ -213,8 +227,8 @@ You can create a reusable cookie jar instance for requests by calling `popsicle.
 ```js
 var jar = request.jar()
 
-popsicle.default({
-  method: 'POST',
+popsicle.request({
+  method: 'post',
   url: '/users',
   options: {
     jar: jar
@@ -319,7 +333,7 @@ function prefix (url) {
   }
 }
 
-popsicle.default('/user')
+popsicle.request('/user')
   .use(prefix('http://example.com'))
   .then(function (response) {
     console.log(response.url) //=> "http://example.com/user"
