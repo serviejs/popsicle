@@ -86,6 +86,9 @@ The default plugins under node are `[stringify(), headers(), unzip(), concatStre
 * **maxRedirects** Override the number of redirects allowed (default: `5`)
 * **rejectUnauthorized** Reject invalid SSL certificates (default: `true`)
 * **followRedirects** Disable redirects or use a function to accept `307`/`308` redirects (default: `true`)
+* **ca** A string, `Buffer` or array of strings or `Buffers` of trusted certificates in PEM format
+* **key** Private key to use for SSL (default: `null`)
+* **cert** Public x509 certificate to use (default: `null`)
 
 **Options using browser transport**
 

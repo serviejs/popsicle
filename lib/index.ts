@@ -42,13 +42,13 @@ const REDIRECT_STATUS: { [status: number]: number } = {
  * Open a HTTP request with node.
  */
 function open (request: Request) {
-  const maxRedirects = num(request.options.maxRedirects, 5)
-  const followRedirects = request.options.followRedirects !== false
-  const { url, method, body } = request
+  const { url, method, body, options } = request
+  const maxRedirects = num(options.maxRedirects, 5)
+  const followRedirects = options.followRedirects !== false
   let requestCount = 0
 
-  const confirmRedirect = typeof request.options.followRedirects === 'function' ?
-    request.options.followRedirects : falsey
+  const confirmRedirect = typeof options.followRedirects === 'function' ?
+    options.followRedirects : falsey
 
   /**
    * Create the HTTP request, in a way we can re-use this.
@@ -71,8 +71,11 @@ function open (request: Request) {
           // Always attach certain options.
           arg.method = method
           arg.headers = request.headers
-          arg.agent = request.options.agent
-          arg.rejectUnauthorized = request.options.rejectUnauthorized !== false
+          arg.agent = options.agent
+          arg.rejectUnauthorized = options.rejectUnauthorized !== false
+          arg.ca = options.ca
+          arg.cert = options.cert
+          arg.key = options.key
 
           // Fallback to infinity agents.
           if (!arg.agent) {
