@@ -40,6 +40,6 @@ export const patch = defaults({ method: 'patch' })
 export const del = defaults({ method: 'delete' })
 export const head = defaults({ method: 'head' })
 
-export { Request, Response, plugins, form, jar, transport }
+export { Request, Response, PopsicleError, plugins, form, jar, transport }
 
 export default request
