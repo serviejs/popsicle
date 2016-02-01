@@ -1,6 +1,6 @@
 import arrify = require('arrify')
 import extend = require('xtend')
-import Promise = require('native-or-bluebird')
+import Promise = require('any-promise')
 import Base, { BaseOptions, Headers } from './base'
 import Response, { ResponseOptions } from './response'
 import PopsicleError from './error'

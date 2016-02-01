@@ -1,7 +1,7 @@
 import concat = require('concat-stream')
 import FormData = require('form-data')
 import { createUnzip } from 'zlib'
-import Promise = require('native-or-bluebird')
+import Promise = require('any-promise')
 export * from './common'
 import { headers as commonHeaders, parse, stringify } from './common'
 import Request, { Middleware } from '../request'

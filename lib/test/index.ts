@@ -1,7 +1,7 @@
 import test = require('blue-tape')
 import methods = require('methods')
 import FormData = require('form-data')
-import Promise = require('native-or-bluebird')
+import Promise = require('any-promise')
 import popsicle = require('../common')
 
 const SHORTHAND_METHODS = [

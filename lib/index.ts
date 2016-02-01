@@ -6,7 +6,7 @@ import urlLib = require('url')
 import extend = require('xtend')
 import arrify = require('arrify')
 import { Cookie } from 'tough-cookie'
-import Promise = require('native-or-bluebird')
+import Promise = require('any-promise')
 import { Headers } from './base'
 import Request from './request'
 import Response from './response'

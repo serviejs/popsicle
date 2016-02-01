@@ -1,4 +1,4 @@
-import Promise = require('native-or-bluebird')
+import Promise = require('any-promise')
 import { RawHeaders } from './base'
 import Request from './request'
 import Response from './response'

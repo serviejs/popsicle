@@ -1,4 +1,4 @@
-import Promise = require('native-or-bluebird')
+import Promise = require('any-promise')
 import FormData = require('form-data')
 import { stringify as stringifyQuery, parse as parseQuery } from 'querystring'
 import Request from '../request'
