@@ -324,6 +324,7 @@ Plugins can be passed in as an array with the initial options (which overrides d
 * [Constants](https://github.com/blakeembrey/popsicle-constants) - Replace constants in the URL string
 * [Limit](https://github.com/blakeembrey/popsicle-limit) - Transparently handle API rate limits by grouping requests
 * [Group](https://github.com/blakeembrey/popsicle-group) - Group requests and perform operations on them all at once
+* [Proxy Agent](https://github.com/blakeembrey/popsicle-proxy-agent) - Enable HTTP(s) proxying under node (with environment variable support)
 
 #### Creating Plugins
 
