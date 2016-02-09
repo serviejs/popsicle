@@ -12,6 +12,10 @@ export interface DefaultsOptions extends BaseOptions {
   body?: any
   options?: any
   use?: Middleware[]
+  before?: RequestPluginFunction[]
+  after?: ResponsePluginFunction[]
+  always?: RequestPluginFunction[]
+  progress?: RequestPluginFunction[]
   transport?: TransportOptions
 }
 
@@ -64,10 +68,10 @@ export default class Request extends Base implements Promise<Response> {
 
   private _promise: Promise<Response>
 
-  private _before: Function[] = []
-  private _after: Function[] = []
-  private _always: Function[] = []
-  private _progress: Function[] = []
+  private _before: RequestPluginFunction[] = []
+  private _after: ResponsePluginFunction[] = []
+  private _always: RequestPluginFunction[] = []
+  private _progress: RequestPluginFunction[] = []
 
   constructor (options: RequestOptions) {
     super(options)
@@ -88,8 +92,10 @@ export default class Request extends Base implements Promise<Response> {
 
     // Automatically `use` default middleware functions.
     this.use(options.use || this.transport.use)
-
-    this.always(removeListeners)
+    this.before(options.before)
+    this.after(options.after)
+    this.always(options.always)
+    this.progress(options.progress)
   }
 
   use (fn: Middleware | Middleware[]) {
@@ -113,7 +119,23 @@ export default class Request extends Base implements Promise<Response> {
   exec (cb: (err: PopsicleError, response?: Response) => any) {
     this.then(function (response) {
       cb(null, response)
-    }).catch(cb)
+    }, cb)
+  }
+
+  toOptions (): RequestOptions {
+    return {
+      url: this.url,
+      method: this.method,
+      options: this.options,
+      use: [],
+      transport: this.transport,
+      timeout: this.timeout,
+      rawHeaders: this.rawHeaders,
+      before: this._before,
+      after: this._after,
+      progress: this._progress,
+      always: this._always
+    }
   }
 
   toJSON (): RequestJSON {
@@ -127,19 +149,23 @@ export default class Request extends Base implements Promise<Response> {
     }
   }
 
-  progress (fn: RequestPluginFunction) {
+  clone () {
+    return new Request(this.toOptions())
+  }
+
+  progress (fn: RequestPluginFunction | RequestPluginFunction[]) {
     return pluginFunction(this, '_progress', fn)
   }
 
-  before (fn: RequestPluginFunction) {
+  before (fn: RequestPluginFunction | RequestPluginFunction[]) {
     return pluginFunction(this, '_before', fn)
   }
 
-  after (fn: ResponsePluginFunction) {
+  after (fn: ResponsePluginFunction | ResponsePluginFunction[]) {
     return pluginFunction(this, '_after', fn)
   }
 
-  always (fn: RequestPluginFunction) {
+  always (fn: RequestPluginFunction | RequestPluginFunction[]) {
     return pluginFunction(this, '_always', fn)
   }
 
@@ -214,16 +240,18 @@ export default class Request extends Base implements Promise<Response> {
 /**
  * Attach plugin functions to the request object.
  */
-function pluginFunction (request: Request, property: string, fn: Function) {
+function pluginFunction (request: Request, property: string, fns: Function | Function[]) {
   if (request.started) {
     throw new TypeError('Plugins can not be used after the request has started')
   }
 
-  if (typeof fn !== 'function') {
-    throw new TypeError(`Expected a function, but got ${fn} instead`)
-  }
+  for (const fn of arrify(fns)) {
+    if (typeof fn !== 'function') {
+      throw new TypeError(`Expected a function, but got ${fn} instead`)
+    }
 
-  (<any> request)[property].push(fn)
+    ;(request as any)[property].push(fn)
+  }
 
   return request
 }
@@ -285,10 +313,12 @@ function start (request: Request) {
     })
     .then(
       function () {
-        return chain(req._always, request).then(() => request.response)
+        return chain(req._always, request)
+          .then(() => request.response)
       },
       function (error: any) {
-        return chain(req._always, request).then(() => Promise.reject(request.errored || error))
+        return chain(req._always, request)
+          .then(() => Promise.reject(request.errored || error))
       }
     )
     .then(function (response) {
@@ -304,20 +334,10 @@ function start (request: Request) {
 /**
  * Chain an array of promises sequentially.
  */
-function chain (fns: Function[], arg: any) {
+function chain <T> (fns: Function[], arg: T) {
   return fns.reduce(function (p, fn) {
     return p.then(() => fn(arg))
   }, Promise.resolve())
-}
-
-/**
- * Remove all plugin functions.
- */
-function removeListeners (request: Request) {
-  ;(<any> request)._before = null
-  ;(<any> request)._after = null
-  ;(<any> request)._always = null
-  ;(<any> request)._progress = null
 }
 
 /**

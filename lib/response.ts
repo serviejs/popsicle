@@ -22,7 +22,6 @@ export default class Response extends Base {
   statusText: string
   body: any
   request: Request
-  rawHeaders: RawHeaders
 
   constructor (options: ResponseOptions) {
     super(options)
@@ -30,7 +29,6 @@ export default class Response extends Base {
     this.body = options.body
     this.status = options.status
     this.statusText = options.statusText
-    this.rawHeaders = options.rawHeaders
   }
 
   statusType () {

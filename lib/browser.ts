@@ -84,10 +84,9 @@ function open (request: Request) {
       }
     }
 
-    // Set all headers with original casing.
-    Object.keys(request.headers).forEach(function (header) {
-      xhr.setRequestHeader(request.name(header), request.get(header))
-    })
+    for (let i = 0; i < request.rawHeaders.length; i += 2) {
+      xhr.setRequestHeader(request.rawHeaders[i], request.rawHeaders[i + 1])
+    }
 
     xhr.send(request.body)
   })
