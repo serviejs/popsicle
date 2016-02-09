@@ -331,8 +331,10 @@ Plugins must be a function that accepts configuration and returns another functi
 
 ```js
 function prefix (url) {
-  return function (request) {
-    request.url = url + req.url
+  return function (self) {
+    self.before(function (req) {
+      request.url = url + req.url
+    })
   }
 }
 
@@ -348,6 +350,8 @@ Popsicle also has a way modify the request and response lifecycle, if needed. An
 * **before(fn)** Register a function to run before the request is made
 * **after(fn)** Register a function to receive the response object
 * **always(fn)** Register a function that always runs on `resolve` or `reject`
+
+**Tip:** Always use the lifecycle hooks, actions directly in `use` can not be re-used (E.g. with a request clone).
 
 #### Checking The Environment
 

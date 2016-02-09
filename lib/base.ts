@@ -11,10 +11,6 @@ export interface Headers {
   [name: string]: string | string[]
 }
 
-export interface HeaderMap {
-  [name: string]: string
-}
-
 export type RawHeaders = string[]
 
 export interface BaseOptions {
@@ -45,10 +41,14 @@ function type (str?: string) {
 }
 
 /**
- * Stringify supported header formats.
+ * Concat two header values together.
  */
-function stringifyHeader (value: string | string[]) {
-  return Array.isArray(value) ? value.join(', ') : String(value)
+function concat (a: string | string[], b: string): string | string[] {
+  if (a == null) {
+    return b
+  }
+
+  return Array.isArray(a) ? a.concat(b) : [a, b]
 }
 
 /**
@@ -56,8 +56,7 @@ function stringifyHeader (value: string | string[]) {
  */
 export default class Base {
   Url: Url = {}
-  headerNames: HeaderMap = {}
-  headerValues: HeaderMap = {}
+  rawHeaders: RawHeaders = []
 
   constructor ({ url, headers, rawHeaders, query }: BaseOptions) {
     if (url != null) {
@@ -70,12 +69,11 @@ export default class Base {
 
     // Enables proxying of `rawHeaders`.
     if (rawHeaders) {
-      for (let i = 0; i < rawHeaders.length; i += 2) {
-        const name = rawHeaders[i]
-        const value = rawHeaders[i + 1]
-
-        this.append(name, value)
+      if (rawHeaders.length % 2 === 1) {
+        throw new TypeError(`Expected raw headers length to be even, was ${rawHeaders.length}`)
       }
+
+      this.rawHeaders = rawHeaders.slice(0)
     } else {
       this.headers = headers
     }
@@ -99,63 +97,82 @@ export default class Base {
   }
 
   get headers () {
-    const headers: HeaderMap = {}
+    const headers: Headers = {}
 
-    for (const key of Object.keys(this.headerNames)) {
-      headers[key] = this.headerValues[key]
+    for (let i = 0; i < this.rawHeaders.length; i += 2) {
+      const key = lowerHeader(this.rawHeaders[i])
+      const value = concat(headers[key], this.rawHeaders[i + 1])
+
+      headers[key] = value
     }
 
     return headers
   }
 
   set headers (headers: Headers) {
-    this.headerNames = {}
-    this.headerValues = {}
+    this.rawHeaders = []
 
     if (headers) {
       for (const key of Object.keys(headers)) {
-        this.set(key, headers[key])
+        this.append(key, headers[key])
       }
     }
   }
 
   set (name: string, value: string | string[]): Base {
-    const lower = lowerHeader(name)
-
-    if (value == null) {
-      delete this.headerNames[lower]
-      delete this.headerValues[lower]
-    } else {
-      this.headerNames[lower] = name
-      this.headerValues[lower] = stringifyHeader(value)
-    }
+    this.remove(name)
+    this.append(name, value)
 
     return this
   }
 
   append (name: string, value: string | string[]) {
-    const previous = this.get(name)
-
-    if (previous != null) {
-      value = `${previous}, ${stringifyHeader(value)}`
+    if (Array.isArray(value)) {
+      for (const v of value) {
+        this.rawHeaders.push(name, v)
+      }
+    } else {
+      this.rawHeaders.push(name, value)
     }
 
-    return this.set(name, value)
+    return this
   }
 
   name (name: string): string {
-    return this.headerNames[lowerHeader(name)]
+    const lowered = lowerHeader(name)
+    let headerName: string
+
+    for (let i = 0; i < this.rawHeaders.length; i += 2) {
+      if (lowerHeader(this.rawHeaders[i]) === lowered) {
+        headerName = this.rawHeaders[i]
+      }
+    }
+
+    return headerName
   }
 
   get (name: string): string {
-    return this.headerValues[lowerHeader(name)]
+    const lowered = lowerHeader(name)
+    let value: string
+
+    for (let i = 0; i < this.rawHeaders.length; i += 2) {
+      if (lowerHeader(this.rawHeaders[i]) === lowered) {
+        value = value == null ? this.rawHeaders[i + 1] : `${value}, ${this.rawHeaders[i + 1]}`
+      }
+    }
+
+    return value
   }
 
   remove (name: string) {
-    const lower = lowerHeader(name)
+    const lowered = lowerHeader(name)
+    let len = this.rawHeaders.length
 
-    delete this.headerNames[lower]
-    delete this.headerValues[lower]
+    while ((len -= 2) >= 0) {
+      if (lowerHeader(this.rawHeaders[len]) === lowered) {
+        this.rawHeaders.splice(len, 2)
+      }
+    }
 
     return this
   }
@@ -164,7 +181,7 @@ export default class Base {
   type (value: string): Base
   type (value?: string): any {
     if (arguments.length === 0) {
-      return type(this.get('Content-Type') as string)
+      return type(this.get('Content-Type'))
     }
 
     return this.set('Content-Type', value)

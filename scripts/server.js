@@ -11,7 +11,7 @@ app.use(function (req, res, next) {
   res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE')
   res.set(
     'Access-Control-Allow-Headers',
-    'X-Requested-With, Content-Type, Content-Length, Referrer'
+    'X-Requested-With, Content-Type, Content-Length, Referrer, X-Example'
   )
   res.set('Access-Control-Expose-Headers', 'Content-Length')
 

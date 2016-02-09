@@ -41,19 +41,19 @@ test('should expose default functions', function (t) {
   t.equal(typeof popsicle.jar, 'function')
 
   SHORTHAND_METHODS.forEach(function (method) {
-    t.equal(typeof (<any> popsicle)[method], 'function')
+    t.equal(typeof (popsicle as any)[method], 'function')
   })
 
   t.end()
 })
 
 test('throw an error when no options are provided', function (t) {
-  t.throws(() => popsicle.default({} as any), /url must be a string/i)
+  t.throws(() => popsicle.request({} as any), /url must be a string/i)
   t.end()
 })
 
 test('create a popsicle#Request instance', function (t) {
-  const req = popsicle.default('/')
+  const req = popsicle.request('/')
 
   t.ok(req instanceof popsicle.Request)
 
@@ -72,9 +72,9 @@ test('use the same response in promise chains', function (t) {
 
       // Not all browsers support `responseURL`.
       t.ok(typeof res.url === 'string' || res.url == null)
+      t.ok(Array.isArray(res.rawHeaders))
 
       t.equal(typeof res.headers, 'object')
-      t.equal(typeof res.headerNames, 'object')
       t.equal(typeof res.status, 'number')
 
       t.equal(typeof res.get, 'function')
@@ -96,11 +96,29 @@ test('use the same response in promise chains', function (t) {
     })
 })
 
+test('clone a request instance', t => {
+  const req = popsicle.get(REMOTE_URL + '/echo/header/x-example')
+
+  req.use(function (self) {
+    self.before(function (req) {
+      req.set('X-Example', 'foobar')
+    })
+  })
+
+  return Promise.all([req, req.clone()])
+    .then(function (res) {
+      t.notEqual(res[0], res[1])
+
+      t.equal(res[0].body, 'foobar')
+      t.equal(res[0].body, res[1].body)
+    })
+})
+
 test('methods', function (t) {
   t.test('use node-style callbacks', function (t) {
     t.plan(1)
 
-    return popsicle.default(REMOTE_URL + '/echo')
+    return popsicle.request(REMOTE_URL + '/echo')
       .exec(function (err, res) {
         t.ok(res instanceof popsicle.Response)
         t.end()
@@ -109,7 +127,7 @@ test('methods', function (t) {
 
   t.test('allow methods to be passed in', function (t) {
     return Promise.all(SUPPORTED_METHODS.map(function (method) {
-      return popsicle.default({
+      return popsicle.request({
         url: REMOTE_URL + '/echo/method',
         method: method
       })
@@ -133,7 +151,7 @@ test('allow usage of method shorthands', function (t) {
 
 test('response status', function (t) {
   t.test('5xx', function (t) {
-    return popsicle.default(REMOTE_URL + '/error')
+    return popsicle.request(REMOTE_URL + '/error')
       .then(function (res) {
         t.equal(res.status, 500)
         t.equal(res.statusType(), 5)
@@ -145,7 +163,7 @@ test('response status', function (t) {
   })
 
   t.test('4xx', function (t) {
-    return popsicle.default(REMOTE_URL + '/not-found')
+    return popsicle.request(REMOTE_URL + '/not-found')
       .then(function (res) {
         t.equal(res.status, 404)
         t.equal(res.statusType(), 4)
@@ -157,7 +175,7 @@ test('response status', function (t) {
   })
 
   t.test('2xx', function (t) {
-    return popsicle.default(REMOTE_URL + '/no-content')
+    return popsicle.request(REMOTE_URL + '/no-content')
       .then(function (res) {
         t.equal(res.status, 204)
         t.equal(res.statusType(), 2)
@@ -171,7 +189,7 @@ test('response status', function (t) {
 
 test('request headers', function (t) {
   t.test('always send user agent', function (t) {
-    return popsicle.default(REMOTE_URL + '/echo/header/user-agent')
+    return popsicle.request(REMOTE_URL + '/echo/header/user-agent')
       .then(function (res) {
         const regexp = process.browser ?
           /^Mozilla\/.+$/ :
@@ -183,7 +201,7 @@ test('request headers', function (t) {
 
   if (!popsicle.browser) {
     t.test('send a custom user agent header', function (t) {
-      return popsicle.default({
+      return popsicle.request({
         url: REMOTE_URL + '/echo/header/user-agent',
         headers: {
           'User-Agent': 'foobar'
@@ -198,7 +216,7 @@ test('request headers', function (t) {
 
 test('response headers', function (t) {
   t.test('parse', function (t) {
-    return popsicle.default(REMOTE_URL + '/notfound')
+    return popsicle.request(REMOTE_URL + '/notfound')
       .then(function (res) {
         t.equal(res.type(), 'text/html')
         t.equal(res.get('Content-Type'), 'text/html; charset=utf-8')
@@ -208,7 +226,7 @@ test('response headers', function (t) {
 
 test('request body', function (t) {
   t.test('send post data', function (t) {
-    return popsicle.default({
+    return popsicle.request({
       url: REMOTE_URL + '/echo',
       method: 'POST',
       body: 'example data',
@@ -228,7 +246,7 @@ test('request body', function (t) {
   })
 
   t.test('should automatically send objects as json', function (t) {
-    return popsicle.default({
+    return popsicle.request({
       url: REMOTE_URL + '/echo',
       method: 'POST',
       body: EXAMPLE_BODY
@@ -240,7 +258,7 @@ test('request body', function (t) {
   })
 
   t.test('should send as form encoded when header is set', function (t) {
-    return popsicle.default({
+    return popsicle.request({
       url: REMOTE_URL + '/echo',
       method: 'POST',
       body: EXAMPLE_BODY,
@@ -283,7 +301,7 @@ test('request body', function (t) {
 
         t.ok(form instanceof FormData)
 
-        return popsicle.default({
+        return popsicle.request({
           url: REMOTE_URL + '/echo',
           method: 'POST',
           body: form
@@ -291,7 +309,7 @@ test('request body', function (t) {
       })
 
       t.test('should stringify to form data when set as multipart', function (t) {
-        return popsicle.default({
+        return popsicle.request({
           url: REMOTE_URL + '/echo',
           method: 'POST',
           body: EXAMPLE_BODY,
@@ -306,7 +324,7 @@ test('request body', function (t) {
 
 test('query', function (t) {
   t.test('should stringify and send query parameters', function (t) {
-    return popsicle.default({
+    return popsicle.request({
       url: REMOTE_URL + '/echo/query',
       query: EXAMPLE_BODY
     })
@@ -316,7 +334,7 @@ test('query', function (t) {
   })
 
   t.test('should stringify and append to query object', function (t) {
-    const req = popsicle.default({
+    const req = popsicle.request({
       url: REMOTE_URL + '/echo/query?query=true',
       query: EXAMPLE_BODY
     })
@@ -343,7 +361,7 @@ test('query', function (t) {
   })
 
   t.test('should accept query as a string', function (t) {
-    const req = popsicle.default({
+    const req = popsicle.request({
       url: REMOTE_URL + '/echo/query',
       query: 'query=true'
     })
@@ -362,7 +380,7 @@ test('timeout', function (t) {
   t.test('should timeout the request when set', function (t) {
     t.plan(3)
 
-    return popsicle.default({
+    return popsicle.request({
       url: REMOTE_URL + '/delay/1500',
       timeout: 500
     })
@@ -376,7 +394,7 @@ test('timeout', function (t) {
 
 test('abort', function (t) {
   t.test('abort before it starts', function (t) {
-    const req = popsicle.default(REMOTE_URL + '/echo')
+    const req = popsicle.request(REMOTE_URL + '/echo')
 
     req.abort()
 
@@ -391,7 +409,7 @@ test('abort', function (t) {
   })
 
   t.test('abort mid-request', function (t) {
-    const req = popsicle.default(REMOTE_URL + '/download')
+    const req = popsicle.request(REMOTE_URL + '/download')
 
     t.plan(3)
 
@@ -408,7 +426,7 @@ test('abort', function (t) {
   })
 
   t.test('no side effects of aborting twice', function (t) {
-    const req = popsicle.default(REMOTE_URL + '/download')
+    const req = popsicle.request(REMOTE_URL + '/download')
 
     t.plan(3)
 
@@ -427,7 +445,7 @@ test('abort', function (t) {
 test('progress', function (t) {
   t.test('download', function (t) {
     t.test('download progress', function (t) {
-      const req = popsicle.default(REMOTE_URL + '/download')
+      const req = popsicle.request(REMOTE_URL + '/download')
 
       t.plan(typeof window === 'undefined' ? 3 : 2)
 
@@ -450,7 +468,7 @@ test('progress', function (t) {
 
   t.test('event', function (t) {
     t.test('emit progress events', function (t) {
-      const req = popsicle.default({
+      const req = popsicle.request({
         url: REMOTE_URL + '/echo',
         body: EXAMPLE_BODY,
         method: 'POST'
@@ -474,7 +492,7 @@ test('progress', function (t) {
     })
 
     t.test('error when the progress callback errors', function (t) {
-      const req = popsicle.default(REMOTE_URL + '/echo')
+      const req = popsicle.request(REMOTE_URL + '/echo')
 
       t.plan(2)
 
@@ -493,7 +511,7 @@ test('progress', function (t) {
 
 test('response body', function (t) {
   t.test('automatically parse json responses', function (t) {
-    return popsicle.default(REMOTE_URL + '/json')
+    return popsicle.request(REMOTE_URL + '/json')
       .then(function (res) {
         t.equal(res.type(), 'application/json')
         t.deepEqual(res.body, { username: 'blakeembrey' })
@@ -501,7 +519,7 @@ test('response body', function (t) {
   })
 
   t.test('automatically parse form encoded responses', function (t) {
-    return popsicle.default(REMOTE_URL + '/foo')
+    return popsicle.request(REMOTE_URL + '/foo')
       .then(function (res) {
         t.equal(res.type(), 'application/x-www-form-urlencoded')
         t.deepEqual(res.body, { foo: 'bar' })
@@ -509,7 +527,7 @@ test('response body', function (t) {
   })
 
   t.test('disable automatic parsing', function (t) {
-    return popsicle.default({
+    return popsicle.request({
       url: REMOTE_URL + '/json',
       use: popsicle.browser ? [] : [popsicle.plugins.concatStream('string')]
     })
@@ -520,7 +538,7 @@ test('response body', function (t) {
   })
 
   t.test('set non-parsable responses as null', function (t) {
-    return popsicle.default({
+    return popsicle.request({
       url: REMOTE_URL + '/echo',
       method: 'post'
     })
@@ -530,7 +548,7 @@ test('response body', function (t) {
   })
 
   t.test('set body to null when json is empty', function (t) {
-    return popsicle.default({
+    return popsicle.request({
       url: REMOTE_URL + '/echo',
       method: 'POST',
       headers: {
@@ -550,7 +568,7 @@ test('response body', function (t) {
     const filecontents = fs.readFileSync(filename, 'utf-8')
 
     t.test('stream the response body', function (t) {
-      return popsicle.default({
+      return popsicle.request({
         url: REMOTE_URL + '/json',
         use: []
       })
@@ -568,7 +586,7 @@ test('response body', function (t) {
     })
 
     t.test('pipe streams', function (t) {
-      return popsicle.default({
+      return popsicle.request({
         url: REMOTE_URL + '/echo',
         body: fs.createReadStream(filename)
       })
@@ -578,7 +596,7 @@ test('response body', function (t) {
     })
 
     t.test('pipe streams into forms', function (t) {
-      return popsicle.default({
+      return popsicle.request({
         url: REMOTE_URL + '/echo',
         body: popsicle.form({
           file: fs.createReadStream(filename)
@@ -599,7 +617,7 @@ test('response body', function (t) {
     })
 
     t.test('unzip contents', function (t) {
-      return popsicle.default({
+      return popsicle.request({
         url: REMOTE_URL + '/echo/zip',
         body: fs.createReadStream(filename)
       })
@@ -610,7 +628,7 @@ test('response body', function (t) {
     })
 
     t.test('unzip with gzip encoding', function (t) {
-      return popsicle.default({
+      return popsicle.request({
         url: REMOTE_URL + '/echo/zip',
         body: fs.createReadStream(filename),
         headers: {
@@ -624,7 +642,7 @@ test('response body', function (t) {
     })
   } else {
     t.test('browser response type', function (t) {
-      return popsicle.default({
+      return popsicle.request({
         url: REMOTE_URL + '/text',
         options: {
           responseType: 'arraybuffer'
@@ -638,7 +656,7 @@ test('response body', function (t) {
     t.test('throw on unsupported response type', function (t) {
       t.plan(2)
 
-      return popsicle.default({
+      return popsicle.request({
         url: REMOTE_URL + '/text',
         options: {
           responseType: 'foobar'
@@ -656,7 +674,7 @@ test('request errors', function (t) {
   t.test('error when requesting an unknown domain', function (t) {
     t.plan(3)
 
-    return popsicle.default('http://fdahkfjhuehfakjbvdahjfds.fdsa')
+    return popsicle.request('http://fdahkfjhuehfakjbvdahjfds.fdsa')
       .catch(function (err) {
         t.ok(/Unable to connect/i.exec(err.message))
         t.equal(err.code, 'EUNAVAILABLE')
@@ -667,7 +685,7 @@ test('request errors', function (t) {
   t.test('give a parse error on invalid response body', function (t) {
     t.plan(3)
 
-    return popsicle.default({
+    return popsicle.request({
       url: REMOTE_URL + '/echo',
       method: 'POST',
       body: 'username=blakeembrey&password=hunter2',
@@ -690,7 +708,7 @@ test('request errors', function (t) {
     // Recursive link will fail to stringify.
     obj.obj = obj
 
-    return popsicle.default({
+    return popsicle.request({
       url: REMOTE_URL + '/echo',
       method: 'POST',
       body: obj
@@ -705,7 +723,7 @@ test('request errors', function (t) {
 
 test('plugins', function (t) {
   t.test('modify the request', function (t) {
-    const req = popsicle.default(REMOTE_URL + '/echo')
+    const req = popsicle.request(REMOTE_URL + '/echo')
 
     t.plan(1)
 
@@ -720,7 +738,7 @@ test('plugins', function (t) {
 test('request flow', function (t) {
   t.test('before', function (t) {
     t.test('run a function before opening the request', function (t) {
-      const req = popsicle.default(REMOTE_URL + '/echo')
+      const req = popsicle.request(REMOTE_URL + '/echo')
 
       t.plan(2)
 
@@ -733,7 +751,7 @@ test('request flow', function (t) {
     })
 
     t.test('fail the request before starting', function (t) {
-      const req = popsicle.default(REMOTE_URL + '/echo')
+      const req = popsicle.request(REMOTE_URL + '/echo')
 
       t.plan(1)
 
@@ -748,7 +766,7 @@ test('request flow', function (t) {
     })
 
     t.test('accept a promise to delay the request', function (t) {
-      const req = popsicle.default(REMOTE_URL + '/echo')
+      const req = popsicle.request(REMOTE_URL + '/echo')
 
       t.plan(1)
 
@@ -767,7 +785,7 @@ test('request flow', function (t) {
 
   test('after', function (t) {
     t.test('run after the response', function (t) {
-      const req = popsicle.default(REMOTE_URL + '/echo')
+      const req = popsicle.request(REMOTE_URL + '/echo')
 
       t.plan(4)
 
@@ -785,7 +803,7 @@ test('request flow', function (t) {
     })
 
     t.test('accept a promise', function (t) {
-      const req = popsicle.default(REMOTE_URL + '/echo')
+      const req = popsicle.request(REMOTE_URL + '/echo')
 
       t.plan(1)
 
@@ -804,7 +822,7 @@ test('request flow', function (t) {
 
   test('always', function (t) {
     t.test('run all together in order', function (t) {
-      const req = popsicle.default(REMOTE_URL + '/echo')
+      const req = popsicle.request(REMOTE_URL + '/echo')
       let before = false
       let after = false
       let always = false
@@ -836,7 +854,7 @@ test('request flow', function (t) {
     })
 
     t.test('run on error', function (t) {
-      const req = popsicle.default(REMOTE_URL + '/echo')
+      const req = popsicle.request(REMOTE_URL + '/echo')
 
       t.plan(2)
 
@@ -898,7 +916,7 @@ if (!process.browser) {
 }
 
 test('override request mechanism', function (t) {
-  return popsicle.default({
+  return popsicle.request({
     url: '/foo',
     transport: {
       open: function (request) {
@@ -920,7 +938,7 @@ test('override request mechanism', function (t) {
 if (!popsicle.browser) {
   test('redirect', function (t) {
     t.test('should follow 302 redirect with get', function (t) {
-      return popsicle.default(REMOTE_URL + '/redirect')
+      return popsicle.request(REMOTE_URL + '/redirect')
         .then(function (res) {
           t.equal(res.body, 'welcome get')
           t.equal(res.status, 200)
@@ -950,7 +968,7 @@ if (!popsicle.browser) {
     })
 
     t.test('disable following redirects', function (t) {
-      return popsicle.default({
+      return popsicle.request({
         url: REMOTE_URL + '/redirect',
         options: {
           followRedirects: false
@@ -965,7 +983,7 @@ if (!popsicle.browser) {
     t.test('default maximum redirects of 5', function (t) {
       t.plan(2)
 
-      return popsicle.default(REMOTE_URL + '/redirect/6')
+      return popsicle.request(REMOTE_URL + '/redirect/6')
         .catch(function (err) {
           t.equal(err.message, 'Exceeded maximum of 5 redirects')
           t.equal(err.code, 'EMAXREDIRECTS')
@@ -973,7 +991,7 @@ if (!popsicle.browser) {
     })
 
     t.test('change maximum redirects', function (t) {
-      return popsicle.default({
+      return popsicle.request({
         url: REMOTE_URL + '/redirect/6',
         options: {
           maxRedirects: 10
