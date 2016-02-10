@@ -128,6 +128,7 @@ export default class Request extends Base implements Promise<Response> {
       method: this.method,
       options: this.options,
       use: [],
+      body: this.body,
       transport: this.transport,
       timeout: this.timeout,
       rawHeaders: this.rawHeaders,
