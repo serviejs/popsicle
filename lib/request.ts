@@ -259,7 +259,7 @@ function pluginFunction (request: Request, property: string, fns: Function | Fun
 /**
  * Start the HTTP request.
  */
-function start (request: Request) {
+function start (request: Request): Promise<Response> {
   const req = <any> request
   const { timeout, url } = request
   let timer: any
@@ -279,7 +279,7 @@ function start (request: Request) {
   return chain(req._before, request)
     .then(function () {
       if (request.errored) {
-        return Promise.reject(request.errored)
+        return
       }
 
       if (timeout) {
@@ -295,40 +295,33 @@ function start (request: Request) {
       req.opened = true
 
       return req.transport.open(request)
-    })
-    .then(function (options: ResponseOptions) {
-      if (request.errored) {
-        return Promise.reject(request.errored)
-      }
+        .then(function (options: ResponseOptions) {
+          const response = new Response(options)
 
-      const response = new Response(options)
+          response.request = request
+          request.response = response
 
-      response.request = request
-      request.response = response
-
-      return response
-    })
-    .then(function (response) {
-      return chain(req._after, response)
+          return chain(req._after, response)
+        })
     })
     .then(
-      function () {
-        return chain(req._always, request)
-          .then(() => request.response)
-      },
-      function (error: any) {
-        return chain(req._always, request)
-          .then(() => Promise.reject(request.errored || error))
-      }
+      () => chain(req._always, request),
+      (error) => chain(req._always, request).then(() => Promise.reject(error))
     )
-    .then(function (response) {
-      // Check if the request has errored before the end.
-      if (request.errored) {
+    .then(
+      function () {
+        if (request.errored) {
+          return Promise.reject(request.errored)
+        }
+
+        return request.response
+      },
+      function (error) {
+        request.errored = request.errored || error
+
         return Promise.reject(request.errored)
       }
-
-      return response
-    })
+    )
 }
 
 /**
