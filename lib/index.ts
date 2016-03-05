@@ -1,6 +1,5 @@
 import { request as httpRequest, IncomingMessage } from 'http'
 import { request as httpsRequest } from 'https'
-import agent = require('infinity-agent')
 import { PassThrough } from 'stream'
 import urlLib = require('url')
 import extend = require('xtend')
@@ -76,11 +75,6 @@ function open (request: Request) {
           arg.ca = options.ca
           arg.cert = options.cert
           arg.key = options.key
-
-          // Fallback to infinity agents.
-          if (!arg.agent) {
-            arg.agent = isHttp ? agent.http.globalAgent : agent.https.globalAgent
-          }
 
           const req = engine(arg)
 
