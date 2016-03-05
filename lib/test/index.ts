@@ -2,6 +2,8 @@ import test = require('blue-tape')
 import methods = require('methods')
 import FormData = require('form-data')
 import Promise = require('any-promise')
+import { readFileSync } from 'fs'
+import { join } from 'path'
 import popsicle = require('../common')
 
 const SHORTHAND_METHODS = [
@@ -23,6 +25,7 @@ const SUPPORTED_METHODS = typeof window === 'object' ? [
 const METHODS_WITHOUT_BODY = ['connect', 'head', 'options']
 
 const REMOTE_URL = 'http://localhost:' + process.env.PORT
+const REMOTE_HTTPS_URL = 'https://localhost:' + process.env.HTTPS_PORT
 
 const EXAMPLE_BODY: any = {
   username: 'blakeembrey',
@@ -1036,5 +1039,42 @@ if (!popsicle.browser) {
           t.ok(/\/destination$/.test(res.url))
         })
     })
+  })
+}
+
+if (!popsicle.browser) {
+  test('https reject unauthorized', function (t) {
+    t.plan(1)
+
+    return popsicle.get({
+      url: `${REMOTE_HTTPS_URL}`
+    })
+      .catch(err => {
+        t.equal(err.code, 'EUNAVAILABLE')
+      })
+  })
+
+  test('https ca option', function (t) {
+    return popsicle.get({
+      url: `${REMOTE_HTTPS_URL}`,
+      options: {
+        ca: readFileSync(join(__dirname, '../../scripts/support/ca-crt.pem'))
+      }
+    })
+      .then(res => {
+        t.equal(res.body, 'Success')
+      })
+  })
+
+  test('https disable reject unauthorized', function (t) {
+    return popsicle.get({
+      url: `${REMOTE_HTTPS_URL}`,
+      options: {
+        rejectUnauthorized: false
+      }
+    })
+      .then(res => {
+        t.equal(res.body, 'Success')
+      })
   })
 }
