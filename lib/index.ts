@@ -69,7 +69,7 @@ function open (request: Request) {
 
           // Always attach certain options.
           arg.method = method
-          arg.headers = request.headers
+          arg.headers = request.toHeaders()
           arg.agent = options.agent
           arg.rejectUnauthorized = options.rejectUnauthorized !== false
           arg.ca = options.ca
