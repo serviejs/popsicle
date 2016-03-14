@@ -149,6 +149,10 @@ app.get('/download', function (req, res) {
   }, 200)
 })
 
+app.get('/raw-headers', function (req, res) {
+  res.send(req.rawHeaders)
+})
+
 if (!module.parent) {
   app.listen(process.env.PORT || 3000)
 }

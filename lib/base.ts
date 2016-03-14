@@ -102,7 +102,6 @@ export default class Base {
     for (let i = 0; i < this.rawHeaders.length; i += 2) {
       const key = lowerHeader(this.rawHeaders[i])
       const value = concat(headers[key], this.rawHeaders[i + 1])
-
       headers[key] = value
     }
 
@@ -117,6 +116,18 @@ export default class Base {
         this.append(key, headers[key])
       }
     }
+  }
+
+  toHeaders () {
+    const headers: Headers = {}
+
+    for (let i = 0; i < this.rawHeaders.length; i += 2) {
+      const key = this.rawHeaders[i]
+      const value = concat(headers[key], this.rawHeaders[i + 1])
+      headers[key] = value
+    }
+
+    return headers
   }
 
   set (name: string, value: string | string[]): Base {

@@ -214,6 +214,21 @@ test('request headers', function (t) {
           t.equal(res.body, 'foobar')
         })
     })
+
+    // Run raw header tests on Node 0.12+.
+    if (!/^v0\.10/.test(process.version)) {
+      t.test('case sensitive headers', function (t) {
+        return popsicle.get({
+          url: REMOTE_URL + '/raw-headers',
+          headers: {
+            'Raw-Header': 'test'
+          }
+        })
+          .then(function (res) {
+            t.ok(res.body.indexOf('Raw-Header') > -1, 'raw headers sent with original casing')
+          })
+      })
+    }
   }
 })
 
