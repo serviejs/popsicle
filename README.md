@@ -26,7 +26,6 @@ npm install popsicle --save
 
 ```js
 var popsicle = require('popsicle')
-// var popsicle = window.popsicle
 
 popsicle.request({
   method: 'POST',
@@ -92,12 +91,10 @@ The default plugins under node are `[stringify(), headers(), unzip(), concatStre
 
 **Options using browser transport**
 
-The default plugins in the browser are `[stringify(), headers(), parse()]`. Notice that unzipping and various stream parsing is not yet available in browsers.
+The default plugins in the browser are `[stringify(), headers(), parse()]`. Notice that unzipping and stream parsing is not available in browsers.
 
 * **withCredentials** Send cookies with CORS requests (default: `false`)
 * **responseType** Set the XHR `responseType` (default: `undefined`)
-
-**P.S.:** Need a proxy? Try using [`proxy-agent`](https://github.com/TooTallNate/node-proxy-agent) with the agent option.
 
 #### Short-hand Methods
 
@@ -221,14 +218,14 @@ The default plugins are exposed under `popsicle.plugins`, which allows you to mi
 * **stringify** Stringify object bodies into JSON/form data/url encoding (Recommended)
 * **parse** Automatically parse JSON and url encoding responses
 * **unzip** Automatically unzip response streams (Node only)
-* **concatStream** Buffer the whole stream using [concat-stream](https://www.npmjs.com/package/concat-stream) - accepts an "encoding" type (`string` (default), `buffer`, `array`, `uint8array`, `object`) (Node only)
+* **concatStream** Buffer the stream using [concat-stream](https://www.npmjs.com/package/concat-stream) - accepts an "encoding" type (`string` (default), `buffer`, `array`, `uint8array`, `object`) (Node only)
 
 #### Cookie Jar (Node only)
 
 You can create a reusable cookie jar instance for requests by calling `popsicle.jar`.
 
 ```js
-var jar = request.jar()
+var jar = popsicle.jar()
 
 popsicle.request({
   method: 'post',
@@ -263,6 +260,10 @@ If you live on the edge, try using it with generators (see [co](https://www.npmj
 co(function * () {
   yield popsicle.get('/users')
 })
+
+async function () {
+  await popsicle.get('/users')
+}
 ```
 
 #### Callbacks
@@ -285,7 +286,7 @@ popsicle.get('/users')
 Every Popsicle response will give a `Response` object on success. The object provides an intuitive interface for requesting common properties.
 
 * **status** The HTTP response status code
-* **body** An object (if parsed using a plugin) or string that was the response HTTP body
+* **body** An object (if parsed using a plugin), string (if using concat) or stream that is the HTTP response body
 * **headers** An object of lower-cased keys to header values
 * **url** The response URL after redirects (only supported in browser with `responseURL`)
 * **statusType()** Return an integer with the HTTP status type (E.g. `200 -> 2`)
@@ -368,7 +369,7 @@ Creating a custom transportation layer is just a matter creating an object with 
 This project is written using [TypeScript](https://github.com/Microsoft/TypeScript) and [typings](https://github.com/typings/typings). From version `1.3.1`, you can install the type definition using `typings`.
 
 ```
-typings install npm:popsicle --name popsicle
+typings install npm:popsicle --save
 ```
 
 ## Development
