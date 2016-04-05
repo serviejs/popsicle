@@ -45,6 +45,7 @@ function open (request: Request) {
   const maxRedirects = num(options.maxRedirects, 5)
   const followRedirects = options.followRedirects !== false
   let requestCount = 0
+  let isStreaming = false
 
   const confirmRedirect = typeof options.followRedirects === 'function' ?
     options.followRedirects : falsey
@@ -67,7 +68,7 @@ function open (request: Request) {
           const isHttp = arg.protocol !== 'https:'
           const engine: typeof httpRequest = isHttp ? httpRequest : httpsRequest
 
-          // Always attach certain options.
+          // Attach request options.
           arg.method = method
           arg.headers = request.toHeaders()
           arg.agent = options.agent
@@ -76,39 +77,39 @@ function open (request: Request) {
           arg.cert = options.cert
           arg.key = options.key
 
-          const req = engine(arg)
+          const rawRequest = engine(arg)
 
-          // Track upload progress through a stream.
-          const requestProxy = new PassThrough()
-          const responseProxy = new PassThrough()
+          // Track upload/download progress through a stream.
+          const requestStream = new PassThrough()
+          const responseStream = new PassThrough()
 
-          requestProxy.on('data', function (chunk: Buffer) {
-            request.uploadedBytes = request.uploadedBytes + chunk.length
+          requestStream.on('data', function (chunk: Buffer) {
+            request.uploadedBytes += chunk.length
           })
 
-          requestProxy.on('end', function () {
+          requestStream.on('end', function () {
             request.uploadedBytes = request.uploadLength
           })
 
-          responseProxy.on('data', function (chunk: Buffer) {
-            request.downloadedBytes = request.downloadedBytes + chunk.length
+          responseStream.on('data', function (chunk: Buffer) {
+            request.downloadedBytes += chunk.length
           })
 
-          responseProxy.on('end', function () {
+          responseStream.on('end', function () {
             request.downloadedBytes = request.downloadLength
           })
 
           // Handle the HTTP response.
-          function response (res: IncomingMessage) {
-            const status = res.statusCode
+          function response (rawResponse: IncomingMessage) {
+            const status = rawResponse.statusCode
             const redirect = REDIRECT_STATUS[status]
 
             // Handle HTTP redirects.
-            if (followRedirects && redirect != null && res.headers.location) {
-              const newUrl = urlLib.resolve(url, res.headers.location)
+            if (followRedirects && redirect != null && rawResponse.headers.location) {
+              const newUrl = urlLib.resolve(url, rawResponse.headers.location)
 
               // Ignore the result of the response on redirect.
-              res.resume()
+              rawResponse.resume()
 
               // Kill the old cookies on redirect.
               request.remove('Cookie')
@@ -127,57 +128,67 @@ function open (request: Request) {
                 }
 
                 // Allow the user to confirm redirect according to HTTP spec.
-                if (confirmRedirect(req, res)) {
+                if (confirmRedirect(rawRequest, rawResponse)) {
                   return get(newUrl, method, body)
                 }
               }
             }
 
-            request.downloadLength = num(res.headers['content-length'], 0)
+            request.downloadLength = num(rawResponse.headers['content-length'], 0)
 
-            // Track download progress.
-            res.pipe(responseProxy)
+            isStreaming = true
+            rawResponse.pipe(responseStream)
 
             return Promise.resolve({
-              body: responseProxy,
+              body: responseStream,
               status: status,
-              statusText: res.statusMessage,
-              headers: res.headers,
-              rawHeaders: res.rawHeaders,
+              statusText: rawResponse.statusMessage,
+              headers: rawResponse.headers,
+              rawHeaders: rawResponse.rawHeaders,
               url: url
             })
           }
 
-          // Handle the response.
-          req.once('response', function (message: IncomingMessage) {
-            return resolve(setCookies(request, message).then(() => response(message)))
+          // Emit a request error.
+          function emitError (error: Error) {
+            // Abort request on error.
+            rawRequest.abort()
+
+            // Forward errors.
+            if (isStreaming) {
+              responseStream.emit('error', error)
+            } else {
+              reject(error)
+            }
+          }
+
+          rawRequest.once('response', function (message: IncomingMessage) {
+            resolve(setCookies(request, message).then(() => response(message)))
           })
 
-          // io.js has an abort event instead of "error".
-          req.once('abort', function () {
-            return reject(request.error('Request aborted', 'EABORT'))
+          rawRequest.once('error', function (error: Error) {
+            emitError(request.error(`Unable to connect to "${url}"`, 'EUNAVAILABLE', error))
           })
 
-          req.once('error', function (error: Error) {
-            return reject(request.error(`Unable to connect to "${url}"`, 'EUNAVAILABLE', error))
+          rawRequest.once('clientAborted', function () {
+            emitError(request.error('Request aborted', 'EABORT'))
           })
 
-          // Node 0.10 needs to catch errors on the request proxy.
-          requestProxy.once('error', reject)
-
-          request.raw = req
-          request.uploadLength = num(req.getHeader('content-length'), 0)
-          requestProxy.pipe(req)
+          request._raw = rawRequest
+          request.uploadLength = num(rawRequest.getHeader('content-length'), 0)
+          requestStream.pipe(rawRequest)
+          requestStream.once('error', emitError)
 
           // Pipe the body to the stream.
           if (body) {
             if (typeof body.pipe === 'function') {
-              body.pipe(requestProxy)
+              body.pipe(requestStream)
+              body.once('error', emitError)
             } else {
-              requestProxy.end(body)
+              requestStream.end(body)
             }
           } else {
-            requestProxy.end()
+            requestStream.end()
           }
         })
       })
@@ -190,7 +201,8 @@ function open (request: Request) {
  * Close the current HTTP request.
  */
 function abort (request: Request) {
-  request.raw.abort()
+  request._raw.emit('clientAborted')
+  request._raw.abort()
 }
 
 /**

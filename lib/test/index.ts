@@ -67,7 +67,7 @@ test('create a popsicle#Request instance', function (t) {
 test('use the same response in promise chains', function (t) {
   const req = popsicle.get(REMOTE_URL + '/echo')
 
-  t.plan(15)
+  t.plan(13)
 
   return req
     .then(function (res) {
@@ -84,10 +84,7 @@ test('use the same response in promise chains', function (t) {
       t.equal(typeof res.name, 'function')
       t.equal(typeof res.type, 'function')
       t.equal(typeof res.statusType, 'function')
-      t.equal(typeof res.error, 'function')
       t.equal(typeof res.toJSON, 'function')
-
-      t.equal(res.request, req)
 
       t.deepEqual(Object.keys(req.toJSON()), ['url', 'headers', 'body', 'options', 'timeout', 'method'])
       t.deepEqual(Object.keys(res.toJSON()), ['url', 'headers', 'rawHeaders', 'body', 'status', 'statusText'])
@@ -102,10 +99,9 @@ test('use the same response in promise chains', function (t) {
 test('clone a request instance', t => {
   const req = popsicle.get(REMOTE_URL + '/echo/header/x-example')
 
-  req.use(function (self) {
-    self.before(function (req) {
-      req.set('X-Example', 'foobar')
-    })
+  req.use(function (self, next) {
+    self.set('X-Example', 'foobar')
+    return next()
   })
 
   return Promise.all([req, req.clone()])
@@ -745,8 +741,9 @@ test('plugins', function (t) {
 
     t.plan(1)
 
-    req.use(function (self) {
+    req.use(function (self, next) {
       t.equal(self, req)
+      return next()
     })
 
     return req
@@ -760,9 +757,10 @@ test('request flow', function (t) {
 
       t.plan(2)
 
-      req.before(function (self) {
+      req.use(function (self, next) {
         t.equal(self, req)
-        t.notOk(req.response)
+        t.equal(typeof next, 'function')
+        return next()
       })
 
       return req
@@ -773,7 +771,7 @@ test('request flow', function (t) {
 
       t.plan(1)
 
-      req.before(function () {
+      req.use(function (): any {
         throw new Error('Hello world!')
       })
 
@@ -784,20 +782,27 @@ test('request flow', function (t) {
     })
 
     t.test('accept a promise to delay the request', function (t) {
-      const req = popsicle.request(REMOTE_URL + '/echo')
+      const req = popsicle.request({
+        url: REMOTE_URL + '/echo',
+        method: 'POST',
+        body: 'success'
+      })
 
-      t.plan(1)
+      t.plan(2)
 
-      req.before(function (self) {
+      req.use(function (self, next) {
         return new Promise(function (resolve) {
           setTimeout(function () {
             t.equal(self, req)
             resolve()
           }, 10)
-        })
+        }).then(next)
       })
 
       return req
+        .then(res => {
+          t.equal(res.body, 'success')
+        })
     })
   })
 
@@ -805,89 +810,18 @@ test('request flow', function (t) {
     t.test('run after the response', function (t) {
       const req = popsicle.request(REMOTE_URL + '/echo')
 
-      t.plan(4)
-
-      req.before(function () {
-        t.notOk(req.response)
-      })
-
-      req.after(function (response) {
-        t.ok(response instanceof popsicle.Response)
-        t.equal(req.response, response)
-        t.equal(response.request, req)
-      })
-
-      return req
-    })
-
-    t.test('accept a promise', function (t) {
-      const req = popsicle.request(REMOTE_URL + '/echo')
-
       t.plan(1)
 
-      req.after(function (response) {
-        return new Promise(function (resolve) {
-          setTimeout(function () {
-            t.equal(response, req.response)
-            resolve()
-          }, 10)
-        })
+      req.use(function (self, next) {
+        return next()
+          .then(res => {
+            t.ok(res instanceof popsicle.Response)
+
+            return res
+          })
       })
 
       return req
-    })
-  })
-
-  test('always', function (t) {
-    t.test('run all together in order', function (t) {
-      const req = popsicle.request(REMOTE_URL + '/echo')
-      let before = false
-      let after = false
-      let always = false
-
-      t.plan(6)
-
-      req.before(function () {
-        before = true
-
-        t.notOk(after)
-        t.notOk(always)
-      })
-
-      req.after(function () {
-        after = true
-
-        t.ok(before)
-        t.notOk(always)
-      })
-
-      req.always(function (request) {
-        always = true
-
-        t.ok(before)
-        t.ok(after)
-      })
-
-      return req
-    })
-
-    t.test('run on error', function (t) {
-      const req = popsicle.request(REMOTE_URL + '/echo')
-
-      t.plan(2)
-
-      req.before(function () {
-        throw new Error('Testing')
-      })
-
-      req.always(function (self) {
-        t.equal(self, req)
-      })
-
-      return req
-        .catch(function (err) {
-          t.equal(err.message, 'Testing')
-        })
     })
   })
 })
