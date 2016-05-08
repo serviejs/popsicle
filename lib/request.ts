@@ -48,6 +48,7 @@ export default class Request extends Base implements Promise<Response> {
   body: any
   options: any
   transport: TransportOptions
+  middleware: Middleware[] = []
 
   opened = false
   aborted = false
@@ -57,7 +58,6 @@ export default class Request extends Base implements Promise<Response> {
   private _downloadedBytes: number = null
 
   _raw: any
-  _use: Middleware[] = []
   _progress: ProgressFunction[] = []
 
   private _promise: Promise<Response>
@@ -81,7 +81,7 @@ export default class Request extends Base implements Promise<Response> {
     // External promise representation, resolves _after_ middleware.
     this._promise = new Promise((resolve) => {
       process.nextTick(() => {
-        const handle = compose(this._use)
+        const handle = compose(this.middleware)
 
         const cb = () => {
           this._handle()
@@ -127,7 +127,7 @@ export default class Request extends Base implements Promise<Response> {
       transport: this.transport,
       timeout: this.timeout,
       rawHeaders: this.rawHeaders,
-      use: this._use,
+      use: this.middleware,
       progress: this._progress
     }
   }
@@ -149,7 +149,7 @@ export default class Request extends Base implements Promise<Response> {
 
   use (fns: Middleware | Middleware[]) {
     for (const fn of arrify(fns)) {
-      this._use.push(fn)
+      this.middleware.push(fn)
     }
 
     return this
