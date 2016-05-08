@@ -317,12 +317,10 @@ Plugins can be passed in as an array with the initial options (which overrides d
 
 * [Server](https://github.com/blakeembrey/popsicle-server) - Automatically mount a server on an available for the request (helpful for testing a la `supertest`)
 * [Status](https://github.com/blakeembrey/popsicle-status) - Reject responses on HTTP failure status codes
-* [Cache](https://github.com/blakeembrey/popsicle-cache) - Built-in cache handling of HTTP requests under node (customizable store, uses a filesystem store by default)
 * [No Cache](https://github.com/blakeembrey/popsicle-no-cache) - Prevent caching of HTTP requests in browsers
 * [Basic Auth](https://github.com/blakeembrey/popsicle-basic-auth) - Add a basic authentication header to each request
 * [Prefix](https://github.com/blakeembrey/popsicle-prefix) - Prefix all HTTP requests
 * [Resolve](https://github.com/blakeembrey/popsicle-resolve) - Resolve all HTTP requests against a base URL
-* [Constants](https://github.com/blakeembrey/popsicle-constants) - Replace constants in the URL string
 * [Limit](https://github.com/blakeembrey/popsicle-limit) - Transparently handle API rate limits by grouping requests
 * [Group](https://github.com/blakeembrey/popsicle-group) - Group requests and perform operations on them all at once
 * [Proxy Agent](https://github.com/blakeembrey/popsicle-proxy-agent) - Enable HTTP(s) proxying under node (with environment variable support)
