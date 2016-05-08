@@ -21,7 +21,6 @@ export default class Response extends Base {
   status: number
   statusText: string
   body: any
-  request: Request
 
   constructor (options: ResponseOptions) {
     super(options)
@@ -33,10 +32,6 @@ export default class Response extends Base {
 
   statusType () {
     return ~~(this.status / 100)
-  }
-
-  error (message: string, type: string, error?: Error) {
-    return this.request.error(message, type, error)
   }
 
   toJSON (): ResponseJSON {

@@ -5,7 +5,7 @@
 [![Build status][travis-image]][travis-url]
 [![Test coverage][coveralls-image]][coveralls-url]
 
-**Popsicle** is the easiest way to make HTTP requests - offering a consistent, intuitive and light-weight API that works on node and the browser.
+> **Popsicle** is the easiest way to make HTTP requests - offering a consistent, intuitive and light-weight API that works on node and the browser.
 
 ```js
 popsicle.get('/users.json')
@@ -254,7 +254,7 @@ popsicle.get('/users')
   })
 ```
 
-If you live on the edge, try using it with generators (see [co](https://www.npmjs.com/package/co)) or ES7's `async`.
+If you live on the edge, try using it with generators (see [co](https://www.npmjs.com/package/co)) or ES7 `async`/`await`.
 
 ```js
 co(function * () {
@@ -330,12 +330,13 @@ Plugins can be passed in as an array with the initial options (which overrides d
 
 #### Creating Plugins
 
-Plugins must be a function that accepts configuration and returns another function. For example, here's a basic URL prefix plugin.
+Plugins must be a function that accept config and return a middleware function. For example, here's a basic URL prefix plugin.
 
 ```js
 function prefix (url) {
-  return function (self) {
-    request.url = url + req.url
+  return function (self, next) {
+    self.url = url + self.url
+    return next()
   }
 }
 
@@ -346,13 +347,7 @@ popsicle.request('/user')
   })
 ```
 
-Popsicle also has a way modify the request and response lifecycle, if needed. Any registered function can return a promise to defer the request or response resolution. This makes plugins such as rate-limiting and response body concatenation possible.
-
-* **before(fn)** Register a function to run before the request is made
-* **after(fn)** Register a function to receive the response object
-* **always(fn)** Register a function that always runs on `resolve` or `reject`
-
-**Tip:** Use the lifecycle hooks (above) when you want re-use (E.g. re-use when the request is cloned or options re-used).
+Middleware functions accept two arguments - the current request and a function to proceed to the next middleware function (a la Koa `2.x`).
 
 #### Checking The Environment
 
@@ -362,11 +357,11 @@ popsicle.browser //=> true
 
 #### Transportation Layers
 
-Creating a custom transportation layer is just a matter creating an object with `open`, `abort` and `use` options set. The open method should set any request information required between called as `request.raw`. Abort must abort the current request instance, while `open` must **always** resolve the promise. You can set `use` to an empty array if no plugins should be used by default. However, it's recommended you keep `use` set to the defaults, or as close as possible using your transport layer.
+Creating a custom transportation layer is just a matter creating an object with `open`, `abort` and `use` options set. The open method should set any request information required between called as `request._raw`. Abort must abort the current request instance, while `open` must **always** resolve to a promise. You can set `use` to an empty array if no plugins should be used by default. However, it's recommended you keep `use` set to the defaults, or as close as possible using your transport layer.
 
 ## TypeScript
 
-This project is written using [TypeScript](https://github.com/Microsoft/TypeScript) and [typings](https://github.com/typings/typings). From version `1.3.1`, you can install the type definition using `typings`.
+This project is written using [TypeScript](https://github.com/Microsoft/TypeScript) and [typings](https://github.com/typings/typings). Since version `1.3.1`, you can install the type definition using `typings`.
 
 ```
 typings install npm:popsicle --save

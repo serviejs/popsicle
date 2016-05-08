@@ -1,6 +1,7 @@
 import Promise = require('any-promise')
 import FormData = require('form-data')
 import { stringify as stringifyQuery, parse as parseQuery } from 'querystring'
+import isHostObject from './is-host/index'
 import Request from '../request'
 import Response from '../response'
 import form from '../form'
@@ -10,34 +11,16 @@ const QUERY_MIME_REGEXP = /^application\/x-www-form-urlencoded$/i
 const FORM_MIME_REGEXP = /^multipart\/form-data$/i
 
 /**
- * Create a check for native objects.
+ * Simply wrap a value and return it.
  */
-let isHostObject: (x: any) => boolean
-
-if (process.browser) {
-  isHostObject = function (object: any) {
-    const str = Object.prototype.toString.call(object)
-
-    switch (str) {
-      case '[object File]':
-      case '[object Blob]':
-      case '[object FormData]':
-      case '[object ArrayBuffer]':
-        return true
-      default:
-        return false
-    }
-  }
-} else {
-  isHostObject = function (object: any) {
-    return typeof object.pipe === 'function' || Buffer.isBuffer(object)
-  }
+export function wrap <T> (value: T): () => T {
+  return () => value
 }
 
 /**
- * Set up default headers for requests.
+ * Remove default headers.
  */
-function defaultHeaders (request: Request) {
+export const headers = wrap(function (request: Request, next: () => Promise<Response>) {
   // If we have no accept header set already, default to accepting
   // everything. This is needed because otherwise Firefox defaults to
   // an accept header of `html/xml`.
@@ -47,23 +30,25 @@ function defaultHeaders (request: Request) {
 
   // Remove headers that should never be set by the user.
   request.remove('Host')
-}
+
+  return next()
+})
 
 /**
- * Stringify known contents and mime types.
+ * Stringify the request body.
  */
-function stringifyRequest (request: Request) {
+export const stringify = wrap(function (request: Request, next: () => Promise<Response>) {
   const { body } = request
 
   // Convert primitives types into strings.
   if (Object(body) !== body) {
     request.body = body == null ? null : String(body)
 
-    return
+    return next()
   }
 
   if (isHostObject(body)) {
-    return
+    return next()
   }
 
   let type = request.type()
@@ -93,60 +78,40 @@ function stringifyRequest (request: Request) {
   if (request.body instanceof FormData) {
     request.remove('Content-Type')
   }
-}
 
-/**
- * Parse the response automatically.
- */
-function parseResponse (response: Response) {
-  const body = response.body
-
-  if (typeof body !== 'string') {
-    return
-  }
-
-  if (body === '') {
-    response.body = null
-
-    return
-  }
-
-  const type = response.type()
-
-  try {
-    if (JSON_MIME_REGEXP.test(type)) {
-      response.body = body === '' ? null : JSON.parse(body)
-    } else if (QUERY_MIME_REGEXP.test(type)) {
-      response.body = parseQuery(body)
-    }
-  } catch (err) {
-    return Promise.reject(response.error('Unable to parse response body: ' + err.message, 'EPARSE', err))
-  }
-}
-
-/**
- * Remove default headers.
- */
-export function headers () {
-  return function (request: Request) {
-    request.before(defaultHeaders)
-  }
-}
-
-/**
- * Stringify the request body.
- */
-export function stringify () {
-  return function (request: Request) {
-    request.before(stringifyRequest)
-  }
-}
+  return next()
+})
 
 /**
  * Automatic stringification and parsing middleware.
  */
-export function parse () {
-  return function (request: Request) {
-    request.after(parseResponse)
-  }
-}
+export const parse = wrap(function (request: Request, next: () => Promise<Response>) {
+  return next()
+    .then(function (response) {
+      const { body } = response
+
+      if (typeof body !== 'string') {
+        return response
+      }
+
+      if (body === '') {
+        response.body = null
+
+        return response
+      }
+
+      const type = response.type()
+
+      try {
+        if (JSON_MIME_REGEXP.test(type)) {
+          response.body = body === '' ? null : JSON.parse(body)
+        } else if (QUERY_MIME_REGEXP.test(type)) {
+          response.body = parseQuery(body)
+        }
+      } catch (err) {
+        return Promise.reject(request.error('Unable to parse response body: ' + err.message, 'EPARSE', err))
+      }
+
+      return response
+    })
+})

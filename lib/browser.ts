@@ -19,7 +19,7 @@ function open (request: Request) {
       return reject(request.error(`The request to "${url}" was blocked`, 'EBLOCKED'))
     }
 
-    const xhr = request.raw = new XMLHttpRequest()
+    const xhr = request._raw = new XMLHttpRequest()
 
     xhr.onload = function () {
       return resolve({
@@ -96,7 +96,7 @@ function open (request: Request) {
  * Close the current HTTP request.
  */
 function abort (request: Request) {
-  request.raw.abort()
+  request._raw.abort()
 }
 
 /**

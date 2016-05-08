@@ -15,6 +15,7 @@
     "lib/browser/form-data.ts",
     "lib/browser/tough-cookie.ts",
     "lib/plugins/browser.ts",
+    "lib/plugins/is-host/browser.ts",
     "lib/test/index.ts",
     "custom_typings/env.d.ts",
     "typings/main.d.ts"

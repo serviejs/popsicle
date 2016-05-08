@@ -1,6 +1,7 @@
 import arrify = require('arrify')
 import extend = require('xtend')
 import Promise = require('any-promise')
+import { compose } from 'throwback'
 import Base, { BaseOptions, Headers } from './base'
 import Response, { ResponseOptions } from './response'
 import PopsicleError from './error'
@@ -12,10 +13,7 @@ export interface DefaultsOptions extends BaseOptions {
   body?: any
   options?: any
   use?: Middleware[]
-  before?: RequestPluginFunction[]
-  after?: ResponsePluginFunction[]
-  always?: RequestPluginFunction[]
-  progress?: RequestPluginFunction[]
+  progress?: ProgressFunction[]
   transport?: TransportOptions
 }
 
@@ -38,10 +36,8 @@ export interface TransportOptions {
   use?: Middleware[]
 }
 
-export type Middleware = (request?: Request) => any
-
-export type RequestPluginFunction = (request?: Request) => any
-export type ResponsePluginFunction = (response?: Response) => any
+export type Middleware = (request: Request, next: () => Promise<Response>) => Response | Promise<Response>
+export type ProgressFunction = (request: Request) => any
 
 export type OpenHandler = (request: Request) => Promise<ResponseOptions>
 export type AbortHandler = (request: Request) => any
@@ -51,40 +47,49 @@ export default class Request extends Base implements Promise<Response> {
   timeout: number
   body: any
   options: any
-  response: Response
-  raw: any
-  errored: PopsicleError
   transport: TransportOptions
 
-  aborted = false
-  timedout = false
   opened = false
-  started = false
-
+  aborted = false
   uploadLength: number = null
   downloadLength: number = null
   private _uploadedBytes: number = null
   private _downloadedBytes: number = null
 
-  private _promise: Promise<Response>
+  _raw: any
+  _use: Middleware[] = []
+  _progress: ProgressFunction[] = []
 
-  private _before: RequestPluginFunction[] = []
-  private _after: ResponsePluginFunction[] = []
-  private _always: RequestPluginFunction[] = []
-  private _progress: RequestPluginFunction[] = []
+  private _promise: Promise<Response>
+  private _resolve: (response: Response) => void
+  private _reject: (error: Error) => void
 
   constructor (options: RequestOptions) {
     super(options)
 
-    this.timeout = Number(options.timeout) || 0
+    this.timeout = (options.timeout | 0)
     this.method = (options.method || 'GET').toUpperCase()
     this.body = options.body
     this.options = extend(options.options)
 
-    // Start resolving the promise interally on the next tick.
-    // This allows time for the plugins to be #use'd.
-    this._promise = new Promise((resolve, reject) => {
-      process.nextTick(() => start(this).then(resolve, reject))
+    // Internal promise representation.
+    const promised = new Promise((resolve, reject) => {
+      this._resolve = resolve
+      this._reject = reject
+    })
+
+    // External promise representation, resolves _after_ middleware.
+    this._promise = new Promise((resolve) => {
+      process.nextTick(() => {
+        const handle = compose(this._use)
+
+        const cb = () => {
+          this._handle()
+          return promised
+        }
+
+        return resolve(handle(this, cb))
+      })
     })
 
     // Extend to avoid mutations of the transport object.
@@ -92,16 +97,7 @@ export default class Request extends Base implements Promise<Response> {
 
     // Automatically `use` default middleware functions.
     this.use(options.use || this.transport.use)
-    this.before(options.before)
-    this.after(options.after)
-    this.always(options.always)
     this.progress(options.progress)
-  }
-
-  use (fn: Middleware | Middleware[]) {
-    arrify(fn).forEach((fn) => fn(this))
-
-    return this
   }
 
   error (message: string, code: string, original?: Error): PopsicleError {
@@ -113,7 +109,7 @@ export default class Request extends Base implements Promise<Response> {
   }
 
   catch (onRejected: (error?: PopsicleError) => any) {
-    return this.then(null, onRejected)
+    return this._promise.then(null, onRejected)
   }
 
   exec (cb: (err: PopsicleError, response?: Response) => any) {
@@ -127,15 +123,12 @@ export default class Request extends Base implements Promise<Response> {
       url: this.url,
       method: this.method,
       options: this.options,
-      use: [],
       body: this.body,
       transport: this.transport,
       timeout: this.timeout,
       rawHeaders: this.rawHeaders,
-      before: this._before,
-      after: this._after,
-      progress: this._progress,
-      always: this._always
+      use: this._use,
+      progress: this._progress
     }
   }
 
@@ -154,35 +147,35 @@ export default class Request extends Base implements Promise<Response> {
     return new Request(this.toOptions())
   }
 
-  progress (fn: RequestPluginFunction | RequestPluginFunction[]) {
-    return pluginFunction(this, '_progress', fn)
+  use (fns: Middleware | Middleware[]) {
+    for (const fn of arrify(fns)) {
+      this._use.push(fn)
+    }
+
+    return this
   }
 
-  before (fn: RequestPluginFunction | RequestPluginFunction[]) {
-    return pluginFunction(this, '_before', fn)
-  }
+  progress (fns: ProgressFunction | ProgressFunction[]) {
+    for (const fn of arrify(fns)) {
+      this._progress.push(fn)
+    }
 
-  after (fn: ResponsePluginFunction | ResponsePluginFunction[]) {
-    return pluginFunction(this, '_after', fn)
-  }
-
-  always (fn: RequestPluginFunction | RequestPluginFunction[]) {
-    return pluginFunction(this, '_always', fn)
+    return this
   }
 
   abort () {
     if (this.completed === 1 || this.aborted) {
-      return this
+      return
     }
 
+    // Abort the current handler.
     this.aborted = true
-    this.errored = this.errored || this.error('Request aborted', 'EABORT')
+    this._reject(this.error('Request aborted', 'EABORT'))
 
     // Sometimes it's just not possible to abort.
     if (this.opened) {
       // Emit a final progress event.
-      emitProgress(this)
-      this._progress = null
+      this._emit()
 
       if (this.transport.abort) {
         this.transport.abort(this)
@@ -190,6 +183,53 @@ export default class Request extends Base implements Promise<Response> {
     }
 
     return this
+  }
+
+  private _emit () {
+    const fns = this._progress
+
+    try {
+      for (let fn of fns) {
+        fn(this)
+      }
+    } catch (err) {
+      this._reject(err)
+      this.abort()
+    }
+  }
+
+  private _handle () {
+    const { timeout, url } = this
+    let timer: any
+
+    // Skip handling when already aborted.
+    if (this.aborted) {
+      return
+    }
+
+    this.opened = true
+
+    // Catch URLs that will cause the request to hang indefinitely in
+    // CORS disabled environments. E.g. Atom Editor.
+    if (/^https?\:\/*(?:[~#\\\?;\:]|$)/.test(url)) {
+      this._reject(this.error(`Refused to connect to invalid URL "${url}"`, 'EINVALID'))
+      return
+    }
+
+    // Enable transportation layer timeout.
+    if (timeout > 0) {
+      timer = setTimeout(() => {
+        this._reject(this.error(`Timeout of ${timeout}ms exceeded`, 'ETIMEOUT'))
+        this.abort()
+      }, timeout)
+    }
+
+    // Proxy the transport promise into the current request.
+    return this.transport.open(this)
+      .then(
+        res => this._resolve(new Response(res)),
+        err => this._reject(err)
+      )
   }
 
   get uploaded () {
@@ -219,8 +259,7 @@ export default class Request extends Base implements Promise<Response> {
   set uploadedBytes (bytes: number) {
     if (bytes !== this._uploadedBytes) {
       this._uploadedBytes = bytes
-
-      emitProgress(this)
+      this._emit()
     }
   }
 
@@ -231,125 +270,8 @@ export default class Request extends Base implements Promise<Response> {
   set downloadedBytes (bytes: number) {
     if (bytes !== this._downloadedBytes) {
       this._downloadedBytes = bytes
-
-      emitProgress(this)
+      this._emit()
     }
   }
 
-}
-
-/**
- * Attach plugin functions to the request object.
- */
-function pluginFunction (request: Request, property: string, fns: Function | Function[]) {
-  if (request.started) {
-    throw new TypeError('Plugins can not be used after the request has started')
-  }
-
-  for (const fn of arrify(fns)) {
-    if (typeof fn !== 'function') {
-      throw new TypeError(`Expected a function, but got ${fn} instead`)
-    }
-
-    ;(request as any)[property].push(fn)
-  }
-
-  return request
-}
-
-/**
- * Start the HTTP request.
- */
-function start (request: Request): Promise<Response> {
-  const req = <any> request
-  const { timeout, url } = request
-  let timer: any
-
-  request.started = true
-
-  if (request.errored) {
-    return Promise.reject(request.errored)
-  }
-
-  // Catch URLs that will cause the request to hang indefinitely in
-  // CORS disabled environments. E.g. Atom Editor.
-  if (/^https?\:\/*(?:[~#\\\?;\:]|$)/.test(url)) {
-    return Promise.reject(request.error(`Refused to connect to invalid URL "${url}"`, 'EINVALID'))
-  }
-
-  return chain(req._before, request)
-    .then(function () {
-      if (request.errored) {
-        return
-      }
-
-      if (timeout) {
-        timer = setTimeout(function () {
-          const error = request.error(`Timeout of ${request.timeout}ms exceeded`, 'ETIMEOUT')
-
-          request.errored = error
-          request.timedout = true
-          request.abort()
-        }, timeout)
-      }
-
-      req.opened = true
-
-      return req.transport.open(request)
-        .then(function (options: ResponseOptions) {
-          const response = new Response(options)
-
-          response.request = request
-          request.response = response
-
-          return chain(req._after, response)
-        })
-    })
-    .then(
-      () => chain(req._always, request),
-      (error) => chain(req._always, request).then(() => Promise.reject(error))
-    )
-    .then(
-      function () {
-        if (request.errored) {
-          return Promise.reject(request.errored)
-        }
-
-        return request.response
-      },
-      function (error) {
-        request.errored = request.errored || error
-
-        return Promise.reject(request.errored)
-      }
-    )
-}
-
-/**
- * Chain an array of promises sequentially.
- */
-function chain <T> (fns: Function[], arg: T) {
-  return fns.reduce(function (p, fn) {
-    return p.then(() => fn(arg))
-  }, Promise.resolve())
-}
-
-/**
- * Emit a request progress event (upload or download).
- */
-function emitProgress (request: Request) {
-  const fns = (<any> request)._progress
-
-  if (!fns || request.errored) {
-    return
-  }
-
-  try {
-    for (let fn of fns) {
-      fn(request)
-    }
-  } catch (err) {
-    request.errored = err
-    request.abort()
-  }
 }

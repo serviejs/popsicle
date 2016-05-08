@@ -14,7 +14,8 @@
     "form-data": "./dist/browser/form-data.js",
     "tough-cookie": "./dist/browser/tough-cookie.js",
     "./dist/index.js": "./dist/browser.js",
-    "./dist/plugins/index.js": "./dist/plugins/browser.js"
+    "./dist/plugins/index.js": "./dist/plugins/browser.js",
+    "./dist/plugins/is-host/index.js": "./dist/plugins/is-host/browser.js"
   },
   "scripts": {
     "lint": "# TODO",
@@ -59,19 +60,20 @@
     "envify": "^3.4.0",
     "express": "^4.10.2",
     "istanbul": "^0.4.0",
-    "pre-commit": "^1.0.10",
     "tap-spec": "^4.1.1",
     "tape-run": "2.1.0",
-    "typescript": "^1.7.3",
-    "typings": "^0.6.7"
+    "typescript": "^1.8.9",
+    "typings": "^0.7.12"
   },
   "dependencies": {
     "any-promise": "^1.0.0",
     "arrify": "^1.0.0",
     "concat-stream": "^1.4.7",
     "form-data": "^0.2.0",
+    "koa-compose": "^3.1.0",
     "make-error-cause": "^1.0.1",
     "methods": "^1.1.1",
+    "throwback": "^1.0.2",
     "tough-cookie": "^2.0.0",
     "xtend": "^4.0.0"
   }
