@@ -60,20 +60,19 @@
     "envify": "^3.4.0",
     "express": "^4.10.2",
     "istanbul": "^0.4.0",
+    "methods": "^1.1.2",
     "tap-spec": "^4.1.1",
     "tape-run": "2.1.0",
     "typescript": "^1.8.9",
-    "typings": "^0.7.12"
+    "typings": "^0.8.1"
   },
   "dependencies": {
-    "any-promise": "^1.0.0",
+    "any-promise": "^1.3.0",
     "arrify": "^1.0.0",
     "concat-stream": "^1.4.7",
     "form-data": "^0.2.0",
-    "koa-compose": "^3.1.0",
     "make-error-cause": "^1.0.1",
-    "methods": "^1.1.1",
-    "throwback": "^1.0.2",
+    "throwback": "^1.1.0",
     "tough-cookie": "^2.0.0",
     "xtend": "^4.0.0"
   }
