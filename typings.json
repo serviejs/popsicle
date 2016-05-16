@@ -3,7 +3,7 @@
     "blue-tape": "registry:npm/blue-tape#0.1.0+20160322235613",
     "methods": "registry:npm/methods#1.0.0+20160211003958"
   },
-  "ambientDependencies": {
+  "globalDependencies": {
     "node": "registry:dt/node#4.0.0+20160330064709"
   },
   "dependencies": {

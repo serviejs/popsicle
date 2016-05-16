@@ -18,6 +18,6 @@
     "lib/plugins/is-host/browser.ts",
     "lib/test/index.ts",
     "custom_typings/env.d.ts",
-    "typings/main.d.ts"
+    "typings/index.d.ts"
   ]
 }
