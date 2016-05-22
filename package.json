@@ -62,7 +62,7 @@
     "istanbul": "^0.4.0",
     "methods": "^1.1.2",
     "tap-spec": "^4.1.1",
-    "tape-run": "2.1.0",
+    "tape-run": "2.1.4",
     "typescript": "^1.8.9",
     "typings": "^1.0.2"
   },
