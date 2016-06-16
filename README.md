@@ -347,6 +347,8 @@ popsicle.request('/user')
 
 Middleware functions accept two arguments - the current request and a function to proceed to the next middleware function (a la Koa `2.x`).
 
+**P.S.** The middleware array is exposed on `request.middleware`, which allows you to clone requests and omit middleware - for example, using `request.middleware.slice(request.middleware.indexOf(currentFn))`. This is useful, as the pre and post steps of previous middleware attach before `currentFn` is executed.
+
 #### Checking The Environment
 
 ```js
