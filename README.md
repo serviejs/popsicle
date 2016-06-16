@@ -326,6 +326,10 @@ Plugins can be passed in as an array with the initial options (which overrides d
 * [Proxy Agent](https://github.com/blakeembrey/popsicle-proxy-agent) - Enable HTTP(s) proxying under node (with environment variable support)
 * [Retry](https://github.com/blakeembrey/popsicle-retry) - Retry a HTTP request on network error or server error
 
+#### Helpful Utilities
+
+* [throat](https://github.com/ForbesLindesay/throat) - Throttle promise-based functions with concurrency support
+
 #### Creating Plugins
 
 Plugins must be a function that accept config and return a middleware function. For example, here's a basic URL prefix plugin.
