@@ -163,7 +163,7 @@ function open (request: Request) {
           }
 
           rawRequest.once('response', function (message: IncomingMessage) {
-            resolve(setCookies(request, message).then(() => response(message)))
+            resolve(setCookies(request, url, message).then(() => response(message)))
           })
 
           rawRequest.once('error', function (error: Error) {
@@ -250,7 +250,7 @@ function appendCookies (request: Request) {
 /**
  * Put cookies in the cookie jar.
  */
-function setCookies (request: Request, message: IncomingMessage) {
+function setCookies (request: Request, url: string, message: IncomingMessage) {
   return new Promise(function (resolve, reject) {
     if (!request.options.jar) {
       return resolve()
@@ -264,7 +264,7 @@ function setCookies (request: Request, message: IncomingMessage) {
 
     const setCookies = cookies.map(function (cookie) {
       return new Promise(function (resolve, reject) {
-        request.options.jar.setCookie(cookie, request.url, function (err: Error) {
+        request.options.jar.setCookie(cookie, url, { ignoreError: true }, function (err: Error) {
           return err ? reject(err) : resolve()
         })
       })
