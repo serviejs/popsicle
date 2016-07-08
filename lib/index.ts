@@ -170,10 +170,6 @@ function open (request: Request) {
             emitError(request.error(`Unable to connect to "${url}"`, 'EUNAVAILABLE', error))
           })
 
-          rawRequest.once('clientAborted', function () {
-            emitError(request.error('Request aborted', 'EABORT'))
-          })
-
           request._raw = rawRequest
           request.uploadLength = num(rawRequest.getHeader('content-length'), 0)
           requestStream.pipe(rawRequest)
@@ -201,7 +197,6 @@ function open (request: Request) {
  * Close the current HTTP request.
  */
 function abort (request: Request) {
-  request._raw.emit('clientAborted')
   request._raw.abort()
 }
 
