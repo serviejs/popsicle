@@ -6,7 +6,7 @@ import Base, { BaseOptions, Headers } from './base'
 import Response, { ResponseOptions } from './response'
 import PopsicleError from './error'
 
-export interface DefaultsOptions extends BaseOptions {
+export interface DefaultsOptions <T extends Response> extends BaseOptions {
   url?: string
   method?: string
   timeout?: number
@@ -14,10 +14,10 @@ export interface DefaultsOptions extends BaseOptions {
   options?: any
   use?: Middleware[]
   progress?: ProgressFunction[]
-  transport?: TransportOptions
+  transport?: TransportOptions<T>
 }
 
-export interface RequestOptions extends DefaultsOptions {
+export interface RequestOptions <T extends Response> extends DefaultsOptions<T> {
   url: string
 }
 
@@ -30,24 +30,21 @@ export interface RequestJSON {
   method: string
 }
 
-export interface TransportOptions {
-  open: OpenHandler
-  abort?: AbortHandler
+export interface TransportOptions <T extends Response> {
+  open: (request: Request<T>) => Promise<T>
+  abort?: (request: Request<T>) => any
   use?: Middleware[]
 }
 
-export type Middleware = (request: Request, next: () => Promise<Response>) => Response | Promise<Response>
-export type ProgressFunction = (request: Request) => any
+export type Middleware = (request: Request<any>, next: () => Promise<Response>) => Response | Promise<Response>
+export type ProgressFunction = (request: Request<any>) => any
 
-export type OpenHandler = (request: Request) => Promise<ResponseOptions>
-export type AbortHandler = (request: Request) => any
-
-export default class Request extends Base implements Promise<Response> {
+export default class Request <T extends Response> extends Base implements Promise<T> {
   method: string
   timeout: number
   body: any
   options: any
-  transport: TransportOptions
+  transport: TransportOptions<T>
   middleware: Middleware[] = []
 
   opened = false
@@ -64,7 +61,7 @@ export default class Request extends Base implements Promise<Response> {
   private _resolve: (response: Response) => void
   private _reject: (error: Error) => void
 
-  constructor (options: RequestOptions) {
+  constructor (options: RequestOptions<T>) {
     super(options)
 
     this.timeout = (options.timeout | 0)
@@ -104,7 +101,7 @@ export default class Request extends Base implements Promise<Response> {
     return new PopsicleError(message, code, original, this)
   }
 
-  then (onFulfilled: (response?: Response) => any, onRejected?: (error?: PopsicleError) => any) {
+  then (onFulfilled: (response?: T) => any, onRejected?: (error?: PopsicleError) => any) {
     return this._promise.then(onFulfilled, onRejected)
   }
 
@@ -112,13 +109,13 @@ export default class Request extends Base implements Promise<Response> {
     return this._promise.then(null, onRejected)
   }
 
-  exec (cb: (err: PopsicleError, response?: Response) => any) {
+  exec (cb: (err: PopsicleError, response?: T) => any) {
     this.then(function (response) {
       cb(null, response)
     }, cb)
   }
 
-  toOptions (): RequestOptions {
+  toOptions (): RequestOptions<T> {
     return {
       url: this.url,
       method: this.method,
@@ -229,7 +226,7 @@ export default class Request extends Base implements Promise<Response> {
     // Proxy the transport promise into the current request.
     return this.transport.open(this)
       .then(
-        res => this._resolve(new Response(res)),
+        res => this._resolve(res),
         err => this._reject(err)
       )
   }

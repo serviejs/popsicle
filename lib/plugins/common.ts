@@ -20,7 +20,7 @@ export function wrap <T> (value: T): () => T {
 /**
  * Remove default headers.
  */
-export const headers = wrap(function (request: Request, next: () => Promise<Response>) {
+export const headers = wrap(function (request: Request<any>, next: () => Promise<Response>) {
   // If we have no accept header set already, default to accepting
   // everything. This is needed because otherwise Firefox defaults to
   // an accept header of `html/xml`.
@@ -37,7 +37,7 @@ export const headers = wrap(function (request: Request, next: () => Promise<Resp
 /**
  * Stringify the request body.
  */
-export const stringify = wrap(function (request: Request, next: () => Promise<Response>) {
+export const stringify = wrap(function (request: Request<any>, next: () => Promise<Response>) {
   const { body } = request
 
   // Convert primitives types into strings.
@@ -85,7 +85,7 @@ export const stringify = wrap(function (request: Request, next: () => Promise<Re
 /**
  * Automatic stringification and parsing middleware.
  */
-export const parse = wrap(function (request: Request, next: () => Promise<Response>) {
+export const parse = wrap(function (request: Request<any>, next: () => Promise<Response>) {
   return next()
     .then(function (response) {
       const { body } = response

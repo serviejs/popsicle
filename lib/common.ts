@@ -10,11 +10,11 @@ import * as transport from './index'
 /**
  * Generate a default popsicle instance.
  */
-export function defaults (defaultsOptions: DefaultsOptions) {
+export function defaults <T extends Response> (defaultsOptions: DefaultsOptions<T>) {
   const defaults = extend({ transport }, defaultsOptions)
 
-  return function popsicle (options: RequestOptions | string): Request {
-    let opts: RequestOptions
+  return function popsicle (options: RequestOptions<T> | string): Request<T> {
+    let opts: RequestOptions<T>
 
     if (typeof options === 'string') {
       opts = extend(defaults, { url: options })

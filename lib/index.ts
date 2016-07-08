@@ -1,5 +1,5 @@
 import { request as httpRequest, IncomingMessage } from 'http'
-import { request as httpsRequest } from 'https'
+import { request as httpsRequest, RequestOptions } from 'https'
 import { PassThrough } from 'stream'
 import urlLib = require('url')
 import extend = require('xtend')
@@ -40,7 +40,7 @@ const REDIRECT_STATUS: { [status: number]: number } = {
 /**
  * Open a HTTP request with node.
  */
-function open (request: Request) {
+function open (request: Request<Response>) {
   const { url, method, body, options } = request
   const maxRedirects = num(options.maxRedirects, 5)
   const followRedirects = options.followRedirects !== false
@@ -136,14 +136,14 @@ function open (request: Request) {
 
             rawResponse.pipe(responseStream)
 
-            return Promise.resolve({
+            return Promise.resolve(new Response({
               body: responseStream,
               status: status,
               statusText: rawResponse.statusMessage,
               headers: rawResponse.headers,
               rawHeaders: rawResponse.rawHeaders,
               url: url
-            })
+            }))
           }
 
           // Emit a request error.
@@ -187,7 +187,7 @@ function open (request: Request) {
 /**
  * Close the current HTTP request.
  */
-function abort (request: Request) {
+function abort (request: Request<Response>) {
   request._raw.abort()
 }
 
@@ -212,7 +212,7 @@ function falsey () {
 /**
  * Read cookies from the cookie jar.
  */
-function getAttachCookies (request: Request): (url: string) => Promise<any> {
+function getAttachCookies (request: Request<Response>): (url: string) => Promise<any> {
   const { jar } = request.options
   const cookie = request.get('Cookie')
 
@@ -242,7 +242,7 @@ function getAttachCookies (request: Request): (url: string) => Promise<any> {
 /**
  * Put cookies in the cookie jar.
  */
-function getStoreCookies (request: Request): (url: string, message: IncomingMessage) => Promise<any> {
+function getStoreCookies (request: Request<Response>): (url: string, message: IncomingMessage) => Promise<any> {
   const { jar } = request.options
 
   if (!jar) {

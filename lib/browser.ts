@@ -9,7 +9,7 @@ import { defaults as use } from './plugins/index'
  */
 export { open, abort, use }
 
-function open (request: Request) {
+function open (request: Request<Response>) {
   return new Promise(function (resolve, reject) {
     const { url, method } = request
     const responseType = request.options.responseType
@@ -22,13 +22,13 @@ function open (request: Request) {
     const xhr = request._raw = new XMLHttpRequest()
 
     function done () {
-      return resolve({
+      return resolve(new Response({
         status: xhr.status === 1223 ? 204 : xhr.status,
         statusText: xhr.statusText,
         rawHeaders: parseToRawHeaders(xhr.getAllResponseHeaders()),
         body: responseType ? xhr.response : xhr.responseText,
         url: xhr.responseURL
-      })
+      }))
     }
 
     xhr.onload = done
@@ -94,7 +94,7 @@ function open (request: Request) {
 /**
  * Close the current HTTP request.
  */
-function abort (request: Request) {
+function abort (request: Request<Response>) {
   request._raw.abort()
 }
 

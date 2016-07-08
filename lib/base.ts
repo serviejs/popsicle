@@ -130,7 +130,7 @@ export default class Base {
     return headers
   }
 
-  set (name: string, value?: string | string[]): Base {
+  set (name: string, value?: string | string[]): this {
     this.remove(name)
     this.append(name, value)
 
@@ -168,15 +168,25 @@ export default class Base {
 
   get (name: string): string {
     const lowered = lowerHeader(name)
-    let value: string
 
     for (let i = 0; i < this.rawHeaders.length; i += 2) {
       if (lowerHeader(this.rawHeaders[i]) === lowered) {
-        value = value == null ? this.rawHeaders[i + 1] : `${value}, ${this.rawHeaders[i + 1]}`
+        return this.rawHeaders[i + 1]
+      }
+    }
+  }
+
+  getAll (name: string): string[] {
+    const lowered = lowerHeader(name)
+    const result: string[] = []
+
+    for (let i = 0; i < this.rawHeaders.length; i += 2) {
+      if (lowerHeader(this.rawHeaders[i]) === lowered) {
+        result.push(this.rawHeaders[i + 1])
       }
     }
 
-    return value
+    return result
   }
 
   remove (name: string) {
@@ -193,8 +203,8 @@ export default class Base {
   }
 
   type (): string
-  type (value: string): Base
-  type (value?: string): any {
+  type (value: string): this
+  type (value?: string): string | this {
     if (arguments.length === 0) {
       return type(this.get('Content-Type'))
     }

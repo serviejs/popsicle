@@ -10,7 +10,7 @@ import Response from '../response'
 /**
  * Support gzipped responses.
  */
-export const unzip = wrap(function (request: Request, next: () => Promise<Response>) {
+export const unzip = wrap(function (request: Request<any>, next: () => Promise<Response>) {
   if (!request.get('Accept-Encoding')) {
     request.set('Accept-Encoding', 'gzip,deflate')
   }
@@ -34,7 +34,7 @@ export const unzip = wrap(function (request: Request, next: () => Promise<Respon
  * compatibility (and honestly just making it easier to use).
  */
 export function concatStream (encoding: string) {
-  return function (request: Request, next: () => Promise<Response>) {
+  return function (request: Request<any>, next: () => Promise<Response>) {
     return next()
       .then(function (response) {
         return new Promise(function (resolve, reject) {
@@ -57,7 +57,7 @@ export function concatStream (encoding: string) {
 export function headers () {
   const common = commonHeaders()
 
-  return function (request: Request, next: () => Promise<Response>) {
+  return function (request: Request<any>, next: () => Promise<Response>) {
     // Set up common headers.
     return common(request, function () {
       // Specify a default user agent in node.
