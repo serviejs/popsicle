@@ -1,8 +1,8 @@
 .DS_Store
 .vscode
-/coverage/
-/node_modules/
+coverage/
+node_modules/
 npm-debug.log
-/dist/
-/typings/
-/popsicle.js
+dist/
+typings/
+popsicle.js
