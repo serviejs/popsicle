@@ -170,7 +170,6 @@ export default class Request extends Base implements Promise<Response> {
 
     // Abort the current handler.
     this.aborted = true
-    this._reject(this.error('Request aborted', 'EABORT'))
 
     // Sometimes it's just not possible to abort.
     if (this.opened) {
@@ -181,6 +180,9 @@ export default class Request extends Base implements Promise<Response> {
         this.transport.abort(this)
       }
     }
+
+    // Reject _after_ the transport handles abort resolution.
+    this._reject(this.error('Request aborted', 'EABORT'))
 
     return this
   }

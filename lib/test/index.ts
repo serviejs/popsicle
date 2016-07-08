@@ -425,17 +425,23 @@ test('abort', function (t) {
   t.test('abort mid-request', function (t) {
     const req = popsicle.request(REMOTE_URL + '/download')
 
-    t.plan(3)
+    t.plan(1)
 
     setTimeout(function () {
       req.abort()
     }, 100)
 
+    // Browser requests can not be aborted mid-request.
+    if (popsicle.browser) {
+      return req
+        .catch(function (err) {
+          t.equal(err.code, 'EABORT')
+        })
+    }
+
     return req
-      .catch(function (err) {
-        t.equal(err.message, 'Request aborted')
-        t.equal(err.code, 'EABORT')
-        t.ok(err.popsicle instanceof popsicle.Request)
+      .then(function (res) {
+        t.equal(res.get('Content-Length'), '12')
       })
   })
 

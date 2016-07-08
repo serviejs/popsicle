@@ -21,7 +21,7 @@ function open (request: Request) {
 
     const xhr = request._raw = new XMLHttpRequest()
 
-    xhr.onload = function () {
+    function done () {
       return resolve({
         status: xhr.status === 1223 ? 204 : xhr.status,
         statusText: xhr.statusText,
@@ -31,9 +31,8 @@ function open (request: Request) {
       })
     }
 
-    xhr.onabort = function () {
-      return reject(request.error('Request aborted', 'EABORT'))
-    }
+    xhr.onload = done
+    xhr.onabort = done
 
     xhr.onerror = function () {
       return reject(request.error(`Unable to connect to "${request.url}"`, 'EUNAVAILABLE'))
@@ -104,14 +103,16 @@ function abort (request: Request) {
  */
 function parseToRawHeaders (headers: string): RawHeaders {
   const rawHeaders: RawHeaders = []
-  const lines = headers.replace(/\r?\n$/, '').split(/\r?\n/)
+  const lines = headers.split(/\r?\n/)
 
-  for (const header of lines) {
-    const indexOf = header.indexOf(':')
-    const name = header.substr(0, indexOf).trim()
-    const value = header.substr(indexOf + 1).trim()
+  for (const line of lines) {
+    if (line) {
+      const indexOf = line.indexOf(':')
+      const name = line.substr(0, indexOf).trim()
+      const value = line.substr(indexOf + 1).trim()
 
-    rawHeaders.push(name, value)
+      rawHeaders.push(name, value)
+    }
   }
 
   return rawHeaders
