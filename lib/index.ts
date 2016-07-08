@@ -44,8 +44,9 @@ function open (request: Request) {
   const { url, method, body, options } = request
   const maxRedirects = num(options.maxRedirects, 5)
   const followRedirects = options.followRedirects !== false
+  const storeCookies = getStoreCookies(request)
+  const attachCookies = getAttachCookies(request)
   let requestCount = 0
-  let isStreaming = false
 
   const confirmRedirect = typeof options.followRedirects === 'function' ?
     options.followRedirects : falsey
@@ -61,7 +62,7 @@ function open (request: Request) {
       )
     }
 
-    return appendCookies(request)
+    return attachCookies(url)
       .then(function () {
         return new Promise((resolve, reject) => {
           const arg: any = urlLib.parse(url)
@@ -111,9 +112,6 @@ function open (request: Request) {
               // Ignore the result of the response on redirect.
               rawResponse.resume()
 
-              // Kill the old cookies on redirect.
-              request.remove('Cookie')
-
               if (redirect === REDIRECT_TYPE.FOLLOW_WITH_GET) {
                 // Update the "Content-Length" for updated redirection body.
                 request.set('Content-Length', '0')
@@ -136,7 +134,6 @@ function open (request: Request) {
 
             request.downloadLength = num(rawResponse.headers['content-length'], 0)
 
-            isStreaming = true
             rawResponse.pipe(responseStream)
 
             return Promise.resolve({
@@ -153,17 +150,11 @@ function open (request: Request) {
           function emitError (error: Error) {
             // Abort request on error.
             rawRequest.abort()
-
-            // Forward errors.
-            if (isStreaming) {
-              responseStream.emit('error', error)
-            } else {
-              reject(error)
-            }
+            reject(error)
           }
 
           rawRequest.once('response', function (message: IncomingMessage) {
-            resolve(setCookies(request, url, message).then(() => response(message)))
+            resolve(storeCookies(url, message).then(() => response(message)))
           })
 
           rawRequest.once('error', function (error: Error) {
@@ -218,53 +209,61 @@ function falsey () {
   return false
 }
 
-
 /**
  * Read cookies from the cookie jar.
  */
-function appendCookies (request: Request) {
-  return new Promise(function (resolve, reject) {
-    if (!request.options.jar) {
-      return resolve()
-    }
+function getAttachCookies (request: Request): (url: string) => Promise<any> {
+  const { jar } = request.options
+  const cookie = request.get('Cookie')
 
-    request.options.jar.getCookies(request.url, function (err: Error, cookies: Cookie[]) {
-      if (err) {
-        return reject(err)
-      }
+  if (!jar) {
+    return () => Promise.resolve()
+  }
 
-      if (cookies.length) {
-        request.append('Cookie', cookies.join('; '))
-      }
+  return function (url: string) {
+    return new Promise(function (resolve, reject) {
+      request.set('Cookie', cookie)
 
-      return resolve()
+      request.options.jar.getCookies(url, function (err: Error, cookies: Cookie[]) {
+        if (err) {
+          return reject(err)
+        }
+
+        if (cookies.length) {
+          request.append('Cookie', cookies.join('; '))
+        }
+
+        return resolve()
+      })
     })
-  })
+  }
 }
 
 /**
  * Put cookies in the cookie jar.
  */
-function setCookies (request: Request, url: string, message: IncomingMessage) {
-  return new Promise(function (resolve, reject) {
-    if (!request.options.jar) {
-      return resolve()
-    }
+function getStoreCookies (request: Request): (url: string, message: IncomingMessage) => Promise<any> {
+  const { jar } = request.options
 
+  if (!jar) {
+    return () => Promise.resolve()
+  }
+
+  return function (url, message) {
     const cookies = arrify(message.headers['set-cookie'])
 
     if (!cookies.length) {
-      return resolve()
+      return Promise.resolve()
     }
 
     const setCookies = cookies.map(function (cookie) {
       return new Promise(function (resolve, reject) {
-        request.options.jar.setCookie(cookie, url, { ignoreError: true }, function (err: Error) {
+        jar.setCookie(cookie, url, { ignoreError: true }, function (err: Error) {
           return err ? reject(err) : resolve()
         })
       })
     })
 
-    return resolve(Promise.all(setCookies))
-  })
+    return Promise.all(setCookies)
+  }
 }

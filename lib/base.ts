@@ -37,7 +37,7 @@ function lowerHeader (key: string) {
  * Extract the content type from a header string.
  */
 function type (str?: string) {
-  return str == null ? null : str.split(/ *; */)[0]
+  return str == null ? null : str.split(/ *; */, 1)[0]
 }
 
 /**
@@ -130,20 +130,24 @@ export default class Base {
     return headers
   }
 
-  set (name: string, value: string | string[]): Base {
+  set (name: string, value?: string | string[]): Base {
     this.remove(name)
     this.append(name, value)
 
     return this
   }
 
-  append (name: string, value: string | string[]) {
+  append (name: string, value?: string | string[]) {
     if (Array.isArray(value)) {
-      for (const v of value) {
-        this.rawHeaders.push(name, v)
+      for (const val of value) {
+        if (val != null) {
+          this.rawHeaders.push(name, val)
+        }
       }
     } else {
-      this.rawHeaders.push(name, value)
+      if (value != null) {
+        this.rawHeaders.push(name, value)
+      }
     }
 
     return this
