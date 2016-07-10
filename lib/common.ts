@@ -5,16 +5,17 @@ import * as plugins from './plugins/index'
 import form from './form'
 import jar from './jar'
 import PopsicleError from './error'
-import * as transport from './index'
+import { createTransport } from './index'
 
 /**
  * Generate a default popsicle instance.
  */
-export function defaults <T extends Response> (defaultsOptions: DefaultsOptions<T>) {
+export function defaults (defaultsOptions: DefaultsOptions) {
+  const transport = createTransport({ type: 'text' })
   const defaults = extend({ transport }, defaultsOptions)
 
-  return function popsicle (options: RequestOptions<T> | string): Request<T> {
-    let opts: RequestOptions<T>
+  return function popsicle (options: RequestOptions | string): Request {
+    let opts: RequestOptions
 
     if (typeof options === 'string') {
       opts = extend(defaults, { url: options })
@@ -40,6 +41,6 @@ export const patch = defaults({ method: 'patch' })
 export const del = defaults({ method: 'delete' })
 export const head = defaults({ method: 'head' })
 
-export { Request, Response, PopsicleError, plugins, form, jar, transport }
+export { Request, Response, PopsicleError, plugins, form, jar, createTransport }
 
 export default request

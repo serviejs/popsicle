@@ -3,16 +3,28 @@ import { parse, format, Url } from 'url'
 import { parse as parseQuery } from 'querystring'
 import extend = require('xtend')
 
+/**
+ * Query parameters in object notation.
+ */
 export interface Query {
   [key: string]: string | string[]
 }
 
+/**
+ * Headers in object notation.
+ */
 export interface Headers {
   [name: string]: string | string[]
 }
 
+/**
+ * Headers stored in a continuous array.
+ */
 export type RawHeaders = string[]
 
+/**
+ * Base request/response options.
+ */
 export interface BaseOptions {
   url?: string
   query?: string | Query

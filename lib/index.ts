@@ -1,20 +1,60 @@
-import { request as httpRequest, IncomingMessage } from 'http'
+import { request as httpRequest, IncomingMessage, ClientRequest } from 'http'
 import { request as httpsRequest, RequestOptions } from 'https'
 import { PassThrough } from 'stream'
 import urlLib = require('url')
 import extend = require('xtend')
 import arrify = require('arrify')
+import concat = require('concat-stream')
 import { Cookie } from 'tough-cookie'
 import Promise = require('any-promise')
+import { createUnzip } from 'zlib'
 import { Headers } from './base'
 import Request from './request'
 import Response from './response'
-import { defaults as use } from './plugins/index'
+import { stringify, headers } from './plugins/index'
+import { parse, textTypes, TextTypes } from './utils'
+
+export type Types = 'buffer' | 'array' | 'uint8array' | 'stream' | TextTypes | string
 
 /**
- * Export default instance with node transportation layer.
+ * List of valid node response types.
  */
-export { open, abort, use }
+const validTypes = ['buffer', 'array', 'uint8array', 'stream', ...textTypes]
+
+/**
+ * Node transport options.
+ */
+export interface Options {
+  type?: Types
+  unzip?: boolean
+  jar?: any
+  agent?: any
+  maxRedirects?: number
+  rejectUnauthorized?: boolean
+  followRedirects?: boolean
+  confirmRedirect?: (request: ClientRequest, response: IncomingMessage) => boolean
+  ca?: string | Buffer | Array<string | Buffer>
+  cert?: string | Buffer
+  key?: string | Buffer
+}
+
+/**
+ * Create a transport object.
+ */
+export function createTransport (options: Options) {
+  return {
+    use,
+    abort,
+    open (request: Request) {
+      return handle(request, options)
+    }
+  }
+}
+
+/**
+ * Default uses.
+ */
+const use = [stringify(), headers()]
 
 /**
  * Redirection types to handle.
@@ -40,16 +80,25 @@ const REDIRECT_STATUS: { [status: number]: number } = {
 /**
  * Open a HTTP request with node.
  */
-function open (request: Request<Response>) {
-  const { url, method, body, options } = request
+function handle (request: Request, options: Options) {
+  const { followRedirects, type, unzip, rejectUnauthorized, ca, key, cert, agent } = options
+  const { url, method, body } = request
   const maxRedirects = num(options.maxRedirects, 5)
-  const followRedirects = options.followRedirects !== false
-  const storeCookies = getStoreCookies(request)
-  const attachCookies = getAttachCookies(request)
+  const storeCookies = getStoreCookies(request, options)
+  const attachCookies = getAttachCookies(request, options)
+  const confirmRedirect = options.confirmRedirect || falsey
   let requestCount = 0
 
-  const confirmRedirect = typeof options.followRedirects === 'function' ?
-    options.followRedirects : falsey
+  if (type && validTypes.indexOf(type) === -1) {
+    return Promise.reject(
+      request.error(`Unsupported type: ${type}`, 'ETYPE')
+    )
+  }
+
+  // Automatically enable unzipping.
+  if (unzip !== false && request.get('Accept-Encoding') == null) {
+    request.set('Accept-Encoding', 'gzip,deflate')
+  }
 
   /**
    * Create the HTTP request, in a way we can re-use this.
@@ -72,11 +121,11 @@ function open (request: Request<Response>) {
           // Attach request options.
           arg.method = method
           arg.headers = request.toHeaders()
-          arg.agent = options.agent
-          arg.rejectUnauthorized = options.rejectUnauthorized !== false
-          arg.ca = options.ca
-          arg.cert = options.cert
-          arg.key = options.key
+          arg.agent = agent
+          arg.rejectUnauthorized = rejectUnauthorized !== false
+          arg.ca = ca
+          arg.cert = cert
+          arg.key = key
 
           const rawRequest = engine(arg)
 
@@ -101,16 +150,16 @@ function open (request: Request<Response>) {
           })
 
           // Handle the HTTP response.
-          function response (rawResponse: IncomingMessage) {
-            const status = rawResponse.statusCode
+          function response (incomingMessage: IncomingMessage) {
+            const { headers, rawHeaders, statusCode: status, statusMessage: statusText } = incomingMessage
             const redirect = REDIRECT_STATUS[status]
 
             // Handle HTTP redirects.
-            if (followRedirects && redirect != null && rawResponse.headers.location) {
-              const newUrl = urlLib.resolve(url, rawResponse.headers.location)
+            if (followRedirects !== false && redirect != null && headers.location) {
+              const newUrl = urlLib.resolve(url, headers.location)
 
               // Ignore the result of the response on redirect.
-              rawResponse.resume()
+              incomingMessage.resume()
 
               if (redirect === REDIRECT_TYPE.FOLLOW_WITH_GET) {
                 // Update the "Content-Length" for updated redirection body.
@@ -126,24 +175,26 @@ function open (request: Request<Response>) {
                 }
 
                 // Allow the user to confirm redirect according to HTTP spec.
-                if (confirmRedirect(rawRequest, rawResponse)) {
+                if (confirmRedirect(rawRequest, incomingMessage)) {
                   return get(newUrl, method, body)
                 }
               }
             }
 
-            request.downloadLength = num(rawResponse.headers['content-length'], 0)
+            request.downloadLength = num(headers['content-length'], 0)
+            incomingMessage.pipe(responseStream)
 
-            rawResponse.pipe(responseStream)
-
-            return Promise.resolve(new Response({
-              body: responseStream,
-              status: status,
-              statusText: rawResponse.statusMessage,
-              headers: rawResponse.headers,
-              rawHeaders: rawResponse.rawHeaders,
-              url: url
-            }))
+            return handleResponse(request, responseStream, headers, options)
+              .then(function (body) {
+                return new Response({
+                  status,
+                  headers,
+                  statusText,
+                  rawHeaders,
+                  body,
+                  url
+                })
+              })
           }
 
           // Emit a request error.
@@ -154,7 +205,7 @@ function open (request: Request<Response>) {
           }
 
           rawRequest.once('response', function (message: IncomingMessage) {
-            resolve(storeCookies(url, message).then(() => response(message)))
+            resolve(storeCookies(url, message.headers).then(() => response(message)))
           })
 
           rawRequest.once('error', function (error: Error) {
@@ -187,7 +238,7 @@ function open (request: Request<Response>) {
 /**
  * Close the current HTTP request.
  */
-function abort (request: Request<Response>) {
+function abort (request: Request) {
   request._raw.abort()
 }
 
@@ -212,8 +263,8 @@ function falsey () {
 /**
  * Read cookies from the cookie jar.
  */
-function getAttachCookies (request: Request<Response>): (url: string) => Promise<any> {
-  const { jar } = request.options
+function getAttachCookies (request: Request, options: Options): (url: string) => Promise<any> {
+  const { jar } = options
   const cookie = request.get('Cookie')
 
   if (!jar) {
@@ -224,7 +275,7 @@ function getAttachCookies (request: Request<Response>): (url: string) => Promise
     return new Promise(function (resolve, reject) {
       request.set('Cookie', cookie)
 
-      request.options.jar.getCookies(url, function (err: Error, cookies: Cookie[]) {
+      options.jar.getCookies(url, function (err: Error, cookies: Cookie[]) {
         if (err) {
           return reject(err)
         }
@@ -242,21 +293,21 @@ function getAttachCookies (request: Request<Response>): (url: string) => Promise
 /**
  * Put cookies in the cookie jar.
  */
-function getStoreCookies (request: Request<Response>): (url: string, message: IncomingMessage) => Promise<any> {
-  const { jar } = request.options
+function getStoreCookies (request: Request, options: Options): (url: string, headers: { [key: string]: any }) => Promise<any> {
+  const { jar } = options
 
   if (!jar) {
     return () => Promise.resolve()
   }
 
-  return function (url, message) {
-    const cookies = arrify(message.headers['set-cookie'])
+  return function (url, headers) {
+    const cookies = arrify(headers['set-cookie'])
 
     if (!cookies.length) {
       return Promise.resolve()
     }
 
-    const setCookies = cookies.map(function (cookie) {
+    const storeCookies = cookies.map(function (cookie) {
       return new Promise(function (resolve, reject) {
         jar.setCookie(cookie, url, { ignoreError: true }, function (err: Error) {
           return err ? reject(err) : resolve()
@@ -264,6 +315,51 @@ function getStoreCookies (request: Request<Response>): (url: string, message: In
       })
     })
 
-    return Promise.all(setCookies)
+    return Promise.all(storeCookies)
   }
+}
+
+/**
+ * Handle the HTTP response body encoding.
+ */
+function handleResponse (
+  request: Request,
+  stream: PassThrough,
+  headers: { [key: string]: any },
+  options: Options
+) {
+  const type = options.type || 'text'
+  const { unzip } = options
+  const isText = textTypes.indexOf(type) > -1
+
+  const result = new Promise<any>((resolve, reject) => {
+    if (unzip !== false) {
+      const enc = headers['content-encoding']
+
+      if (enc === 'deflate' || enc === 'gzip') {
+        const unzip = createUnzip()
+        stream.pipe(unzip)
+        stream.on('error', (err: Error) => unzip.emit('error', err))
+        stream = unzip
+      }
+    }
+
+    // Return the raw stream.
+    if (type === 'stream') {
+      return resolve(stream)
+    }
+
+    const encoding = isText ? 'string' : type
+    const concatStream = concat({ encoding }, resolve)
+
+    stream.on('error', reject)
+    stream.pipe(concatStream)
+  })
+
+  // Manual intervention for JSON parsing.
+  if (isText) {
+    return result.then(str => parse(request, str, type))
+  }
+
+  return result
 }

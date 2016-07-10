@@ -86,7 +86,7 @@ test('use the same response in promise chains', function (t) {
       t.equal(typeof res.statusType, 'function')
       t.equal(typeof res.toJSON, 'function')
 
-      t.deepEqual(Object.keys(req.toJSON()), ['url', 'headers', 'body', 'options', 'timeout', 'method'])
+      t.deepEqual(Object.keys(req.toJSON()), ['url', 'headers', 'body', 'timeout', 'method'])
       t.deepEqual(Object.keys(res.toJSON()), ['url', 'headers', 'rawHeaders', 'body', 'status', 'statusText'])
 
       return req
@@ -96,7 +96,7 @@ test('use the same response in promise chains', function (t) {
     })
 })
 
-test('clone a request instance', t => {
+test('clone a request instance', function (t) {
   const req = popsicle.get(REMOTE_URL + '/echo/header/x-example')
 
   req.use(function (self, next) {
@@ -132,7 +132,7 @@ test('methods', function (t) {
       })
         .then(function (res) {
           t.equal(res.status, 200)
-          t.equal(res.body, METHODS_WITHOUT_BODY.indexOf(method) === -1 ? method.toUpperCase() : null)
+          t.equal(res.body, METHODS_WITHOUT_BODY.indexOf(method) === -1 ? method.toUpperCase() : '')
         })
     }))
   })
@@ -263,7 +263,8 @@ test('request body', function (t) {
     return popsicle.request({
       url: REMOTE_URL + '/echo',
       method: 'POST',
-      body: EXAMPLE_BODY
+      body: EXAMPLE_BODY,
+      transport: popsicle.createTransport({ type: 'json' })
     })
       .then(function (res) {
         t.deepEqual(res.body, EXAMPLE_BODY)
@@ -278,7 +279,8 @@ test('request body', function (t) {
       body: EXAMPLE_BODY,
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded'
-      }
+      },
+      transport: popsicle.createTransport({ type: 'urlencoded' })
     })
       .then(function (res) {
         t.deepEqual(res.body, EXAMPLE_BODY)
@@ -340,7 +342,8 @@ test('query', function (t) {
   t.test('should stringify and send query parameters', function (t) {
     return popsicle.request({
       url: REMOTE_URL + '/echo/query',
-      query: EXAMPLE_BODY
+      query: EXAMPLE_BODY,
+      transport: popsicle.createTransport({ type: 'json' })
     })
       .then(function (res) {
         t.deepEqual(res.body, EXAMPLE_BODY)
@@ -350,7 +353,8 @@ test('query', function (t) {
   t.test('should stringify and append to query object', function (t) {
     const req = popsicle.request({
       url: REMOTE_URL + '/echo/query?query=true',
-      query: EXAMPLE_BODY
+      query: EXAMPLE_BODY,
+      transport: popsicle.createTransport({ type: 'json' })
     })
 
     const query = {
@@ -377,7 +381,8 @@ test('query', function (t) {
   t.test('should accept query as a string', function (t) {
     const req = popsicle.request({
       url: REMOTE_URL + '/echo/query',
-      query: 'query=true'
+      query: 'query=true',
+      transport: popsicle.createTransport({ type: 'json' })
     })
 
     t.equal(req.url, REMOTE_URL + '/echo/query?query=true')
@@ -431,17 +436,9 @@ test('abort', function (t) {
       req.abort()
     }, 100)
 
-    // Browser requests can not be aborted mid-request.
-    if (popsicle.browser) {
-      return req
-        .catch(function (err) {
-          t.equal(err.code, 'EABORT')
-        })
-    }
-
     return req
-      .then(function (res) {
-        t.equal(res.get('Content-Length'), '12')
+      .catch(function (err) {
+        t.equal(err.code, 'EABORT')
       })
   })
 
@@ -491,7 +488,8 @@ test('progress', function (t) {
       const req = popsicle.request({
         url: REMOTE_URL + '/echo',
         body: EXAMPLE_BODY,
-        method: 'POST'
+        method: 'POST',
+        transport: popsicle.createTransport({ type: 'json' })
       })
 
       t.plan(3)
@@ -530,26 +528,31 @@ test('progress', function (t) {
 })
 
 test('response body', function (t) {
-  t.test('automatically parse json responses', function (t) {
-    return popsicle.request(REMOTE_URL + '/json')
+  t.test('parse json responses', function (t) {
+    return popsicle.request({
+      url: REMOTE_URL + '/json',
+      transport: popsicle.createTransport({ type: 'json' })
+    })
       .then(function (res) {
         t.equal(res.type(), 'application/json')
         t.deepEqual(res.body, { username: 'blakeembrey' })
       })
   })
 
-  t.test('automatically parse form encoded responses', function (t) {
-    return popsicle.request(REMOTE_URL + '/foo')
+  t.test('parse form encoded responses', function (t) {
+    return popsicle.request({
+      url: REMOTE_URL + '/foo',
+      transport: popsicle.createTransport({ type: 'urlencoded' })
+    })
       .then(function (res) {
         t.equal(res.type(), 'application/x-www-form-urlencoded')
         t.deepEqual(res.body, { foo: 'bar' })
       })
   })
 
-  t.test('disable automatic parsing', function (t) {
+  t.test('string response by default', function (t) {
     return popsicle.request({
-      url: REMOTE_URL + '/json',
-      use: popsicle.browser ? [] : [popsicle.plugins.concatStream('string')]
+      url: REMOTE_URL + '/json'
     })
       .then(function (res) {
         t.equal(res.type(), 'application/json')
@@ -557,27 +560,41 @@ test('response body', function (t) {
       })
   })
 
-  t.test('set non-parsable responses as null', function (t) {
+  t.test('empty response bodies', function (t) {
     return popsicle.request({
       url: REMOTE_URL + '/echo',
       method: 'post'
     })
       .then(function (res) {
-        t.equal(res.body, null)
+        t.equal(res.body, '')
       })
   })
 
-  t.test('set body to null when json is empty', function (t) {
+  t.test('empty response body with json', function (t) {
     return popsicle.request({
       url: REMOTE_URL + '/echo',
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
-      }
+      },
+      transport: popsicle.createTransport({ type: 'json' })
     })
       .then(function (res) {
         t.equal(res.body, null)
         t.equal(res.type(), 'application/json')
+      })
+  })
+
+  t.test('throw on unsupported type', function (t) {
+    t.plan(2)
+
+    return popsicle.request({
+      url: REMOTE_URL + '/text',
+      transport: popsicle.createTransport({ type: 'foobar' })
+    })
+      .catch(function (err) {
+        t.equal(err.message, 'Unsupported type: foobar')
+        t.equal(err.code, 'ETYPE')
       })
   })
 
@@ -590,7 +607,7 @@ test('response body', function (t) {
     t.test('stream the response body', function (t) {
       return popsicle.request({
         url: REMOTE_URL + '/json',
-        use: []
+        transport: popsicle.createTransport({ type: 'stream' })
       })
         .then(function (res) {
           t.equal(typeof res.body, 'object')
@@ -664,27 +681,10 @@ test('response body', function (t) {
     t.test('browser response type', function (t) {
       return popsicle.request({
         url: REMOTE_URL + '/text',
-        options: {
-          responseType: 'arraybuffer'
-        }
+        transport: popsicle.createTransport({ type: 'arraybuffer' })
       })
         .then(function (res) {
           t.ok(res.body instanceof ArrayBuffer)
-        })
-    })
-
-    t.test('throw on unsupported response type', function (t) {
-      t.plan(2)
-
-      return popsicle.request({
-        url: REMOTE_URL + '/text',
-        options: {
-          responseType: 'foobar'
-        }
-      })
-        .catch(function (err) {
-          t.equal(err.message, 'Unsupported response type: foobar')
-          t.equal(err.code, 'ERESPONSETYPE')
         })
     })
   }
@@ -702,7 +702,7 @@ test('request errors', function (t) {
       })
   })
 
-  t.test('give a parse error on invalid response body', function (t) {
+  t.test('give a parse error on invalid json response', function (t) {
     t.plan(3)
 
     return popsicle.request({
@@ -711,7 +711,10 @@ test('request errors', function (t) {
       body: 'username=blakeembrey&password=hunter2',
       headers: {
         'Content-Type': 'application/json'
-      }
+      },
+      transport: popsicle.createTransport({
+        type: 'json'
+      })
     })
       .catch(function (err) {
         t.ok(/Unable to parse response body/i.test(err.message))
@@ -838,9 +841,9 @@ if (!process.browser) {
       let cookie: string
 
       const instance = popsicle.defaults({
-        options: {
+        transport: popsicle.createTransport({
           jar: popsicle.jar()
-        }
+        })
       })
 
       return instance(REMOTE_URL + '/cookie')
@@ -860,9 +863,9 @@ if (!process.browser) {
 
     t.test('should update over redirects', function (t) {
       const instance = popsicle.defaults({
-        options: {
+        transport: popsicle.createTransport({
           jar: popsicle.jar()
-        }
+        })
       })
 
       return instance(REMOTE_URL + '/cookie/redirect')
@@ -928,9 +931,9 @@ if (!popsicle.browser) {
     t.test('disable following redirects', function (t) {
       return popsicle.request({
         url: REMOTE_URL + '/redirect',
-        options: {
+        transport: popsicle.createTransport({
           followRedirects: false
-        }
+        })
       })
         .then(function (res) {
           t.equal(res.status, 302)
@@ -951,9 +954,9 @@ if (!popsicle.browser) {
     t.test('change maximum redirects', function (t) {
       return popsicle.request({
         url: REMOTE_URL + '/redirect/6',
-        options: {
+        transport: popsicle.createTransport({
           maxRedirects: 10
-        }
+        })
       })
         .then(function (res) {
           t.equal(res.body, 'welcome get')
@@ -965,7 +968,7 @@ if (!popsicle.browser) {
     t.test('support head redirects with 307', function (t) {
       return popsicle.head(REMOTE_URL + '/redirect/code/307')
         .then(function (res) {
-          t.equal(res.body, null)
+          t.equal(res.body, '')
           t.equal(res.status, 200)
           t.ok(/\/destination$/.test(res.url))
         })
@@ -982,11 +985,11 @@ if (!popsicle.browser) {
     t.test('support user confirmed redirects with 308', function (t) {
       return popsicle.post({
         url: REMOTE_URL + '/redirect/code/308',
-        options: {
-          followRedirects () {
+        transport: popsicle.createTransport({
+          confirmRedirect () {
             return true
           }
-        }
+        })
       })
         .then(function (res) {
           t.equal(res.body, 'welcome post')
@@ -1012,9 +1015,9 @@ if (!popsicle.browser) {
   test('https ca option', function (t) {
     return popsicle.get({
       url: `${REMOTE_HTTPS_URL}`,
-      options: {
+      transport: popsicle.createTransport({
         ca: readFileSync(join(__dirname, '../../scripts/support/ca-crt.pem'))
-      }
+      })
     })
       .then(res => {
         t.equal(res.body, 'Success')
@@ -1024,9 +1027,9 @@ if (!popsicle.browser) {
   test('https disable reject unauthorized', function (t) {
     return popsicle.get({
       url: `${REMOTE_HTTPS_URL}`,
-      options: {
+      transport: popsicle.createTransport({
         rejectUnauthorized: false
-      }
+      })
     })
       .then(res => {
         t.equal(res.body, 'Success')
