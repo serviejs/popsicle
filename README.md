@@ -36,7 +36,8 @@ popsicle.request({
   },
   headers: {
     'Content-Type': 'application/x-www-form-urlencoded'
-  }
+  },
+  transport: popsicle.createTransport({ type: 'json' })
 })
   .then(function (res) {
     console.log(res.status) // => 200
@@ -45,7 +46,7 @@ popsicle.request({
   })
 ```
 
-**Popsicle** is ES6-ready, aliasing `default` to the default export. Try using `import popsicle from 'popsicle'` or import specific methods using `import { get, defaults } from 'popsicle'`. Exports:
+**Popsicle** is ES6-ready and aliases `request` to the default export. Try using `import popsicle from 'popsicle'` or import specific methods using `import { get, defaults } from 'popsicle'`. Exports:
 
 * **request(options)** Default request handler - `defaults({})`
 * **get(options)** Alias of `request` (GET is the default method)
@@ -72,29 +73,43 @@ popsicle.request({
 * **query** An object or string to be appended to the URL as the query string
 * **body** An object, string, form data, stream (node), etc to pass with the request
 * **timeout** The number of milliseconds to wait before aborting the request (default: `Infinity`)
-* **use** An array of plugins to be used (default: see below)
+* **use** The array of plugins to be used (default: `[stringify(), headers()]`)
 * **options** Raw options used by the transport layer (default: `{}`)
-* **transport** Override the transportation layer (default: `http.request/https.request` (node), `XMLHttpRequest` (brower))
+* **transport** Set the transport layer (default: `text`)
 
-**Options using node transport**
+#### Transports
 
-The default plugins under node are `[stringify(), headers(), unzip(), concatStream('string'), parse()]`.
+Popsicle comes with two built-in transports, one for node (using `{http,https}.request`) and one for browsers (using `XMLHttpRequest`). These transports have a number of "types" built-in for handling the response body.
 
+* **text** Handle response as a string (default)
+* **json** Parse response as JSON
+* **urlencoded** Parse response as URL-encoded
+* **document** `responseType === 'document'` (browsers)
+* **blob** `responseType === 'blob'` (browsers)
+* **arraybuffer** `responseType === 'arraybuffer'` (browsers)
+* **buffer** Handle response as a buffer (node.js)
+* **array** Handle response as an array of integers (node.js)
+* **uint8array** Handle the response as a `Uint8Array` (node.js)
+* **stream** Respond with the response body stream (node.js)
+
+**Node transport options**
+
+* **type** Handle the response (default: `text`)
+* **unzip** Automatically unzip response bodies (default: `true`)
 * **jar** An instance of a cookie jar (`popsicle.jar()`) (default: `null`)
 * **agent** Custom HTTP pooling agent (default: [infinity-agent](https://github.com/floatdrop/infinity-agent))
 * **maxRedirects** Override the number of redirects allowed (default: `5`)
 * **rejectUnauthorized** Reject invalid SSL certificates (default: `true`)
-* **followRedirects** Disable redirects or use a function to accept `307`/`308` redirects (default: `true`)
+* **confirmRedirect** Confirm redirects on `307` and `308` status codes (default: `() => false`)
 * **ca** A string, `Buffer` or array of strings or `Buffers` of trusted certificates in PEM format
 * **key** Private key to use for SSL (default: `null`)
 * **cert** Public x509 certificate to use (default: `null`)
 
-**Options using browser transport**
+**Browser transport options**
 
-The default plugins in the browser are `[stringify(), headers(), parse()]`. Notice that unzipping and stream parsing is not available in browsers.
-
+* **type** Handle the XHR response (default: `text`)
 * **withCredentials** Send cookies with CORS requests (default: `false`)
-* **responseType** Set the XHR `responseType` (default: `undefined`)
+* **overrideMimeType** Override the XHR response MIME type
 
 #### Short-hand Methods
 
@@ -113,12 +128,17 @@ popsicle.del('http://example.com/api/users')
 Create a new request function with defaults pre-populated. Handy for a common cookie jar or transport to be used.
 
 ```js
-var cookiePopsicle = popsicle.defaults({ options: { jar: popsicle.jar() } })
+var cookiePopsicle = popsicle.defaults({
+  transport: popsicle.createTransport({
+    type: 'json',
+    jar: popsicle.jar()
+  })
+})
 ```
 
 #### Automatically Stringify Request Body
 
-Popsicle can automatically serialize the request body using the built-in `stringify` plugin. If an object is supplied, it will automatically be stringified as JSON unless the `Content-Type` was set otherwise. If the `Content-Type` is `multipart/form-data` or `application/x-www-form-urlencoded`, it will be automatically serialized.
+Popsicle will automatically serialize the request body using the `stringify` plugin. If an object is supplied, it will automatically be stringified as JSON unless the `Content-Type` was set otherwise. If the `Content-Type` is `application/json`, `multipart/form-data` or `application/x-www-form-urlencoded`, it will be automatically serialized accordingly.
 
 ```js
 popsicle.get({
@@ -193,33 +213,6 @@ request.then(function (response) {
 })
 ```
 
-#### Default Plugins
-
-The default plugins are exposed under `popsicle.plugins`, which allows you to mix, match and omit some plugins for maximum usability with any use-case.
-
-```js
-{
-  headers: [Function: headers],
-  stringify: [Function: stringify],
-  parse: [Function: parse],
-  unzip: [Function: unzip],
-  concatStream: [Function: concatStream],
-  defaults: [
-    [Function],
-    [Function],
-    [Function],
-    [Function],
-    [Function]
-  ]
-}
-```
-
-* **headers** Sets default headers, such as `User-Agent`, `Accept`, `Content-Length` (Highly recommended)
-* **stringify** Stringify object bodies into JSON/form data/url encoding (Recommended)
-* **parse** Automatically parse JSON and url encoding responses
-* **unzip** Automatically unzip response streams (Node only)
-* **concatStream** Buffer the stream using [concat-stream](https://www.npmjs.com/package/concat-stream) - accepts an "encoding" type (`string` (default), `buffer`, `array`, `uint8array`, `object`) (Node only)
-
 #### Cookie Jar (Node only)
 
 You can create a reusable cookie jar instance for requests by calling `popsicle.jar`.
@@ -230,15 +223,15 @@ var jar = popsicle.jar()
 popsicle.request({
   method: 'post',
   url: '/users',
-  options: {
+  transport: popsicle.createTransport({
     jar: jar
-  }
+  })
 })
 ```
 
 ### Handling Responses
 
-Promises and node-style callbacks are both supported.
+Promises and node-style callbacks are supported.
 
 #### Promises
 
@@ -254,21 +247,21 @@ popsicle.get('/users')
   })
 ```
 
-If you live on the edge, try using it with generators (see [co](https://www.npmjs.com/package/co)) or ES7 `async`/`await`.
+If you live on the edge, try with generators ([co](https://www.npmjs.com/package/co)) or ES7 `async`/`await`.
 
 ```js
 co(function * () {
-  yield popsicle.get('/users')
+  const users = yield popsicle.get('/users')
 })
 
 async function () {
-  await popsicle.get('/users')
+  const users = await popsicle.get('/users')
 }
 ```
 
 #### Callbacks
 
-For tooling that still expects node-style callbacks, you can use `Request#exec`. This accepts a single function to call when the response is complete.
+For tooling that expects node-style callbacks, you can use `Request#exec`. This accepts a single function to call when the response is complete.
 
 ```js
 popsicle.get('/users')
@@ -283,12 +276,12 @@ popsicle.get('/users')
 
 ### Response Objects
 
-Every Popsicle response will give a `Response` object on success. The object provides an intuitive interface for requesting common properties.
+Every response will give a `Response` object on success. The object provides an intuitive interface for accessing common properties.
 
 * **status** The HTTP response status code
 * **body** An object (if parsed using a plugin), string (if using concat) or stream that is the HTTP response body
 * **headers** An object of lower-cased keys to header values
-* **url** The response URL after redirects (only supported in browser with `responseURL`)
+* **url** The final response URL (after redirects)
 * **statusType()** Return an integer with the HTTP status type (E.g. `200 -> 2`)
 * **get(key)** Retrieve a HTTP header using a case-insensitive key
 * **name(key)** Retrieve the original HTTP header name using a case-insensitive key
@@ -303,15 +296,16 @@ All response handling methods can return an error. Errors have a `popsicle` prop
 * **EINVALID** Request URL is invalid
 * **ETIMEOUT** Request has exceeded the allowed timeout
 * **ESTRINGIFY** Request body threw an error during stringification plugin
-* **EPARSE** Response body threw an error during parsing plugin
+* **EPARSE** Response body threw an error during parse
 * **EMAXREDIRECTS** Maximum number of redirects exceeded (Node only)
 * **EBODY** Unable to handle request body (Node only)
 * **EBLOCKED** The request was blocked (HTTPS -> HTTP) (Browsers only)
 * **ECSP** Request violates the documents Content Security Policy (Browsers only)
+* **ETYPE** Invalid transport type
 
 ### Plugins
 
-Plugins can be passed in as an array with the initial options (which overrides default plugins), or they can be used via the chained method `Request#use`.
+Plugins can be passed in as an array with the initial options (which overrides default plugins), or they can be used via `Request#use`.
 
 #### External Plugins
 

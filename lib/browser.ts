@@ -2,17 +2,46 @@ import Promise = require('any-promise')
 import { RawHeaders } from './base'
 import Request from './request'
 import Response from './response'
-import { defaults as use } from './plugins/index'
+import { stringify, headers } from './plugins/index'
+import { parse, textTypes, TextTypes } from './utils'
+
+export type Types = 'document' | 'blob' | 'arraybuffer' | TextTypes | string
 
 /**
- * Export default instance with browser transportation layer.
+ * Browser transport options.
  */
-export { open, abort, use }
+export interface Options {
+  type?: Types
+  withCredentials?: boolean
+  overrideMimeType?: string
+}
 
-function open (request: Request<Response>) {
+/**
+ * Create a transport object.
+ */
+export function createTransport (options: Options) {
+  return {
+    use,
+    abort,
+    open (request: Request) {
+      return handle(request, options)
+    }
+  }
+}
+
+/**
+ * Default `use`.
+ */
+const use = [stringify(), headers()]
+
+/**
+ * Default open handler.
+ */
+function handle (request: Request, options: Options): Promise<Response> {
   return new Promise(function (resolve, reject) {
+    const type = options.type || 'text'
     const { url, method } = request
-    const responseType = request.options.responseType
+    const isText = textTypes.indexOf(type) > -1
 
     // Loading HTTP resources from HTTPS is restricted and uncatchable.
     if (window.location.protocol === 'https:' && /^http\:/.test(url)) {
@@ -22,17 +51,19 @@ function open (request: Request<Response>) {
     const xhr = request._raw = new XMLHttpRequest()
 
     function done () {
-      return resolve(new Response({
-        status: xhr.status === 1223 ? 204 : xhr.status,
-        statusText: xhr.statusText,
-        rawHeaders: parseToRawHeaders(xhr.getAllResponseHeaders()),
-        body: responseType ? xhr.response : xhr.responseText,
-        url: xhr.responseURL
-      }))
+      return new Promise<Response>(resolve => {
+        return resolve(new Response({
+          status: xhr.status === 1223 ? 204 : xhr.status,
+          statusText: xhr.statusText,
+          rawHeaders: parseToRawHeaders(xhr.getAllResponseHeaders()),
+          body: isText ? parse(request, xhr.responseText, type) : xhr.response,
+          url: xhr.responseURL
+        }))
+      })
     }
 
-    xhr.onload = done
-    xhr.onabort = done
+    xhr.onload = () => resolve(done())
+    xhr.onabort = () => resolve(done())
 
     xhr.onerror = function () {
       return reject(request.error(`Unable to connect to "${request.url}"`, 'EUNAVAILABLE'))
@@ -69,16 +100,22 @@ function open (request: Request<Response>) {
     }
 
     // Send cookies with CORS.
-    if (request.options.withCredentials) {
+    if (options.withCredentials) {
       xhr.withCredentials = true
     }
 
-    if (responseType) {
+    // Enable overriding the response MIME handling.
+    if (options.overrideMimeType) {
+      xhr.overrideMimeType(options.overrideMimeType)
+    }
+
+    // Use the passed in type for the response.
+    if (!isText) {
       try {
-        xhr.responseType = responseType
+        xhr.responseType = type
       } finally {
-        if (xhr.responseType !== responseType) {
-          throw request.error(`Unsupported response type: ${responseType}`, 'ERESPONSETYPE')
+        if (xhr.responseType !== type) {
+          return reject(request.error(`Unsupported type: ${type}`, 'ETYPE'))
         }
       }
     }
@@ -94,7 +131,7 @@ function open (request: Request<Response>) {
 /**
  * Close the current HTTP request.
  */
-function abort (request: Request<Response>) {
+function abort (request: Request) {
   request._raw.abort()
 }
 

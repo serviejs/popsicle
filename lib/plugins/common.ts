@@ -20,7 +20,7 @@ export function wrap <T> (value: T): () => T {
 /**
  * Remove default headers.
  */
-export const headers = wrap(function (request: Request<any>, next: () => Promise<Response>) {
+export const headers = wrap(function (request: Request, next: () => Promise<Response>) {
   // If we have no accept header set already, default to accepting
   // everything. This is needed because otherwise Firefox defaults to
   // an accept header of `html/xml`.
@@ -37,7 +37,7 @@ export const headers = wrap(function (request: Request<any>, next: () => Promise
 /**
  * Stringify the request body.
  */
-export const stringify = wrap(function (request: Request<any>, next: () => Promise<Response>) {
+export const stringify = wrap(function (request: Request, next: () => Promise<Response>) {
   const { body } = request
 
   // Convert primitives types into strings.
@@ -80,38 +80,4 @@ export const stringify = wrap(function (request: Request<any>, next: () => Promi
   }
 
   return next()
-})
-
-/**
- * Automatic stringification and parsing middleware.
- */
-export const parse = wrap(function (request: Request<any>, next: () => Promise<Response>) {
-  return next()
-    .then(function (response) {
-      const { body } = response
-
-      if (typeof body !== 'string') {
-        return response
-      }
-
-      if (body === '') {
-        response.body = null
-
-        return response
-      }
-
-      const type = response.type()
-
-      try {
-        if (JSON_MIME_REGEXP.test(type)) {
-          response.body = body === '' ? null : JSON.parse(body)
-        } else if (QUERY_MIME_REGEXP.test(type)) {
-          response.body = parseQuery(body)
-        }
-      } catch (err) {
-        return Promise.reject(request.error('Unable to parse response body: ' + err.message, 'EPARSE', err))
-      }
-
-      return response
-    })
 })

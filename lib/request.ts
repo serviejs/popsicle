@@ -6,18 +6,17 @@ import Base, { BaseOptions, Headers } from './base'
 import Response, { ResponseOptions } from './response'
 import PopsicleError from './error'
 
-export interface DefaultsOptions <T extends Response> extends BaseOptions {
+export interface DefaultsOptions extends BaseOptions {
   url?: string
   method?: string
   timeout?: number
   body?: any
-  options?: any
   use?: Middleware[]
   progress?: ProgressFunction[]
-  transport?: TransportOptions<T>
+  transport?: TransportOptions
 }
 
-export interface RequestOptions <T extends Response> extends DefaultsOptions<T> {
+export interface RequestOptions extends DefaultsOptions {
   url: string
 }
 
@@ -26,25 +25,23 @@ export interface RequestJSON {
   headers: Headers
   body: any
   timeout: number
-  options: any
   method: string
 }
 
-export interface TransportOptions <T extends Response> {
-  open: (request: Request<T>) => Promise<T>
-  abort?: (request: Request<T>) => any
+export interface TransportOptions {
+  open: (request: Request) => Promise<Response>
+  abort?: (request: Request) => any
   use?: Middleware[]
 }
 
-export type Middleware = (request: Request<any>, next: () => Promise<Response>) => Response | Promise<Response>
-export type ProgressFunction = (request: Request<any>) => any
+export type Middleware = (request: Request, next: () => Promise<Response>) => Response | Promise<Response>
+export type ProgressFunction = (request: Request) => any
 
-export default class Request <T extends Response> extends Base implements Promise<T> {
+export default class Request extends Base implements Promise<Response> {
   method: string
   timeout: number
   body: any
-  options: any
-  transport: TransportOptions<T>
+  transport: TransportOptions
   middleware: Middleware[] = []
 
   opened = false
@@ -61,13 +58,12 @@ export default class Request <T extends Response> extends Base implements Promis
   private _resolve: (response: Response) => void
   private _reject: (error: Error) => void
 
-  constructor (options: RequestOptions<T>) {
+  constructor (options: RequestOptions) {
     super(options)
 
     this.timeout = (options.timeout | 0)
     this.method = (options.method || 'GET').toUpperCase()
     this.body = options.body
-    this.options = extend(options.options)
 
     // Internal promise representation.
     const promised = new Promise((resolve, reject) => {
@@ -101,7 +97,7 @@ export default class Request <T extends Response> extends Base implements Promis
     return new PopsicleError(message, code, original, this)
   }
 
-  then (onFulfilled: (response?: T) => any, onRejected?: (error?: PopsicleError) => any) {
+  then (onFulfilled: (response?: Response) => any, onRejected?: (error?: PopsicleError) => any) {
     return this._promise.then(onFulfilled, onRejected)
   }
 
@@ -109,17 +105,16 @@ export default class Request <T extends Response> extends Base implements Promis
     return this._promise.then(null, onRejected)
   }
 
-  exec (cb: (err: PopsicleError, response?: T) => any) {
+  exec (cb: (err: PopsicleError, response?: Response) => any) {
     this.then(function (response) {
       cb(null, response)
     }, cb)
   }
 
-  toOptions (): RequestOptions<T> {
+  toOptions (): RequestOptions {
     return {
       url: this.url,
       method: this.method,
-      options: this.options,
       body: this.body,
       transport: this.transport,
       timeout: this.timeout,
@@ -134,7 +129,6 @@ export default class Request <T extends Response> extends Base implements Promis
       url: this.url,
       headers: this.headers,
       body: this.body,
-      options: this.options,
       timeout: this.timeout,
       method: this.method
     }
