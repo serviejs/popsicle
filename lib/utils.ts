@@ -5,6 +5,8 @@ import Request from './request'
 export type TextTypes = 'text' | 'json' | 'urlencoded'
 export const textTypes = ['text', 'json', 'urlencoded']
 
+const PROTECTION_PREFIX = /^\)\]\}',?\n/
+
 export function parse (request: Request, value: string, type: string) {
   // Return plain-text as is.
   if (type === 'text') {
@@ -19,7 +21,7 @@ export function parse (request: Request, value: string, type: string) {
   // Attempt to parse the response as JSON.
   if (type === 'json') {
     try {
-      return JSON.parse(value)
+      return JSON.parse(value.replace(PROTECTION_PREFIX, ''))
     } catch (err) {
       throw request.error(`Unable to parse response body: ${err.message}`, 'EPARSE', err)
     }
