@@ -622,6 +622,15 @@ test('response body', function (t) {
         })
     })
 
+    t.test('should break when response body is bigger than buffer size', function (t) {
+      t.plan(1)
+
+      return popsicle.request(REMOTE_URL + '/urandom')
+        .catch(function (err) {
+          t.equal(err.code, 'ETOOLARGE')
+        })
+    })
+
     t.test('pipe streams', function (t) {
       return popsicle.request({
         url: REMOTE_URL + '/echo',

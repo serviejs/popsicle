@@ -99,6 +99,7 @@ Popsicle comes with two built-in transports, one for node (using `{http,https}.r
 * **jar** An instance of a cookie jar (`popsicle.jar()`) (default: `null`)
 * **agent** Custom HTTP pooling agent (default: [infinity-agent](https://github.com/floatdrop/infinity-agent))
 * **maxRedirects** Override the number of redirects allowed (default: `5`)
+* **maxBufferSize** The maximum size of the buffered response body (default: `2000000`)
 * **rejectUnauthorized** Reject invalid SSL certificates (default: `true`)
 * **confirmRedirect** Confirm redirects on `307` and `308` status codes (default: `() => false`)
 * **ca** A string, `Buffer` or array of strings or `Buffers` of trusted certificates in PEM format

@@ -36,6 +36,7 @@ export interface Options {
   ca?: string | Buffer | Array<string | Buffer>
   cert?: string | Buffer
   key?: string | Buffer
+  maxBufferSize?: number
 }
 
 /**
@@ -84,6 +85,7 @@ function handle (request: Request, options: Options) {
   const { followRedirects, type, unzip, rejectUnauthorized, ca, key, cert, agent } = options
   const { url, method, body } = request
   const maxRedirects = num(options.maxRedirects, 5)
+  const maxBufferSize = num(options.maxBufferSize, type === 'stream' ? Infinity : 2 * 1000 * 1000)
   const storeCookies = getStoreCookies(request, options)
   const attachCookies = getAttachCookies(request, options)
   const confirmRedirect = options.confirmRedirect || falsey
@@ -132,21 +134,31 @@ function handle (request: Request, options: Options) {
           // Track upload/download progress through a stream.
           const requestStream = new PassThrough()
           const responseStream = new PassThrough()
+          let uploadedBytes = 0
+          let downloadedBytes = 0
 
           requestStream.on('data', function (chunk: Buffer) {
-            request.uploadedBytes += chunk.length
+            uploadedBytes += chunk.length
+            request.uploadedBytes = uploadedBytes
           })
 
           requestStream.on('end', function () {
-            request.uploadedBytes = request.uploadLength
+            request.uploadedBytes = request.uploadLength = uploadedBytes
           })
 
           responseStream.on('data', function (chunk: Buffer) {
-            request.downloadedBytes += chunk.length
+            downloadedBytes += chunk.length
+            request.downloadedBytes = downloadedBytes
+
+            // Abort on the max buffer size.
+            if (downloadedBytes > maxBufferSize) {
+              rawRequest.abort()
+              responseStream.emit('error', request.error('Response too large', 'ETOOLARGE'))
+            }
           })
 
           responseStream.on('end', function () {
-            request.downloadedBytes = request.downloadLength
+            request.downloadedBytes = request.downloadLength = downloadedBytes
           })
 
           // Handle the HTTP response.
@@ -204,24 +216,24 @@ function handle (request: Request, options: Options) {
             reject(error)
           }
 
-          rawRequest.once('response', function (message: IncomingMessage) {
+          rawRequest.on('response', function (message: IncomingMessage) {
             resolve(storeCookies(url, message.headers).then(() => response(message)))
           })
 
-          rawRequest.once('error', function (error: Error) {
+          rawRequest.on('error', function (error: Error) {
             emitError(request.error(`Unable to connect to "${url}"`, 'EUNAVAILABLE', error))
           })
 
           request._raw = rawRequest
           request.uploadLength = num(rawRequest.getHeader('content-length'), 0)
           requestStream.pipe(rawRequest)
-          requestStream.once('error', emitError)
+          requestStream.on('error', emitError)
 
           // Pipe the body to the stream.
           if (body) {
             if (typeof body.pipe === 'function') {
               body.pipe(requestStream)
-              body.once('error', emitError)
+              body.on('error', emitError)
             } else {
               requestStream.end(body)
             }
@@ -329,11 +341,11 @@ function handleResponse (
   options: Options
 ) {
   const type = options.type || 'text'
-  const { unzip } = options
+  const unzip = options.unzip !== false
   const isText = textTypes.indexOf(type) > -1
 
   const result = new Promise<any>((resolve, reject) => {
-    if (unzip !== false) {
+    if (unzip) {
       const enc = headers['content-encoding']
 
       if (enc === 'deflate' || enc === 'gzip') {

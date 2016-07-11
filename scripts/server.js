@@ -2,6 +2,7 @@ var express = require('express')
 var bodyParser = require('body-parser')
 var zlib = require('zlib')
 var extend = require('xtend')
+var fs = require('fs')
 
 var app = module.exports = express()
 
@@ -121,6 +122,10 @@ app.all('/redirect', function (req, res) {
 
 app.all('/destination', function (req, res) {
   res.send('welcome ' + req.method.toLowerCase())
+})
+
+app.all('/urandom', function (req, res) {
+  fs.createReadStream('/dev/urandom').pipe(res)
 })
 
 app.get('/json', function (req, res) {
