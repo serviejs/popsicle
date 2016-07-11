@@ -110,6 +110,11 @@ export function parse (type: ParseType | ParseType[], strict?: boolean) {
           throw request.error(`Unable to parse non-string response body`, 'EPARSE')
         }
 
+        // Throw on invalid response type.
+        if (responseType == null) {
+          throw request.error(`Unable to parse invalid response content type`, 'EPARSE')
+        }
+
         // Empty bodies are _always_ `null`.
         if (body === '') {
           response.body = null

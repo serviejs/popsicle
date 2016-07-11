@@ -726,6 +726,25 @@ test('request errors', function (t) {
       })
   })
 
+  t.test('give a parse error on invalid response type', function (t) {
+    t.plan(3)
+
+    return popsicle.request({
+      url: REMOTE_URL + '/echo',
+      method: 'POST',
+      body: 'hello world',
+      headers: {
+        'Content-Type': 'foo/bar'
+      }
+    })
+      .use(popsicle.plugins.parse('json'))
+      .catch(function (err) {
+        t.equal(err.message, 'Unhandled response type: foo/bar')
+        t.equal(err.code, 'EPARSE')
+        t.ok(err.popsicle instanceof popsicle.Request)
+      })
+  })
+
   t.test('give a stringify error on invalid request body', function (t) {
     const obj: any = {}
 
