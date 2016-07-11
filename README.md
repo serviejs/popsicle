@@ -5,7 +5,7 @@
 [![Build status][travis-image]][travis-url]
 [![Test coverage][coveralls-image]][coveralls-url]
 
-> **Popsicle** is the easiest way to make HTTP requests - offering a consistent, intuitive and light-weight API that works on node and the browser.
+> **Popsicle** is the easiest way to make HTTP requests - a consistent, intuitive and tiny API that works on node and the browser. 9.61 kB in browsers, after minification and gzipping.
 
 ```js
 popsicle.get('/users.json')
@@ -323,7 +323,8 @@ Plugins can be passed in as an array with the initial options (which overrides d
 
 #### Helpful Utilities
 
-* [throat](https://github.com/ForbesLindesay/throat) - Throttle promise-based functions with concurrency support
+* [`throat`](https://github.com/ForbesLindesay/throat) - Throttle promise-based functions with concurrency support
+* [`is-browser`](https://github.com/ForbesLindesay/is-browser) - Check if your in a browser environment (E.g. Browserify, Webpack)
 
 #### Creating Plugins
 

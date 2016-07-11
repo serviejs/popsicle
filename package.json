@@ -19,7 +19,7 @@
   },
   "scripts": {
     "lint": "# TODO",
-    "check-size": "browserify . -s popsicle --external bluebird > popsicle.js && du -h popsicle.js",
+    "check-size": "browserify-size .",
     "build": "rm -rf dist/ && tsc && npm run check-size",
     "test-spec": "npm run test-server-open && HTTPS_PORT=7358 PORT=7357 node dist/test/index.js; EXIT=$?; npm run test-server-close; exit $EXIT",
     "test-cov": "HTTPS_PORT=7358 PORT=7357 istanbul cover --print none dist/test/index.js | tap-spec",
@@ -57,6 +57,7 @@
     "bluebird": "^3.0.5",
     "body-parser": "^1.9.2",
     "browserify": "^13.0.0",
+    "browserify-size": "^1.0.6",
     "envify": "^3.4.0",
     "express": "^4.10.2",
     "istanbul": "^0.4.0",
