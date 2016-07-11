@@ -46,10 +46,12 @@ export default class Request extends Base implements Promise<Response> {
 
   opened = false
   aborted = false
+  uploaded = 0
+  downloaded = 0
+  uploadedBytes: number = null
+  downloadedBytes: number = null
   uploadLength: number = null
   downloadLength: number = null
-  private _uploadedBytes: number = null
-  private _downloadedBytes: number = null
 
   _raw: any
   _progress: ProgressFunction[] = []
@@ -225,14 +227,6 @@ export default class Request extends Base implements Promise<Response> {
       )
   }
 
-  get uploaded () {
-    return this.uploadLength ? this.uploadedBytes / this.uploadLength : 0
-  }
-
-  get downloaded () {
-    return this.downloadLength ? this.downloadedBytes / this.downloadLength : 0
-  }
-
   get completed () {
     return (this.uploaded + this.downloaded) / 2
   }
@@ -245,24 +239,18 @@ export default class Request extends Base implements Promise<Response> {
     return this.uploadLength + this.downloadLength
   }
 
-  get uploadedBytes () {
-    return this._uploadedBytes
-  }
-
-  set uploadedBytes (bytes: number) {
-    if (bytes !== this._uploadedBytes) {
-      this._uploadedBytes = bytes
+  _setUploadedBytes (bytes: number, uploaded?: number) {
+    if (bytes !== this.uploadedBytes) {
+      this.uploaded = uploaded || bytes / this.uploadLength
+      this.uploadedBytes = bytes
       this._emit()
     }
   }
 
-  get downloadedBytes () {
-    return this._downloadedBytes
-  }
-
-  set downloadedBytes (bytes: number) {
-    if (bytes !== this._downloadedBytes) {
-      this._downloadedBytes = bytes
+  _setDownloadedBytes (bytes: number, downloaded?: number) {
+    if (bytes !== this.downloadedBytes) {
+      this.downloaded = downloaded || bytes / this.downloadLength
+      this.downloadedBytes = bytes
       this._emit()
     }
   }

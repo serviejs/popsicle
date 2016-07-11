@@ -139,16 +139,16 @@ function handle (request: Request, options: Options) {
 
           requestStream.on('data', function (chunk: Buffer) {
             uploadedBytes += chunk.length
-            request.uploadedBytes = uploadedBytes
+            request._setUploadedBytes(uploadedBytes)
           })
 
           requestStream.on('end', function () {
-            request.uploadedBytes = request.uploadLength = uploadedBytes
+            request._setUploadedBytes(uploadedBytes, 1)
           })
 
           responseStream.on('data', function (chunk: Buffer) {
             downloadedBytes += chunk.length
-            request.downloadedBytes = downloadedBytes
+            request._setDownloadedBytes(downloadedBytes)
 
             // Abort on the max buffer size.
             if (downloadedBytes > maxBufferSize) {
@@ -158,7 +158,7 @@ function handle (request: Request, options: Options) {
           })
 
           responseStream.on('end', function () {
-            request.downloadedBytes = request.downloadLength = downloadedBytes
+            request._setDownloadedBytes(downloadedBytes, 1)
           })
 
           // Handle the HTTP response.
@@ -193,7 +193,7 @@ function handle (request: Request, options: Options) {
               }
             }
 
-            request.downloadLength = num(headers['content-length'], 0)
+            request.downloadLength = num(headers['content-length'], null)
             incomingMessage.pipe(responseStream)
 
             return handleResponse(request, responseStream, headers, options)
@@ -225,7 +225,7 @@ function handle (request: Request, options: Options) {
           })
 
           request._raw = rawRequest
-          request.uploadLength = num(rawRequest.getHeader('content-length'), 0)
+          request.uploadLength = num(rawRequest.getHeader('content-length'), null)
           requestStream.pipe(rawRequest)
           requestStream.on('error', emitError)
 

@@ -75,21 +75,25 @@ function handle (request: Request, options: Options): Promise<Response> {
         request.downloadLength = e.total
       }
 
-      request.downloadedBytes = e.loaded
+      request._setDownloadedBytes(e.loaded)
     }
+
+    xhr.upload.onloadend = () => request.downloaded = 1
 
     // No upload will occur with these requests.
     if (method === 'GET' || method === 'HEAD' || !xhr.upload) {
       request.uploadLength = 0
-      request.uploadedBytes = 0
+      request._setUploadedBytes(0, 1)
     } else {
       xhr.upload.onprogress = function (e: ProgressEvent) {
         if (e.lengthComputable) {
           request.uploadLength = e.total
         }
 
-        request.uploadedBytes = e.loaded
+        request._setUploadedBytes(e.loaded)
       }
+
+      xhr.upload.onloadend = () => request.uploaded = 1
     }
 
     // XHR can fail to open when site CSP is set.
