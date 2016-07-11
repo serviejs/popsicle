@@ -277,7 +277,7 @@ function falsey () {
  */
 function getAttachCookies (request: Request, options: Options): (url: string) => Promise<any> {
   const { jar } = options
-  const cookie = request.get('Cookie')
+  const cookie = request.getAll('Cookie')
 
   if (!jar) {
     return () => Promise.resolve()
