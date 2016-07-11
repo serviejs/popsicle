@@ -73,19 +73,19 @@ export default class Request extends Base implements Promise<Response> {
       this._reject = reject
     })
 
-    // External promise representation, resolves _after_ middleware.
-    this._promise = new Promise((resolve) => {
-      process.nextTick(() => {
-        const handle = compose(this.middleware)
+    // External promise representation, resolves _after_ middleware has been
+    // attached by relying on promises always resolving on the "next tick".
+    this._promise = Promise.resolve()
+      .then(() => {
+        const run = compose(this.middleware)
 
         const cb = () => {
           this._handle()
           return promised
         }
 
-        return resolve(handle(this, cb))
+        return run(this, cb)
       })
-    })
 
     // Extend to avoid mutations of the transport object.
     this.transport = extend(options.transport)
