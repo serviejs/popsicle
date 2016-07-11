@@ -31,7 +31,6 @@ export function defaults (defaultsOptions: DefaultsOptions) {
   }
 }
 
-export const browser = !!process.browser
 export const request = defaults({})
 
 export const get = defaults({ method: 'get' })

@@ -348,12 +348,6 @@ Middleware functions accept two arguments - the current request and a function t
 
 **P.S.** The middleware array is exposed on `request.middleware`, which allows you to clone requests and omit middleware - for example, using `request.middleware.slice(request.middleware.indexOf(currentFn))`. This is useful, as the pre and post steps of previous middleware attach before `currentFn` is executed.
 
-#### Checking The Environment
-
-```js
-popsicle.browser //=> true
-```
-
 #### Transportation Layers
 
 Creating a custom transportation layer is just a matter creating an object with `open`, `abort` and `use` options set. The open method should set any request information required between called as `request._raw`. Abort must abort the current request instance, while `open` must **always** resolve to a promise. You can set `use` to an empty array if no plugins should be used by default. However, it's recommended you keep `use` set to the defaults, or as close as possible using your transport layer.

@@ -198,7 +198,7 @@ test('request headers', function (t) {
       })
   })
 
-  if (!popsicle.browser) {
+  if (!process.browser) {
     t.test('send a custom user agent header', function (t) {
       return popsicle.request({
         url: REMOTE_URL + '/echo/header/user-agent',
@@ -905,7 +905,7 @@ test('override request mechanism', function (t) {
     })
 })
 
-if (!popsicle.browser) {
+if (!process.browser) {
   test('redirect', function (t) {
     t.test('should follow 302 redirect with get', function (t) {
       return popsicle.request(REMOTE_URL + '/redirect')
@@ -1009,7 +1009,7 @@ if (!popsicle.browser) {
   })
 }
 
-if (!popsicle.browser) {
+if (!process.browser) {
   test('https reject unauthorized', function (t) {
     t.plan(1)
 
