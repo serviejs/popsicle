@@ -3,9 +3,8 @@ import { RawHeaders } from './base'
 import Request from './request'
 import Response from './response'
 import { stringify, headers } from './plugins/index'
-import { parse, textTypes, TextTypes } from './utils'
 
-export type Types = 'document' | 'blob' | 'arraybuffer' | TextTypes | string
+export type Types = 'text' | 'document' | 'blob' | 'arraybuffer' | 'json' | string
 
 /**
  * Browser transport options.
@@ -41,7 +40,6 @@ function handle (request: Request, options: Options): Promise<Response> {
   return new Promise(function (resolve, reject) {
     const type = options.type || 'text'
     const { url, method } = request
-    const isText = textTypes.indexOf(type) > -1
 
     // Loading HTTP resources from HTTPS is restricted and uncatchable.
     if (window.location.protocol === 'https:' && /^http\:/.test(url)) {
@@ -56,7 +54,7 @@ function handle (request: Request, options: Options): Promise<Response> {
           status: xhr.status === 1223 ? 204 : xhr.status,
           statusText: xhr.statusText,
           rawHeaders: parseToRawHeaders(xhr.getAllResponseHeaders()),
-          body: isText ? parse(request, xhr.responseText, type) : xhr.response,
+          body: type === 'text' ? xhr.responseText : xhr.response,
           url: xhr.responseURL
         }))
       })
@@ -114,7 +112,7 @@ function handle (request: Request, options: Options): Promise<Response> {
     }
 
     // Use the passed in type for the response.
-    if (!isText) {
+    if (type !== 'text') {
       try {
         xhr.responseType = type
       } finally {
