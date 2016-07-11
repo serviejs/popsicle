@@ -12,14 +12,13 @@ import { Headers } from './base'
 import Request from './request'
 import Response from './response'
 import { stringify, headers } from './plugins/index'
-import { parse, textTypes, TextTypes } from './utils'
 
-export type Types = 'buffer' | 'array' | 'uint8array' | 'stream' | TextTypes | string
+export type Types = 'text' | 'buffer' | 'array' | 'uint8array' | 'stream' | string
 
 /**
  * List of valid node response types.
  */
-const validTypes = ['buffer', 'array', 'uint8array', 'stream', ...textTypes]
+const validTypes = ['text', 'buffer', 'array', 'uint8array', 'stream']
 
 /**
  * Node transport options.
@@ -342,7 +341,6 @@ function handleResponse (
 ) {
   const type = options.type || 'text'
   const unzip = options.unzip !== false
-  const isText = textTypes.indexOf(type) > -1
 
   const result = new Promise<any>((resolve, reject) => {
     if (unzip) {
@@ -361,17 +359,12 @@ function handleResponse (
       return resolve(stream)
     }
 
-    const encoding = isText ? 'string' : type
+    const encoding = type === 'text' ? 'string' : type
     const concatStream = concat({ encoding }, resolve)
 
     stream.on('error', reject)
     stream.pipe(concatStream)
   })
-
-  // Manual intervention for JSON parsing.
-  if (isText) {
-    return result.then(str => parse(request, str, type))
-  }
 
   return result
 }

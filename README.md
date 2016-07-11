@@ -5,7 +5,7 @@
 [![Build status][travis-image]][travis-url]
 [![Test coverage][coveralls-image]][coveralls-url]
 
-> **Popsicle** is the easiest way to make HTTP requests - a consistent, intuitive and tiny API that works on node and the browser. 9.61 kB in browsers, after minification and gzipping.
+> **Popsicle** is the easiest way to make HTTP requests - a consistent, intuitive and tiny API that works on node and the browser. 9.64 kB in browsers, after minification and gzipping.
 
 ```js
 popsicle.get('/users.json')
@@ -36,9 +36,9 @@ popsicle.request({
   },
   headers: {
     'Content-Type': 'application/x-www-form-urlencoded'
-  },
-  transport: popsicle.createTransport({ type: 'json' })
+  }
 })
+  .use(popsicle.plugins.parse('json'))
   .then(function (res) {
     console.log(res.status) // => 200
     console.log(res.body) //=> { ... }
@@ -55,13 +55,11 @@ popsicle.request({
 * **patch(options)** Alias of `defaults({ method: 'patch' })`
 * **post(options)** Alias of `defaults({ method: 'post' })`
 * **put(options)** Alias of `defaults({ method: 'put' })`
-* **default(options)** The ES6 default import, alias of `request`
 * **defaults(options)** Create a new Popsicle instance using `defaults`
 * **form(obj?)** Cross-platform form data object
 * **plugins** Exposes the default plugins (Object)
 * **jar(store?)** Create a cookie jar instance for Node.js
 * **transport** Default transportation layer (Object)
-* **browser** (boolean)
 * **Request(options)** Constructor for the `Request` class
 * **Response(options)** Constructor for the `Response` class
 
@@ -77,13 +75,34 @@ popsicle.request({
 * **options** Raw options used by the transport layer (default: `{}`)
 * **transport** Set the transport layer (default: `text`)
 
+#### Middleware
+
+##### `stringify`
+
+Automatically serialize the request body into a string (E.g. JSON, URL-encoded or multipart).
+
+##### `headers`
+
+Sets up default headers for environments. For example, `Content-Length`, `User-Agent`, `Accept`, etc.
+
+##### `parse`
+
+Automatically parses the response body by allowed type(s).
+
+* **json** Parse response as JSON
+* **urlencoded** Parse response as URL-encoded
+
+```js
+popsicle.get('/users')
+  .use(popsicle.plugins.parse(['json', 'urlencoded']))
+  .then(() => ...)
+```
+
 #### Transports
 
 Popsicle comes with two built-in transports, one for node (using `{http,https}.request`) and one for browsers (using `XMLHttpRequest`). These transports have a number of "types" built-in for handling the response body.
 
 * **text** Handle response as a string (default)
-* **json** Parse response as JSON
-* **urlencoded** Parse response as URL-encoded
 * **document** `responseType === 'document'` (browsers)
 * **blob** `responseType === 'blob'` (browsers)
 * **arraybuffer** `responseType === 'arraybuffer'` (browsers)
@@ -131,7 +150,6 @@ Create a new request function with defaults pre-populated. Handy for a common co
 ```js
 var cookiePopsicle = popsicle.defaults({
   transport: popsicle.createTransport({
-    type: 'json',
     jar: popsicle.jar()
   })
 })

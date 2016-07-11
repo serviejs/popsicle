@@ -4,7 +4,7 @@ import FormData = require('form-data')
 import Promise = require('any-promise')
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import popsicle = require('../common')
+import * as popsicle from '../common'
 
 const SHORTHAND_METHODS = [
   'get',
@@ -263,9 +263,9 @@ test('request body', function (t) {
     return popsicle.request({
       url: REMOTE_URL + '/echo',
       method: 'POST',
-      body: EXAMPLE_BODY,
-      transport: popsicle.createTransport({ type: 'json' })
+      body: EXAMPLE_BODY
     })
+      .use(popsicle.plugins.parse('json'))
       .then(function (res) {
         t.deepEqual(res.body, EXAMPLE_BODY)
         t.equal(res.type(), 'application/json')
@@ -279,9 +279,9 @@ test('request body', function (t) {
       body: EXAMPLE_BODY,
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      transport: popsicle.createTransport({ type: 'urlencoded' })
+      }
     })
+      .use(popsicle.plugins.parse('urlencoded'))
       .then(function (res) {
         t.deepEqual(res.body, EXAMPLE_BODY)
         t.equal(res.type(), 'application/x-www-form-urlencoded')
@@ -342,9 +342,9 @@ test('query', function (t) {
   t.test('should stringify and send query parameters', function (t) {
     return popsicle.request({
       url: REMOTE_URL + '/echo/query',
-      query: EXAMPLE_BODY,
-      transport: popsicle.createTransport({ type: 'json' })
+      query: EXAMPLE_BODY
     })
+      .use(popsicle.plugins.parse('json'))
       .then(function (res) {
         t.deepEqual(res.body, EXAMPLE_BODY)
       })
@@ -353,8 +353,7 @@ test('query', function (t) {
   t.test('should stringify and append to query object', function (t) {
     const req = popsicle.request({
       url: REMOTE_URL + '/echo/query?query=true',
-      query: EXAMPLE_BODY,
-      transport: popsicle.createTransport({ type: 'json' })
+      query: EXAMPLE_BODY
     })
 
     const query = {
@@ -369,6 +368,7 @@ test('query', function (t) {
     t.deepEqual(req.query, query)
 
     return req
+      .use(popsicle.plugins.parse('json'))
       .then(function (res) {
         if (typeof window === 'undefined') {
           t.equal(res.url, fullUrl)
@@ -381,14 +381,14 @@ test('query', function (t) {
   t.test('should accept query as a string', function (t) {
     const req = popsicle.request({
       url: REMOTE_URL + '/echo/query',
-      query: 'query=true',
-      transport: popsicle.createTransport({ type: 'json' })
+      query: 'query=true'
     })
 
     t.equal(req.url, REMOTE_URL + '/echo/query?query=true')
     t.deepEqual(req.query, { query: 'true' })
 
     return req
+      .use(popsicle.plugins.parse('json'))
       .then(function (res) {
         t.deepEqual(res.body, { query: 'true' })
       })
@@ -488,8 +488,7 @@ test('progress', function (t) {
       const req = popsicle.request({
         url: REMOTE_URL + '/echo',
         body: EXAMPLE_BODY,
-        method: 'POST',
-        transport: popsicle.createTransport({ type: 'json' })
+        method: 'POST'
       })
 
       t.plan(3)
@@ -504,6 +503,7 @@ test('progress', function (t) {
       })
 
       return req
+        .use(popsicle.plugins.parse('json'))
         .then(function (res) {
           t.deepEqual(res.body, EXAMPLE_BODY)
         })
@@ -529,10 +529,8 @@ test('progress', function (t) {
 
 test('response body', function (t) {
   t.test('parse json responses', function (t) {
-    return popsicle.request({
-      url: REMOTE_URL + '/json',
-      transport: popsicle.createTransport({ type: 'json' })
-    })
+    return popsicle.request(REMOTE_URL + '/json')
+      .use(popsicle.plugins.parse('json'))
       .then(function (res) {
         t.equal(res.type(), 'application/json')
         t.deepEqual(res.body, { username: 'blakeembrey' })
@@ -540,10 +538,8 @@ test('response body', function (t) {
   })
 
   t.test('parse form encoded responses', function (t) {
-    return popsicle.request({
-      url: REMOTE_URL + '/foo',
-      transport: popsicle.createTransport({ type: 'urlencoded' })
-    })
+    return popsicle.request(REMOTE_URL + '/foo')
+      .use(popsicle.plugins.parse('urlencoded'))
       .then(function (res) {
         t.equal(res.type(), 'application/x-www-form-urlencoded')
         t.deepEqual(res.body, { foo: 'bar' })
@@ -576,9 +572,9 @@ test('response body', function (t) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
-      },
-      transport: popsicle.createTransport({ type: 'json' })
+      }
     })
+      .use(popsicle.plugins.parse('json'))
       .then(function (res) {
         t.equal(res.body, null)
         t.equal(res.type(), 'application/json')
@@ -720,11 +716,9 @@ test('request errors', function (t) {
       body: 'username=blakeembrey&password=hunter2',
       headers: {
         'Content-Type': 'application/json'
-      },
-      transport: popsicle.createTransport({
-        type: 'json'
-      })
+      }
     })
+      .use(popsicle.plugins.parse('json'))
       .catch(function (err) {
         t.ok(/Unable to parse response body/i.test(err.message))
         t.equal(err.code, 'EPARSE')

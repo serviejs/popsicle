@@ -1,5 +1,6 @@
 import Promise = require('any-promise')
 import FormData = require('form-data')
+import arrify = require('arrify')
 import { stringify as stringifyQuery, parse as parseQuery } from 'querystring'
 import isHostObject from './is-host/index'
 import Request from '../request'
@@ -7,8 +8,10 @@ import Response from '../response'
 import form from '../form'
 
 const JSON_MIME_REGEXP = /^application\/(?:[\w!#\$%&\*`\-\.\^~]*\+)?json$/i
-const QUERY_MIME_REGEXP = /^application\/x-www-form-urlencoded$/i
+const URL_ENCODED_MIME_REGEXP = /^application\/x-www-form-urlencoded$/i
 const FORM_MIME_REGEXP = /^multipart\/form-data$/i
+
+const JSON_PROTECTION_PREFIX = /^\)\]\}',?\n/
 
 /**
  * Simply wrap a value and return it.
@@ -66,7 +69,7 @@ export const stringify = wrap(function (request: Request, next: () => Promise<Re
       request.body = JSON.stringify(body)
     } else if (FORM_MIME_REGEXP.test(type)) {
       request.body = form(body)
-    } else if (QUERY_MIME_REGEXP.test(type)) {
+    } else if (URL_ENCODED_MIME_REGEXP.test(type)) {
       request.body = stringifyQuery(body)
     }
   } catch (err) {
@@ -81,3 +84,61 @@ export const stringify = wrap(function (request: Request, next: () => Promise<Re
 
   return next()
 })
+
+export type ParseType = 'json' | 'urlencoded'
+
+/**
+ * Parse the response body.
+ */
+export function parse (type: ParseType | ParseType[], strict?: boolean) {
+  const types = arrify(type)
+
+  for (const type of types) {
+    if (type !== 'json' && type !== 'urlencoded') {
+      throw new TypeError(`Unexpected parse type: ${type}`)
+    }
+  }
+
+  return function (request: Request, next: () => Promise<Response>) {
+    return next()
+      .then(function (response) {
+        const { body } = response
+        const responseType = response.type()
+
+        // Error on non-string bodies.
+        if (typeof body !== 'string') {
+          throw request.error(`Unable to parse non-string response body`, 'EPARSE')
+        }
+
+        // Empty bodies are _always_ `null`.
+        if (body === '') {
+          response.body = null
+          return response
+        }
+
+        // Attempt to parse as each type.
+        for (const type of types) {
+          if (type === 'json' && JSON_MIME_REGEXP.test(responseType)) {
+            try {
+              response.body = JSON.parse(body.replace(JSON_PROTECTION_PREFIX, ''))
+            } catch (err) {
+              throw request.error(`Unable to parse response body: ${err.message}`, 'EPARSE', err)
+            }
+
+            return response
+          }
+
+          if (type === 'urlencoded' && URL_ENCODED_MIME_REGEXP.test(responseType)) {
+            response.body = parseQuery(body)
+            return response
+          }
+        }
+
+        if (strict !== false) {
+          throw request.error(`Unhandled response type: ${responseType}`, 'EPARSE')
+        }
+
+        return response
+      })
+  }
+}
