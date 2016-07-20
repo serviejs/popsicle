@@ -71,7 +71,7 @@
     "arrify": "^1.0.0",
     "concat-stream": "^1.4.7",
     "form-data": "^0.2.0",
-    "make-error-cause": "^1.2.0",
+    "make-error-cause": "^1.2.1",
     "throwback": "^1.1.0",
     "tough-cookie": "^2.0.0",
     "xtend": "^4.0.0"
