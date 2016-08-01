@@ -105,20 +105,20 @@ export function parse (type: ParseType | ParseType[], strict?: boolean) {
         const { body } = response
         const responseType = response.type()
 
-        // Error on non-string bodies.
-        if (typeof body !== 'string') {
-          throw request.error(`Unable to parse non-string response body`, 'EPARSE')
-        }
-
         // Throw on invalid response type.
         if (responseType == null) {
           throw request.error(`Unable to parse invalid response content type`, 'EPARSE')
         }
 
         // Empty bodies are _always_ `null`.
-        if (body === '') {
+        if (body == null || body === '') {
           response.body = null
           return response
+        }
+
+        // Error on non-string bodies.
+        if (typeof body !== 'string') {
+          throw request.error(`Unable to parse non-string response body`, 'EPARSE')
         }
 
         // Attempt to parse as each type.
