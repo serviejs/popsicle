@@ -99,15 +99,15 @@ export default class Request extends Base implements Promise<Response> {
     return new PopsicleError(message, code, original, this)
   }
 
-  then (onFulfilled: (response?: Response) => any, onRejected?: (error?: PopsicleError) => any) {
+  then (onFulfilled: (response: Response) => any, onRejected?: (error: PopsicleError) => any) {
     return this._promise.then(onFulfilled, onRejected)
   }
 
-  catch (onRejected: (error?: PopsicleError) => any) {
+  catch (onRejected: (error: PopsicleError) => any) {
     return this._promise.then(null, onRejected)
   }
 
-  exec (cb: (err: PopsicleError, response?: Response) => any) {
+  exec (cb: (error: PopsicleError | void, response?: Response) => void) {
     this.then(function (response) {
       cb(null, response)
     }, cb)
