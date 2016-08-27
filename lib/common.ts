@@ -1,3 +1,4 @@
+import FormData = require('form-data')
 import extend = require('xtend')
 import Request, { RequestOptions, DefaultsOptions } from './request'
 import Response from './response'
@@ -40,6 +41,6 @@ export const patch = defaults({ method: 'patch' })
 export const del = defaults({ method: 'delete' })
 export const head = defaults({ method: 'head' })
 
-export { Request, Response, PopsicleError, plugins, form, jar, createTransport }
+export { Request, Response, PopsicleError, FormData, plugins, form, jar, createTransport }
 
 export default request
