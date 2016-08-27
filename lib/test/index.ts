@@ -34,6 +34,8 @@ const EXAMPLE_BODY: any = {
 
 const BOUNDARY_REGEXP = /^multipart\/form-data; boundary=([^;]+)/
 
+const MULTIPART_SEP = '\r\n'
+
 const supportsStatusText = parseFloat(process.version.replace(/^v/, '')) >= 0.12
 
 test('should expose default functions', function (t) {
@@ -303,11 +305,7 @@ test('request body', function (t) {
           '',
           EXAMPLE_BODY.password,
           '--' + boundary + '--'
-        ].join('\r\n')
-
-        if (typeof window !== 'undefined') {
-          body += '\r\n'
-        }
+        ].join(MULTIPART_SEP) + MULTIPART_SEP
 
         t.equal(res.body, body)
       }
@@ -654,7 +652,7 @@ test('response body', function (t) {
             '',
             filecontents,
             '--' + boundary + '--'
-          ].join('\r\n'))
+          ].join(MULTIPART_SEP) + MULTIPART_SEP)
         })
     })
 
