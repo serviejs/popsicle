@@ -72,8 +72,7 @@ popsicle.request({
 * **body** An object, string, form data, stream (node), etc to pass with the request
 * **timeout** The number of milliseconds to wait before aborting the request (default: `Infinity`)
 * **use** The array of plugins to be used (default: `[stringify(), headers()]`)
-* **options** Raw options used by the transport layer (default: `{}`)
-* **transport** Set the transport layer (default: `text`)
+* **transport** Set the transport layer (default: `createTransport({ type: 'text' })`)
 
 #### Middleware
 

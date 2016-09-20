@@ -7,7 +7,6 @@ import Response, { ResponseOptions, ResponseJSON } from './response'
 import PopsicleError from './error'
 
 export interface DefaultsOptions extends BaseOptions {
-  url?: string
   method?: string
   timeout?: number
   body?: any
