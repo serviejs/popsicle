@@ -1,6 +1,6 @@
 {
   "name": "popsicle",
-  "version": "8.1.1",
+  "version": "8.2.0",
   "description": "Simple HTTP requests for node and the browser",
   "main": "dist/common.js",
   "files": [
