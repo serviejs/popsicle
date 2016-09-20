@@ -3,7 +3,7 @@ import extend = require('xtend')
 import Promise = require('any-promise')
 import { compose } from 'throwback'
 import Base, { BaseOptions, Headers } from './base'
-import Response, { ResponseOptions } from './response'
+import Response, { ResponseOptions, ResponseJSON } from './response'
 import PopsicleError from './error'
 
 export interface DefaultsOptions extends BaseOptions {
@@ -26,6 +26,7 @@ export interface RequestJSON {
   body: any
   timeout: number
   method: string
+  response: ResponseJSON
 }
 
 export interface TransportOptions {
@@ -42,16 +43,17 @@ export default class Request extends Base implements Promise<Response> {
   timeout: number
   body: any
   transport: TransportOptions
+  response: Response
   middleware: Middleware[] = []
 
   opened = false
   aborted = false
   uploaded = 0
   downloaded = 0
-  uploadedBytes: number = null
-  downloadedBytes: number = null
-  uploadLength: number = null
-  downloadLength: number = null
+  uploadedBytes: number
+  downloadedBytes: number
+  uploadLength: number
+  downloadLength: number
 
   _raw: any
   _progress: ProgressFunction[] = []
@@ -68,10 +70,17 @@ export default class Request extends Base implements Promise<Response> {
     this.body = options.body
 
     // Internal promise representation.
-    const promised = new Promise((resolve, reject) => {
+    const $promise = new Promise((resolve, reject) => {
       this._resolve = resolve
       this._reject = reject
     })
+
+    // Extend to avoid mutations of the transport object.
+    this.transport = extend(options.transport)
+
+    // Automatically `use` default middleware functions.
+    this.use(options.use || this.transport.use)
+    this.progress(options.progress)
 
     // External promise representation, resolves _after_ middleware has been
     // attached by relying on promises always resolving on the "next tick".
@@ -81,18 +90,11 @@ export default class Request extends Base implements Promise<Response> {
 
         const cb = () => {
           this._handle()
-          return promised
+          return $promise
         }
 
         return run(this, cb)
       })
-
-    // Extend to avoid mutations of the transport object.
-    this.transport = extend(options.transport)
-
-    // Automatically `use` default middleware functions.
-    this.use(options.use || this.transport.use)
-    this.progress(options.progress)
   }
 
   error (message: string, code: string, original?: Error): PopsicleError {
@@ -129,10 +131,11 @@ export default class Request extends Base implements Promise<Response> {
   toJSON (): RequestJSON {
     return {
       url: this.url,
+      method: this.method,
       headers: this.headers,
       body: this.body,
       timeout: this.timeout,
-      method: this.method
+      response: this.response ? this.response.toJSON() : null
     }
   }
 
@@ -222,7 +225,10 @@ export default class Request extends Base implements Promise<Response> {
     // Proxy the transport promise into the current request.
     return this.transport.open(this)
       .then(
-        res => this._resolve(res),
+        response => {
+          this.response = response
+          this._resolve(response)
+        },
         err => this._reject(err)
       )
   }

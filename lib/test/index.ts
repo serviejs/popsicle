@@ -69,11 +69,12 @@ test('create a popsicle#Request instance', function (t) {
 test('use the same response in promise chains', function (t) {
   const req = popsicle.get(REMOTE_URL + '/echo')
 
-  t.plan(13)
+  t.plan(14)
 
   return req
     .then(function (res) {
       t.ok(res instanceof popsicle.Response)
+      t.equal(req.response, res)
 
       // Not all browsers support `responseURL`.
       t.ok(typeof res.url === 'string' || res.url == null)
@@ -88,8 +89,8 @@ test('use the same response in promise chains', function (t) {
       t.equal(typeof res.statusType, 'function')
       t.equal(typeof res.toJSON, 'function')
 
-      t.deepEqual(Object.keys(req.toJSON()), ['url', 'headers', 'body', 'timeout', 'method'])
-      t.deepEqual(Object.keys(res.toJSON()), ['url', 'headers', 'rawHeaders', 'body', 'status', 'statusText'])
+      t.deepEqual(Object.keys(req.toJSON()), ['url', 'method', 'headers', 'body', 'timeout', 'response'])
+      t.deepEqual(Object.keys(res.toJSON()), ['url', 'headers', 'body', 'status', 'statusText'])
 
       return req
         .then(function (res2) {

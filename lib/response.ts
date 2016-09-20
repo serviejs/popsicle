@@ -1,4 +1,4 @@
-import Base, { BaseOptions, Headers, RawHeaders } from './base'
+import Base, { BaseOptions, Headers } from './base'
 import Request from './request'
 import PopsicleError from './error'
 
@@ -10,7 +10,6 @@ export interface ResponseOptions extends BaseOptions {
 
 export interface ResponseJSON {
   headers: Headers
-  rawHeaders: RawHeaders
   body: any
   url: string
   status: number
@@ -38,7 +37,6 @@ export default class Response extends Base {
     return {
       url: this.url,
       headers: this.headers,
-      rawHeaders: this.rawHeaders,
       body: this.body,
       status: this.status,
       statusText: this.statusText
