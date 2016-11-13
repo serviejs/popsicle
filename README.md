@@ -337,11 +337,14 @@ Plugins can be passed in as an array with the initial options (which overrides d
 * [Group](https://github.com/blakeembrey/popsicle-group) - Group requests and perform operations on them all at once
 * [Proxy Agent](https://github.com/blakeembrey/popsicle-proxy-agent) - Enable HTTP(s) proxying under node (with environment variable support)
 * [Retry](https://github.com/blakeembrey/popsicle-retry) - Retry a HTTP request on network error or server error
+* [Rewrite](https://github.com/lbovet/popsicle-rewrite) - Rewrite request URLs dynamically
+* [Cache](https://github.com/blakeembrey/popsicle-cache) - Enable caching for HTTP requests into a store (E.g. filesystem)
 
 #### Helpful Utilities
 
 * [`throat`](https://github.com/ForbesLindesay/throat) - Throttle promise-based functions with concurrency support
 * [`is-browser`](https://github.com/ForbesLindesay/is-browser) - Check if your in a browser environment (E.g. Browserify, Webpack)
+* [`parse-link-header`](https://github.com/thlorenz/parse-link-header) - Handy for parsing HTTP link headers
 
 #### Creating Plugins
 
