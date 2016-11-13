@@ -46,16 +46,16 @@ popsicle.request({
   })
 ```
 
-**Popsicle** is ES6-ready and aliases `request` to the default export. Try using `import popsicle from 'popsicle'` or import specific methods using `import { get, defaults } from 'popsicle'`. Exports:
+**Popsicle** is a promise-based HTTP request library designed for extensibility. Here's the functions you can import from `popsicle`:
 
-* **request(options)** Default request handler - `defaults({})`
-* **get(options)** Alias of `request` (GET is the default method)
-* **del(options)** Alias of `defaults({ method: 'delete' })`
-* **head(options)** Alias of `defaults({ method: 'head' })`
-* **patch(options)** Alias of `defaults({ method: 'patch' })`
-* **post(options)** Alias of `defaults({ method: 'post' })`
-* **put(options)** Alias of `defaults({ method: 'put' })`
-* **defaults(options)** Create a new Popsicle instance using `defaults`
+* **request(options)** The default request handler (alias of `get`)
+* **get(options)** Alias for `defaults({ method: 'get' })`
+* **del(options)** Alias for `defaults({ method: 'delete' })`
+* **head(options)** Alias for `defaults({ method: 'head' })`
+* **patch(options)** Alias for `defaults({ method: 'patch' })`
+* **post(options)** Alias for `defaults({ method: 'post' })`
+* **put(options)** Alias for `defaults({ method: 'put' })`
+* **defaults(options)** Create a new Popsicle instance with `defaults`
 * **form(obj?)** Cross-platform form data object
 * **plugins** Exposes the default plugins (Object)
 * **jar(store?)** Create a cookie jar instance for Node.js
@@ -74,19 +74,19 @@ popsicle.request({
 * **use** The array of plugins to be used (default: `[stringify(), headers()]`)
 * **transport** Set the transport layer (default: `createTransport({ type: 'text' })`)
 
-#### Middleware
+#### Built-in Plugins
 
-##### `stringify`
+##### `stringify` (default)
 
 Automatically serialize the request body into a string (E.g. JSON, URL-encoded or multipart).
 
-##### `headers`
+##### `headers` (default)
 
 Sets up default headers for environments. For example, `Content-Length`, `User-Agent`, `Accept`, etc.
 
 ##### `parse`
 
-Automatically parses the response body by allowed type(s).
+Automatically parses allowed response type(s).
 
 * **json** Parse response as JSON
 * **urlencoded** Parse response as URL-encoded
@@ -97,7 +97,7 @@ popsicle.get('/users')
   .then(() => ...)
 ```
 
-#### Transports
+#### Built-in Transports
 
 Popsicle comes with two built-in transports, one for node (using `{http,https}.request`) and one for browsers (using `XMLHttpRequest`). These transports have a number of "types" built-in for handling the response body.
 
@@ -323,7 +323,7 @@ All response handling methods can return an error. Errors have a `popsicle` prop
 
 ### Plugins
 
-Plugins can be passed in as an array with the initial options (which overrides default plugins), or they can be used via `Request#use`.
+Plugins can be set as an array with the initial options (which overrides default plugins), or they can be used via `Request#use`.
 
 #### External Plugins
 
