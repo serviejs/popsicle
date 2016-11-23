@@ -381,6 +381,12 @@ This project is written using [TypeScript](https://github.com/Microsoft/TypeScri
 typings install npm:popsicle --save
 ```
 
+Note that for a brand new project you might need to add declaration of the node global variables to your typings via the following command:
+```
+typings install dt~node --global
+```
+Also make sure you have `typings/index.d.ts` in the `files` section of your `tsconfig.json`.
+
 ## Development
 
 Install dependencies and run the test runners (node and Electron using Tape).
