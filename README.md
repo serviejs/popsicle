@@ -381,11 +381,13 @@ This project is written using [TypeScript](https://github.com/Microsoft/TypeScri
 typings install npm:popsicle --save
 ```
 
-Note that for a brand new project you might need to add declaration of the node global variables to your typings via the following command:
+Note that for a brand new project you might need to add the definition for node via the following command:
+
 ```
-typings install dt~node --global
+typings install env~node --global
 ```
-Also make sure you have `typings/index.d.ts` in the `files` section of your `tsconfig.json`.
+
+Make sure you add `typings/index.d.ts` to your TypeScript project (using `files` or `includes` in `tsconfig.json`) if it isn't already.
 
 ## Development
 
