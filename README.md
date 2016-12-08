@@ -381,6 +381,14 @@ This project is written using [TypeScript](https://github.com/Microsoft/TypeScri
 typings install npm:popsicle --save
 ```
 
+Note that for a brand new project you might need to add the definition for node via the following command:
+
+```
+typings install env~node --save --global
+```
+
+Make sure you add `typings/index.d.ts` to your TypeScript project (using `files` or `includes` in `tsconfig.json`) if it isn't already.
+
 ## Development
 
 Install dependencies and run the test runners (node and Electron using Tape).
