@@ -5,7 +5,7 @@ import urlLib = require('url')
 import extend = require('xtend')
 import arrify = require('arrify')
 import concat = require('concat-stream')
-import { Cookie } from 'tough-cookie'
+import { Cookie, CookieJar } from 'tough-cookie'
 import Promise = require('any-promise')
 import { createUnzip } from 'zlib'
 import { Headers } from './base'
@@ -26,7 +26,7 @@ const validTypes = ['text', 'buffer', 'array', 'uint8array', 'stream']
 export interface Options {
   type?: Types
   unzip?: boolean
-  jar?: any
+  jar?: CookieJar
   agent?: any
   maxRedirects?: number
   rejectUnauthorized?: boolean
@@ -275,24 +275,27 @@ function falsey () {
  * Read cookies from the cookie jar.
  */
 function getAttachCookies (request: Request, options: Options): (url: string) => Promise<any> {
-  const { jar } = options
-  const cookie = request.getAll('Cookie')
+  const requestCookieString = request.getAll('Cookie').join('; ')
 
-  if (!jar) {
+  if (!options.jar) {
     return () => Promise.resolve()
   }
 
   return function (url: string) {
     return new Promise(function (resolve, reject) {
-      request.set('Cookie', cookie)
+      let cookieString = requestCookieString
 
-      options.jar.getCookies(url, function (err: Error, cookies: Cookie[]) {
+      options.jar.getCookieString(url, function (err: Error, jarCookieString?: string) {
         if (err) {
           return reject(err)
         }
 
-        if (cookies.length) {
-          request.append('Cookie', cookies.join('; '))
+        if (jarCookieString) {
+          cookieString = cookieString ? `${cookieString}; ${jarCookieString}` : jarCookieString
+        }
+
+        if (cookieString) {
+          request.set('Cookie', cookieString)
         }
 
         return resolve()

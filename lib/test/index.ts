@@ -872,12 +872,12 @@ if (!process.browser) {
           t.notOk(res.get('Cookie'))
           t.ok(res.get('Set-Cookie'))
 
-          cookie = res.get('Set-Cookie')
+          cookie = res.get('Set-Cookie').split(/ *; */, 1)[0]
 
           return instance(REMOTE_URL + '/echo')
         })
         .then(function (res) {
-          t.equal(res.get('Cookie').toLowerCase(), cookie.toLowerCase())
+          t.equal(res.get('Cookie'), cookie)
           t.notOk(res.get('Set-Cookie'))
         })
     })
