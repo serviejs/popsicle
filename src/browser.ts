@@ -1,7 +1,6 @@
-import Promise = require('any-promise')
 import { RawHeaders } from './base'
-import Request from './request'
-import Response from './response'
+import { Request } from './request'
+import { Response } from './response'
 import { stringify, headers } from './plugins/index'
 
 export type Types = 'text' | 'document' | 'blob' | 'arraybuffer' | 'json' | string

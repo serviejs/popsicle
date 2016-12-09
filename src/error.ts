@@ -1,5 +1,5 @@
 import makeErrorCause = require('make-error-cause')
-import Request from './request'
+import { Request } from './request'
 
 export default class PopsicleError extends makeErrorCause.BaseError {
 

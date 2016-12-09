@@ -1,7 +1,6 @@
 import test = require('blue-tape')
 import methods = require('methods')
 import FormData = require('form-data')
-import Promise = require('any-promise')
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import * as popsicle from '../common'
@@ -62,19 +61,24 @@ test('create a popsicle#Request instance', function (t) {
 
   t.ok(req instanceof popsicle.Request)
 
+  req.set('Test', 'Test')
+  t.equal(req.rawHeaders.length, 2)
+
+  req.remove('Test')
+  t.equal(req.rawHeaders.length, 0)
+
   // Ignore connection error.
-  return req.then(null, function () {})
+  return req.then(null, () => undefined)
 })
 
 test('use the same response in promise chains', function (t) {
   const req = popsicle.get(REMOTE_URL + '/echo')
 
-  t.plan(14)
+  t.plan(13)
 
   return req
     .then(function (res) {
       t.ok(res instanceof popsicle.Response)
-      t.equal(req.response, res)
 
       // Not all browsers support `responseURL`.
       t.ok(typeof res.url === 'string' || res.url == null)
@@ -89,7 +93,7 @@ test('use the same response in promise chains', function (t) {
       t.equal(typeof res.statusType, 'function')
       t.equal(typeof res.toJSON, 'function')
 
-      t.deepEqual(Object.keys(req.toJSON()), ['url', 'method', 'headers', 'body', 'timeout', 'response'])
+      t.deepEqual(Object.keys(req.toJSON()), ['url', 'method', 'headers', 'body', 'timeout'])
       t.deepEqual(Object.keys(res.toJSON()), ['url', 'headers', 'body', 'status', 'statusText'])
 
       return req
@@ -123,7 +127,7 @@ test('methods', function (t) {
     return popsicle.request(REMOTE_URL + '/echo')
       .exec(function (err, res) {
         t.ok(res instanceof popsicle.Response)
-        t.end()
+        t.end(err)
       })
   })
 
@@ -287,6 +291,7 @@ test('request body', function (t) {
       .use(popsicle.plugins.parse('urlencoded'))
       .then(function (res) {
         t.deepEqual(res.body, EXAMPLE_BODY)
+        t.equal(res.name('Content-Type'), 'content-type')
         t.equal(res.type(), 'application/x-www-form-urlencoded')
       })
   })
@@ -323,7 +328,7 @@ test('request body', function (t) {
         }).then(validateResponse)
       })
 
-      t.test('should stringify to form data when set as multipart', function (t) {
+      t.test('should stringify to form data when set as multipart', function () {
         return popsicle.request({
           url: REMOTE_URL + '/echo',
           method: 'POST',
@@ -431,9 +436,7 @@ test('abort', function (t) {
 
     t.plan(1)
 
-    setTimeout(function () {
-      req.abort()
-    }, 100)
+    setTimeout(() => req.abort(), 100)
 
     return req
       .catch(function (err) {
@@ -456,6 +459,20 @@ test('abort', function (t) {
         t.ok(err.popsicle instanceof popsicle.Request)
       })
   })
+
+  t.test('abort cloned requests', function (t) {
+    const req = popsicle.request(REMOTE_URL + '/download')
+    const req2 = req.clone()
+
+    t.plan(2)
+
+    req.abort()
+
+    return Promise.all([
+      req.catch(err => t.equal(err.code, 'EABORT')),
+      req2.catch(err => t.equal(err.code, 'EABORT'))
+    ])
+  })
 })
 
 test('progress', function (t) {
@@ -470,9 +487,12 @@ test('progress', function (t) {
 
       // Check halfway into the response.
       if (typeof window === 'undefined') {
-        setTimeout(function () {
-          t.equal(req.downloaded, 0.5)
-        }, 100)
+        setTimeout(
+          function () {
+            t.equal(req.downloaded, 0.5)
+          },
+          100
+        )
       }
 
       return req
@@ -492,35 +512,18 @@ test('progress', function (t) {
 
       t.plan(3)
 
-      let asserted = 0
       let expected = 0
 
-      req.progress(function (e) {
+      req.on('progress', function () {
         expected += 0.5
 
-        t.equal(e.completed, expected)
+        t.equal(this.completed, expected)
       })
 
       return req
         .use(popsicle.plugins.parse('json'))
         .then(function (res) {
           t.deepEqual(res.body, EXAMPLE_BODY)
-        })
-    })
-
-    t.test('error when the progress callback errors', function (t) {
-      const req = popsicle.request(REMOTE_URL + '/echo')
-
-      t.plan(2)
-
-      req.progress(function () {
-        throw new Error('Testing')
-      })
-
-      return req
-        .catch(function (err) {
-          t.equal(err.message, 'Testing')
-          t.notOk(err.popsicle, 'popsicle should not be set')
         })
     })
   })
@@ -644,7 +647,7 @@ test('response body', function (t) {
         })
       })
         .then(function (res) {
-          const boundary = BOUNDARY_REGEXP.exec(<string> res.headers['content-type'])[1]
+          const boundary = BOUNDARY_REGEXP.exec(res.get('content-type'))[1]
 
           t.equal(res.body, [
             '--' + boundary,
@@ -822,10 +825,13 @@ test('request flow', function (t) {
 
       req.use(function (self, next) {
         return new Promise(function (resolve) {
-          setTimeout(function () {
-            t.equal(self, req)
-            resolve()
-          }, 10)
+          setTimeout(
+            function () {
+              t.equal(self, req)
+              resolve()
+            },
+            10
+          )
         }).then(next)
       })
 
@@ -842,7 +848,7 @@ test('request flow', function (t) {
 
       t.plan(1)
 
-      req.use(function (self, next) {
+      req.use(function (_, next) {
         return next()
           .then(res => {
             t.ok(res instanceof popsicle.Response)
@@ -901,11 +907,11 @@ test('override request mechanism', function (t) {
   return popsicle.request({
     url: '/foo',
     transport: {
-      open: function (request) {
+      open () {
         return Promise.resolve({
           url: '/foo',
           body: 'testing',
-          headers: <any> {},
+          headers: {},
           status: 200,
           statusText: 'OK'
         })

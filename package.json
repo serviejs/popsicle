@@ -18,7 +18,7 @@
     "./dist/plugins/is-host/index.js": "./dist/plugins/is-host/browser.js"
   },
   "scripts": {
-    "lint": "# TODO",
+    "lint": "tslint \"src/**/*.ts\"",
     "check-size": "browserify . -s popsicle --external bluebird > popsicle.js && du -h popsicle.js",
     "build": "rm -rf dist/ && tsc && npm run check-size",
     "test-spec": "npm run test-server-open && HTTPS_PORT=7358 PORT=7357 node dist/test/index.js; EXIT=$?; npm run test-server-close; exit $EXIT",
@@ -57,23 +57,21 @@
     "bluebird": "^3.0.5",
     "body-parser": "^1.9.2",
     "browserify": "^13.0.0",
-    "envify": "^3.4.0",
+    "envify": "^4.0.0",
     "express": "^4.10.2",
     "istanbul": "^0.4.0",
     "methods": "^1.1.2",
     "tap-spec": "^4.1.1",
     "tape-run": "2.1.0",
+    "tslint": "^4.0.2",
+    "tslint-config-standard": "^2.0.0",
     "typescript": "^2.1.4",
-    "typings": "^1.0.2"
+    "typings": "^2.0.0"
   },
   "dependencies": {
-    "any-promise": "^1.3.0",
-    "arrify": "^1.0.0",
     "concat-stream": "^1.4.7",
     "form-data": "^2.0.0",
     "make-error-cause": "^1.2.1",
-    "throwback": "^1.1.0",
-    "tough-cookie": "^2.0.0",
-    "xtend": "^4.0.0"
+    "tough-cookie": "^2.0.0"
   }
 }
