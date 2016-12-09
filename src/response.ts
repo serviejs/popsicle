@@ -1,6 +1,4 @@
-import Base, { BaseOptions, Headers } from './base'
-import Request from './request'
-import PopsicleError from './error'
+import { Base, BaseOptions, Headers } from './base'
 
 export interface ResponseOptions extends BaseOptions {
   body: any
@@ -16,7 +14,7 @@ export interface ResponseJSON {
   statusText: string
 }
 
-export default class Response extends Base {
+export class Response extends Base {
   status: number
   statusText: string
   body: any

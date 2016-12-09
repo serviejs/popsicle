@@ -1,7 +1,6 @@
 var express = require('express')
 var bodyParser = require('body-parser')
 var zlib = require('zlib')
-var extend = require('xtend')
 var fs = require('fs')
 
 var app = module.exports = express()

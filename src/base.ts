@@ -1,7 +1,6 @@
-import arrify = require('arrify')
 import { parse, format, Url } from 'url'
 import { parse as parseQuery } from 'querystring'
-import extend = require('xtend')
+import { splice } from './support'
 
 /**
  * Query parameters in object notation.
@@ -66,7 +65,7 @@ function concat (a: string | string[], b: string): string | string[] {
 /**
  * Create a base class for requests and responses.
  */
-export default class Base {
+export class Base {
   Url: Url = {}
   rawHeaders: RawHeaders = []
 
@@ -76,7 +75,7 @@ export default class Base {
     }
 
     if (query != null) {
-      this.query = extend(this.query, typeof query === 'string' ? parseQuery(query) : query)
+      this.query = Object.assign(this.query, typeof query === 'string' ? parseQuery(query) : query)
     }
 
     // Enables proxying of `rawHeaders`.
@@ -165,20 +164,19 @@ export default class Base {
     return this
   }
 
-  name (name: string): string {
+  name (name: string): string | undefined {
     const lowered = lowerHeader(name)
-    let headerName: string
 
     for (let i = 0; i < this.rawHeaders.length; i += 2) {
       if (lowerHeader(this.rawHeaders[i]) === lowered) {
-        headerName = this.rawHeaders[i]
+        return this.rawHeaders[i]
       }
     }
 
-    return headerName
+    return undefined
   }
 
-  get (name: string): string {
+  get (name: string): string | undefined {
     const lowered = lowerHeader(name)
 
     for (let i = 0; i < this.rawHeaders.length; i += 2) {
@@ -186,6 +184,8 @@ export default class Base {
         return this.rawHeaders[i + 1]
       }
     }
+
+    return undefined
   }
 
   getAll (name: string): string[] {
@@ -203,11 +203,10 @@ export default class Base {
 
   remove (name: string) {
     const lowered = lowerHeader(name)
-    let len = this.rawHeaders.length
 
-    while ((len -= 2) >= 0) {
-      if (lowerHeader(this.rawHeaders[len]) === lowered) {
-        this.rawHeaders.splice(len, 2)
+    for (let i = 0; i < this.rawHeaders.length; i += 2) {
+      if (lowerHeader(this.rawHeaders[i]) === lowered) {
+        splice(this.rawHeaders, i, 2)
       }
     }
 

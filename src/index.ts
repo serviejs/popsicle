@@ -1,16 +1,13 @@
 import { request as httpRequest, IncomingMessage, ClientRequest } from 'http'
-import { request as httpsRequest, RequestOptions } from 'https'
+import { request as httpsRequest } from 'https'
 import { PassThrough } from 'stream'
 import urlLib = require('url')
-import extend = require('xtend')
-import arrify = require('arrify')
 import concat = require('concat-stream')
-import { Cookie, CookieJar } from 'tough-cookie'
-import Promise = require('any-promise')
+import { CookieJar } from 'tough-cookie'
 import { createUnzip } from 'zlib'
 import { Headers } from './base'
-import Request from './request'
-import Response from './response'
+import { Request } from './request'
+import { Response } from './response'
 import { stringify, headers } from './plugins/index'
 
 export type Types = 'text' | 'buffer' | 'array' | 'uint8array' | 'stream' | string
@@ -85,7 +82,7 @@ function handle (request: Request, options: Options) {
   const { url, method, body } = request
   const maxRedirects = num(options.maxRedirects, 5)
   const maxBufferSize = num(options.maxBufferSize, type === 'stream' ? Infinity : 2 * 1000 * 1000)
-  const storeCookies = getStoreCookies(request, options)
+  const storeCookies = getStoreCookies(options)
   const attachCookies = getAttachCookies(request, options)
   const confirmRedirect = options.confirmRedirect || falsey
   let requestCount = 0
@@ -195,7 +192,7 @@ function handle (request: Request, options: Options) {
             request.downloadLength = num(headers['content-length'], null)
             incomingMessage.pipe(responseStream)
 
-            return handleResponse(request, responseStream, headers, options)
+            return handleResponse(responseStream, headers, options)
               .then(function (body) {
                 return new Response({
                   status,
@@ -307,7 +304,7 @@ function getAttachCookies (request: Request, options: Options): (url: string) =>
 /**
  * Put cookies in the cookie jar.
  */
-function getStoreCookies (request: Request, options: Options): (url: string, headers: { [key: string]: any }) => Promise<any> {
+function getStoreCookies (options: Options): (url: string, headers: Headers) => Promise<any> {
   const { jar } = options
 
   if (!jar) {
@@ -315,13 +312,13 @@ function getStoreCookies (request: Request, options: Options): (url: string, hea
   }
 
   return function (url, headers) {
-    const cookies = arrify(headers['set-cookie'])
+    const cookies = headers['set-cookie']
 
-    if (!cookies.length) {
+    if (!cookies) {
       return Promise.resolve()
     }
 
-    const storeCookies = cookies.map(function (cookie) {
+    const storeCookies = (Array.isArray(cookies) ? cookies : [cookies]).map(function (cookie) {
       return new Promise(function (resolve, reject) {
         jar.setCookie(cookie, url, { ignoreError: true }, function (err: Error) {
           return err ? reject(err) : resolve()
@@ -337,7 +334,6 @@ function getStoreCookies (request: Request, options: Options): (url: string, hea
  * Handle the HTTP response body encoding.
  */
 function handleResponse (
-  request: Request,
   stream: PassThrough,
   headers: { [key: string]: any },
   options: Options

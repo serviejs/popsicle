@@ -1,10 +1,8 @@
-import Promise = require('any-promise')
 import FormData = require('form-data')
-import arrify = require('arrify')
 import { stringify as stringifyQuery, parse as parseQuery } from 'querystring'
 import isHostObject from './is-host/index'
-import Request from '../request'
-import Response from '../response'
+import { Request } from '../request'
+import { Response } from '../response'
 import form from '../form'
 
 const JSON_MIME_REGEXP = /^application\/(?:[\w!#\$%&\*`\-\.\^~]*\+)?json$/i
@@ -91,7 +89,7 @@ export type ParseType = 'json' | 'urlencoded'
  * Parse the response body.
  */
 export function parse (type: ParseType | ParseType[], strict?: boolean) {
-  const types = arrify(type)
+  const types = Array.isArray(type) ? type : [type]
 
   for (const type of types) {
     if (type !== 'json' && type !== 'urlencoded') {
@@ -113,7 +111,7 @@ export function parse (type: ParseType | ParseType[], strict?: boolean) {
 
         // Throw on invalid response type.
         if (responseType == null) {
-          throw request.error(`Unable to parse invalid response content type`, 'EPARSE')
+          throw request.error(`Unable to parse empty response content type`, 'EPARSE')
         }
 
         // Error on non-string bodies.

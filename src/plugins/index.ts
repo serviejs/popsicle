@@ -1,8 +1,7 @@
 import FormData = require('form-data')
-import Promise = require('any-promise')
 import { headers as commonHeaders } from './common'
-import Request from '../request'
-import Response from '../response'
+import { Request } from '../request'
+import { Response } from '../response'
 
 export * from './common'
 
@@ -26,7 +25,7 @@ export function headers () {
         request.set('Content-Type', 'multipart/form-data; boundary=' + request.body.getBoundary())
 
         // Asynchronously compute the content length.
-        return new Promise(function (resolve, reject) {
+        return new Promise((resolve) => {
           request.body.getLength(function (err: Error, length: number) {
             if (err) {
               request.set('Transfer-Encoding', 'chunked')

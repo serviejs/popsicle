@@ -1,7 +1,5 @@
 import FormData = require('form-data')
-import extend = require('xtend')
-import Request, { RequestOptions, DefaultsOptions } from './request'
-import Response from './response'
+import { Request, RequestOptions, DefaultsOptions } from './request'
 import * as plugins from './plugins/index'
 import form from './form'
 import jar from './jar'
@@ -13,16 +11,10 @@ import { createTransport } from './index'
  */
 export function defaults (defaultsOptions: DefaultsOptions) {
   const transport = createTransport({ type: 'text' })
-  const defaults = extend({ transport }, defaultsOptions)
+  const defaults = Object.assign({}, { transport }, defaultsOptions)
 
   return function popsicle (options: RequestOptions | string): Request {
-    let opts: RequestOptions
-
-    if (typeof options === 'string') {
-      opts = extend(defaults, { url: options })
-    } else {
-      opts = extend(defaults, options)
-    }
+    const opts: RequestOptions = Object.assign({}, defaults, typeof options === 'string' ? { url: options } : options)
 
     if (typeof opts.url !== 'string') {
       throw new TypeError('The URL must be a string')
@@ -41,6 +33,10 @@ export const patch = defaults({ method: 'patch' })
 export const del = defaults({ method: 'delete' })
 export const head = defaults({ method: 'head' })
 
-export { Request, Response, PopsicleError, FormData, plugins, form, jar, createTransport }
+export { PopsicleError, FormData, plugins, form, jar, createTransport }
+
+export * from './base'
+export * from './request'
+export * from './response'
 
 export default request
