@@ -44,7 +44,6 @@ export class Request extends Base {
   timeout: number
   body: any
   transport: TransportOptions
-  response: Response
   events: Events
   middleware: Middleware[] = []
 

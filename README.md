@@ -5,7 +5,7 @@
 [![Build status][travis-image]][travis-url]
 [![Test coverage][coveralls-image]][coveralls-url]
 
-> **Popsicle** is the easiest way to make HTTP requests - a consistent, intuitive and tiny API that works on node and the browser. 9.64 kB in browsers, after minification and gzipping.
+> **Popsicle** is the easiest way to make HTTP requests - a consistent, intuitive and tiny API that works on node and the browser. 9.37 kB in browsers, after minification and gzipping, including dependencies (with `url` being the bulk of it).
 
 ```js
 popsicle.get('/users.json')
@@ -25,7 +25,7 @@ npm install popsicle --save
 ## Usage
 
 ```js
-var popsicle = require('popsicle')
+const popsicle = require('popsicle')
 
 popsicle.request({
   method: 'POST',
@@ -48,13 +48,7 @@ popsicle.request({
 
 **Popsicle** is a promise-based HTTP request library designed for extensibility. Here's the functions you can import from `popsicle`:
 
-* **request(options)** The default request handler (alias of `get`)
-* **get(options)** Alias for `defaults({ method: 'get' })`
-* **del(options)** Alias for `defaults({ method: 'delete' })`
-* **head(options)** Alias for `defaults({ method: 'head' })`
-* **patch(options)** Alias for `defaults({ method: 'patch' })`
-* **post(options)** Alias for `defaults({ method: 'post' })`
-* **put(options)** Alias for `defaults({ method: 'put' })`
+* **request(options)** The default request handler (also `get`)
 * **defaults(options)** Create a new Popsicle instance with `defaults`
 * **form(obj?)** Cross-platform form data object
 * **plugins** Exposes the default plugins (Object)
@@ -63,28 +57,28 @@ popsicle.request({
 * **Request(options)** Constructor for the `Request` class
 * **Response(options)** Constructor for the `Response` class
 
-### Handling Requests
+### Request Options
 
-* **url** The resource location
-* **method** The HTTP request method (default: `"GET"`)
-* **headers** An object with HTTP headers, header name to value (default: `{}`)
-* **query** An object or string to be appended to the URL as the query string
-* **body** An object, string, form data, stream (node), etc to pass with the request
-* **timeout** The number of milliseconds to wait before aborting the request (default: `Infinity`)
-* **use** The array of plugins to be used (default: `[stringify(), headers()]`)
-* **transport** Set the transport layer (default: `createTransport({ type: 'text' })`)
+* **url** _(string)_ The resource location.
+* **method** _(string)_ The HTTP request method (default: `"GET"`).
+* **headers** _(object)_ A map of header key to value (default: `{}`).
+* **query** _(object | string)_ A map or string to be appended to the URL as the query string.
+* **body** _(any)_ An object, string, form data, stream (node) or other to pass with the request.
+* **timeout** _(number)_ The number of milliseconds to wait before aborting the request (default: `Infinity`)
+* **use** _(array)_ An array of plugins to override the defaults (default: `[stringify(), headers()]`)
+* **transport** _(object)_ Set the transport layer (default: `createTransport({ type: 'text' })`)
 
-#### Built-in Plugins
+### Built-in Plugins
 
-##### `stringify` (default)
+#### `stringify` (default)
 
 Automatically serialize the request body into a string (E.g. JSON, URL-encoded or multipart).
 
-##### `headers` (default)
+#### `headers` (default)
 
 Sets up default headers for environments. For example, `Content-Length`, `User-Agent`, `Accept`, etc.
 
-##### `parse`
+#### `parse`
 
 Automatically parses allowed response type(s).
 
@@ -97,9 +91,9 @@ popsicle.get('/users')
   .then(() => ...)
 ```
 
-#### Built-in Transports
+### Built-in Transports
 
-Popsicle comes with two built-in transports, one for node (using `{http,https}.request`) and one for browsers (using `XMLHttpRequest`). These transports have a number of "types" built-in for handling the response body.
+Popsicle provides two transports, one for node (using `{http,https}.request`) and one for browsers (using `XMLHttpRequest`). These transports have a number of "types" built-in for handling the response body.
 
 * **text** Handle response as a string (default)
 * **document** `responseType === 'document'` (browsers)
@@ -130,7 +124,7 @@ Popsicle comes with two built-in transports, one for node (using `{http,https}.r
 * **withCredentials** Send cookies with CORS requests (default: `false`)
 * **overrideMimeType** Override the XHR response MIME type
 
-#### Short-hand Methods
+### Short-hand Methods
 
 Common methods have a short hand exported (created using `defaults({ method })`).
 
@@ -142,19 +136,19 @@ popsicle.patch('http://example.com/api/users')
 popsicle.del('http://example.com/api/users')
 ```
 
-#### Extending with Defaults
+### Default Instances
 
-Create a new request function with defaults pre-populated. Handy for a common cookie jar or transport to be used.
+Create a new Popsicle instance with defaults pre-populated. Handy for a common cookie jar or transport to be used.
 
 ```js
-var cookiePopsicle = popsicle.defaults({
+const cookiePopsicle = popsicle.defaults({
   transport: popsicle.createTransport({
     jar: popsicle.jar()
   })
 })
 ```
 
-#### Automatically Stringify Request Body
+### Automatically Stringify Request Body
 
 Popsicle will automatically serialize the request body using the `stringify` plugin. If an object is supplied, it will automatically be stringified as JSON unless the `Content-Type` was set otherwise. If the `Content-Type` is `application/json`, `multipart/form-data` or `application/x-www-form-urlencoded`, it will be automatically serialized accordingly.
 
@@ -170,15 +164,17 @@ popsicle.get({
 })
 ```
 
-#### Multipart Request Bodies
+### Multipart Request Bodies
 
-You can manually create form data by calling `popsicle.form`. When you pass a form data instance as the body, it'll automatically set the correct `Content-Type` - complete with boundary.
+You can manually create a `FormData` instance by calling `popsicle.form`. When you pass a form data instance as the body, it'll automatically set the correct `Content-Type` - complete with boundary.
 
 ```js
-var form = popsicle.form({
+const form = popsicle.form({
   username: 'blakeembrey',
   profileImage: fs.createReadStream('image.png')
 })
+
+form.append('x', 'y')
 
 popsicle.post({
   url: '/users',
@@ -186,57 +182,12 @@ popsicle.post({
 })
 ```
 
-#### Aborting Requests
-
-All requests can be aborted before or during execution by calling `Request#abort`.
-
-```js
-var request = popsicle.get('http://example.com')
-
-setTimeout(function () {
-  request.abort()
-}, 100)
-
-request.catch(function (err) {
-  console.log(err) //=> { message: 'Request aborted', code: 'EABORTED' }
-})
-```
-
-#### Progress
-
-The request object can be used to check progress at any time.
-
-* **request.uploadedBytes** Current upload size in bytes
-* **request.uploadLength** Total upload size in bytes
-* **request.uploaded** Total uploaded as a percentage
-* **request.downloadedBytes** Current download size in bytes
-* **request.downloadLength** Total download size in bytes
-* **request.downloaded** Total downloaded as a percentage
-* **request.completed** Total uploaded and downloaded as a percentage
-
-All percentage properties (`request.uploaded`, `request.downloaded`, `request.completed`) are a number between `0` and `1`. Aborting the request will emit a progress event, if the request had started.
-
-```js
-var request = popsicle.get('http://example.com')
-
-request.uploaded //=> 0
-request.downloaded //=> 0
-
-request.progress(function () {
-  console.log(request) //=> { uploaded: 1, downloaded: 0, completed: 0.5, aborted: false }
-})
-
-request.then(function (response) {
-  console.log(request.downloaded) //=> 1
-})
-```
-
-#### Cookie Jar (Node only)
+### Cookie Jar (Node only)
 
 You can create a reusable cookie jar instance for requests by calling `popsicle.jar`.
 
 ```js
-var jar = popsicle.jar()
+const jar = popsicle.jar()
 
 popsicle.request({
   method: 'post',
@@ -247,9 +198,39 @@ popsicle.request({
 })
 ```
 
-### Handling Responses
+### Request Class
 
-Promises and node-style callbacks are supported.
+Calling any of the request functions will return an instance of `Request`.
+
+* **method** _(string)_ The request method.
+* **timeout** _(number)_ Configured request timeout.
+* **body** _(any)_ The request payload.
+* **transport** _(object)_ The transportation layer.
+* **events** _(object)_ A map of configured event listeners.
+* **middleware** _(array)_ The list of configured middleware.
+* **opened** _(boolean)_ A flag indicating the transport was started.
+* **aborted** _(boolean)_ A flag indicating the request was aborted before finishing.
+* **uploaded** _(number)_ The percentage of upload complete (between 0 and 1).
+* **downloaded** _(number)_ The percentage of download complete (between 0 and 1).
+* **uploadedBytes** (number)_ Number of bytes uploaded.
+* **downloadedBytes** _(number)_ Number of bytes downloaded.
+* **uploadLength** _(number)_ Known size of total upload bytes.
+* **downloadLength** _(number)_ Known size of total download bytes.
+* **error(message, code, original?)** Create a `PopsicleError` instance.
+* **then(onFulfilled?, onRejected?)** Promise interface.
+* **catch(onRejected)** Promise interface.
+* **exec(cb)** Callback interface.
+* **toOptions()** Return a new object representing the request options.
+* **toJSON()** A JSON friendly representation of the request.
+* **clone()** Return a new instance of `Request` from `toOptions()`.
+* **use(middleware)** Append middleware to the current request.
+* **on(event, fn)** Attach an event listener.
+* **off(event, fn)** Detach an event listener.
+* **once(event, fn)** Attach an event listener that automatically detaches after the first execution.
+* **emit(event, ...args)** Emit an event (mostly internal use).
+* **abort()** Abort the current request by emitting the `abort` event.
+
+**P.S.** When cloning a request instance, the current middleware and events are copied. This allows event tricks like `abort()` to also abort cloned request instances (e.g. in the case where working with request retries, and aborting should still work on re-attempts).
 
 #### Promises
 
@@ -292,22 +273,54 @@ popsicle.get('/users')
   })
 ```
 
-### Response Objects
+### Aborting
 
-Every response will give a `Response` object on success. The object provides an intuitive interface for accessing common properties.
+All requests can be aborted before or during execution by calling `Request#abort`.
 
-* **status** The HTTP response status code
-* **body** An object (if parsed using a plugin), string (if using concat) or stream that is the HTTP response body
-* **headers** An object of lower-cased keys to header values
-* **url** The final response URL (after redirects)
-* **statusType()** Return an integer with the HTTP status type (E.g. `200 -> 2`)
-* **get(key)** Retrieve a HTTP header using a case-insensitive key
-* **name(key)** Retrieve the original HTTP header name using a case-insensitive key
-* **type()** Return the response type (E.g. `application/json`)
+```js
+const request = popsicle.get('http://example.com')
 
-### Error Handling
+setTimeout(function () {
+  request.abort()
+}, 100)
 
-All response handling methods can return an error. Errors have a `popsicle` property set to the request object and a `code` string. The built-in codes are documented below, but custom errors can be created using `request.error(message, code, cause)`.
+request.catch(function (err) {
+  console.log(err) //=> { message: 'Request aborted', code: 'EABORTED' }
+})
+```
+
+#### Progress
+
+The request object can be used to check progress at any time.
+
+* **request.uploadedBytes** Current upload size in bytes
+* **request.uploadLength** Total upload size in bytes
+* **request.uploaded** Total uploaded as a percentage
+* **request.downloadedBytes** Current download size in bytes
+* **request.downloadLength** Total download size in bytes
+* **request.downloaded** Total downloaded as a percentage
+* **request.completed** Total uploaded and downloaded as a percentage
+
+All percentage properties (`request.uploaded`, `request.downloaded`, `request.completed`) are a number between `0` and `1`. Aborting the request will emit a progress event, if the request had started.
+
+```js
+const request = popsicle.get('http://example.com')
+
+request.uploaded //=> 0
+request.downloaded //=> 0
+
+request.on('progress', function () {
+  console.log(request) //=> { uploaded: 1, downloaded: 0, completed: 0.5, aborted: false }
+})
+
+request.then(function (response) {
+  console.log(request.downloaded) //=> 1
+})
+```
+
+#### Errors
+
+All response methods can return an error. Errors have a `popsicle` property set to the request object and a `code` string. The built-in codes are documented below, but custom errors can be created using `request.error(message, code, cause)`.
 
 * **EABORT** Request has been aborted by user
 * **EUNAVAILABLE** Unable to connect to the remote URL
@@ -320,6 +333,19 @@ All response handling methods can return an error. Errors have a `popsicle` prop
 * **EBLOCKED** The request was blocked (HTTPS -> HTTP) (Browsers only)
 * **ECSP** Request violates the documents Content Security Policy (Browsers only)
 * **ETYPE** Invalid transport type
+
+### Response Class
+
+Every response will give a `Response` instance on success. T
+
+* **status** The HTTP response status code
+* **body** The response body from the transport layer (usually text or a stream)
+* **headers** An object of lower-cased keys to header values
+* **url** The final response URL (after redirects)
+* **statusType()** Return an integer with the HTTP status type (E.g. `200 -> 2`)
+* **get(key)** Retrieve a HTTP header using a case-insensitive key
+* **name(key)** Retrieve the original HTTP header name using a case-insensitive key
+* **type()** Return the response type (E.g. `application/json`)
 
 ### Plugins
 
@@ -367,9 +393,9 @@ popsicle.request('/user')
 
 Middleware functions accept two arguments - the current request and a function to proceed to the next middleware function (a la Koa `2.x`).
 
-**P.S.** The middleware array is exposed on `request.middleware`, which allows you to clone requests and omit middleware - for example, using `request.middleware.slice(request.middleware.indexOf(currentFn))`. This is useful, as the pre and post steps of previous middleware attach before `currentFn` is executed.
+**P.S.** The middleware array is exposed on `request.middleware`, which allows you to clone requests and tweak middleware - for example, using `request.middleware.slice(request.middleware.indexOf(currentFn))`. This is useful, as the pre and post steps of previous middleware attach before `currentFn` is executed.
 
-#### Transportation Layers
+### Transportation Layers
 
 Creating a custom transportation layer is just a matter creating an object with `open`, `abort` and `use` options set. The open method should set any request information required between called as `request._raw`. Abort must abort the current request instance, while `open` must **always** resolve to a promise. You can set `use` to an empty array if no plugins should be used by default. However, it's recommended you keep `use` set to the defaults, or as close as possible using your transport layer.
 
