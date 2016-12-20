@@ -399,6 +399,13 @@ Middleware functions accept two arguments - the current request and a function t
 
 Creating a custom transportation layer is just a matter creating an object with `open`, `abort` and `use` options set. The open method should set any request information required between called as `request._raw`. Abort must abort the current request instance, while `open` must **always** resolve to a promise. You can set `use` to an empty array if no plugins should be used by default. However, it's recommended you keep `use` set to the defaults, or as close as possible using your transport layer.
 
+## JavaScript
+
+This module is designed for ES5 environments, but requires two ES2015 polyfills to work:
+
+1. `Promise` - `popsicle` is designed heavily with promises in mind
+2. `Object.assign` - used internally for object cloning
+
 ## TypeScript
 
 This project is written using [TypeScript](https://github.com/Microsoft/TypeScript) and [typings](https://github.com/typings/typings). Since version `1.3.1`, you can install the type definition using `typings`.
