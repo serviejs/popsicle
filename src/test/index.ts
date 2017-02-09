@@ -199,7 +199,7 @@ test('request headers', function (t) {
       .then(function (res) {
         const regexp = process.browser ?
           /^Mozilla\/.+$/ :
-          /^https:\/\/github\.com\/blakeembrey\/popsicle$/
+          /^Popsicle \(https:\/\/github\.com\/blakeembrey\/popsicle\)$/
 
         t.ok(regexp.test(res.body))
       })

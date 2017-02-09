@@ -16,7 +16,7 @@ export function headers () {
     return common(request, function () {
       // Specify a default user agent in node.
       if (!request.get('User-Agent')) {
-        request.set('User-Agent', 'https://github.com/blakeembrey/popsicle')
+        request.set('User-Agent', 'Popsicle (https://github.com/blakeembrey/popsicle)')
       }
 
       // Manually set the `Content-Length` and `Content-Type` headers from the
