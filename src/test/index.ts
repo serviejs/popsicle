@@ -147,11 +147,11 @@ test('methods', function (t) {
 
 test('allow usage of method shorthands', function (t) {
   return Promise.all(SHORTHAND_METHODS.map(function (method) {
-      return (popsicle as any)[method](REMOTE_URL + '/echo/method')
-        .then(function (res: any) {
-          t.equal(res.status, 200)
-          t.equal(res.body, method === 'del' ? 'DELETE' : method.toUpperCase())
-        })
+    return (popsicle as any)[method](REMOTE_URL + '/echo/method')
+      .then(function (res: any) {
+        t.equal(res.status, 200)
+        t.equal(res.body, method === 'del' ? 'DELETE' : method.toUpperCase())
+      })
   }))
 })
 
