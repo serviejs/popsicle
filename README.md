@@ -1,9 +1,10 @@
 # ![Popsicle](https://cdn.rawgit.com/blakeembrey/popsicle/master/logo.svg)
 
-[![NPM version][npm-image]][npm-url]
-[![NPM downloads][downloads-image]][downloads-url]
-[![Build status][travis-image]][travis-url]
-[![Test coverage][coveralls-image]][coveralls-url]
+[![NPM version](https://img.shields.io/npm/v/popsicle.svg?style=flat)](https://npmjs.org/package/popsicle)
+[![NPM downloads](https://img.shields.io/npm/dm/popsicle.svg?style=flat)](https://npmjs.org/package/popsicle)
+[![Build status](https://img.shields.io/travis/blakeembrey/popsicle.svg?style=flat)](https://travis-ci.org/blakeembrey/popsicle)
+[![Test coverage](https://img.shields.io/coveralls/blakeembrey/popsicle.svg?style=flat)](https://coveralls.io/r/blakeembrey/popsicle?branch=master)
+[![Greenkeeper badge](https://badges.greenkeeper.io/blakeembrey/popsicle.svg)](https://greenkeeper.io/)
 
 > **Popsicle** is the easiest way to make HTTP requests - a consistent, intuitive and tiny API that works on node and the browser. 9.37 kB in browsers, after minification and gzipping, including dependencies (with `url` being the bulk of it).
 
@@ -439,12 +440,3 @@ npm install && npm test
 ## License
 
 MIT
-
-[npm-image]: https://img.shields.io/npm/v/popsicle.svg?style=flat
-[npm-url]: https://npmjs.org/package/popsicle
-[downloads-image]: https://img.shields.io/npm/dm/popsicle.svg?style=flat
-[downloads-url]: https://npmjs.org/package/popsicle
-[travis-image]: https://img.shields.io/travis/blakeembrey/popsicle.svg?style=flat
-[travis-url]: https://travis-ci.org/blakeembrey/popsicle
-[coveralls-image]: https://img.shields.io/coveralls/blakeembrey/popsicle.svg?style=flat
-[coveralls-url]: https://coveralls.io/r/blakeembrey/popsicle?branch=master
