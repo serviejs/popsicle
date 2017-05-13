@@ -3,6 +3,7 @@
   "version": "9.1.0",
   "description": "Simple HTTP requests for node and the browser",
   "main": "dist/common.js",
+  "types": "dist/common.d.ts",
   "files": [
     "dist/",
     "typings.json",
