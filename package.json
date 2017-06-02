@@ -63,7 +63,7 @@
     "methods": "^1.1.2",
     "tap-spec": "^4.1.1",
     "tape-run": "3.0.0",
-    "tslint": "^5.2.0",
+    "tslint": "^5.4.1",
     "tslint-config-standard": "^5.0.2",
     "typescript": "^2.1.4",
     "typings": "^2.0.0"
