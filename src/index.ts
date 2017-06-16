@@ -164,7 +164,7 @@ function handle (request: Request, options: Options) {
 
             // Handle HTTP redirects.
             if (followRedirects !== false && redirect != null && headers.location) {
-              const newUrl = urlLib.resolve(url, headers.location)
+              const newUrl = urlLib.resolve(url, String(headers.location))
 
               // Ignore the result of the response on redirect.
               incomingMessage.resume()
