@@ -22,7 +22,6 @@
   },
   "include": [
     "src/**/*",
-    "custom_typings/**/*",
-    "typings/**/*"
+    "custom_typings/**/*"
   ]
 }
