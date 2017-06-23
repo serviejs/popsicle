@@ -71,6 +71,7 @@
   "dependencies": {
     "@types/concat-stream": "^1.6.0",
     "@types/form-data": "0.0.33",
+    "@types/methods": "^1.1.0",
     "@types/node": "^8.0.0",
     "@types/tough-cookie": "^2.3.0",
     "concat-stream": "^1.4.7",
