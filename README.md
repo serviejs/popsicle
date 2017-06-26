@@ -409,7 +409,7 @@ This module is designed for ES5 environments, but requires two ES2015 polyfills 
 
 ## TypeScript
 
-This project is written using [TypeScript](https://github.com/Microsoft/TypeScript). To take advantage of the typings, simply use TypeScript 2 or greater. They will be installed alongside the package and the TypeScript compiler will pick them up.
+This project is written using [TypeScript](https://github.com/Microsoft/TypeScript) and publishes the typings to NPM alongside the package.
 
 ## Development
 
