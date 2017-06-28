@@ -18,7 +18,7 @@
     "./dist/plugins/is-host/index.js": "./dist/plugins/is-host/browser.js"
   },
   "scripts": {
-    "lint": "tslint \"src/**/*.ts\"",
+    "lint": "tslint \"src/**/*.ts\" --project tsconfig.json --type-check",
     "check-size": "browserify . -s popsicle --external bluebird > popsicle.js && du -h popsicle.js",
     "build": "rm -rf dist/ && tsc && npm run check-size",
     "test-spec": "npm run test-server-open && HTTPS_PORT=7358 PORT=7357 node dist/test/index.js; EXIT=$?; npm run test-server-close; exit $EXIT",
@@ -66,7 +66,7 @@
     "tape-run": "3.0.0",
     "tslint": "^5.2.0",
     "tslint-config-standard": "^6.0.0",
-    "typescript": "^2.1.4",
+    "typescript": "^2.4.1",
     "typings": "^2.0.0"
   },
   "dependencies": {

@@ -98,12 +98,12 @@ export class Request extends Base {
     return this._promise.then(onFulfilled, onRejected)
   }
 
-  catch <T> (onRejected: (error: PopsicleError) => T): Promise<T> {
+  catch <T> (onRejected: (error: PopsicleError) => T): Promise<T | Response> {
     return this._promise.then(null, onRejected)
   }
 
   exec (cb: (error: PopsicleError | null, response?: Response) => void) {
-    this.then(res => cb(null, res), cb)
+    void this.then(res => cb(null, res), cb)
   }
 
   toOptions (): RequestOptions {
@@ -216,7 +216,7 @@ export class Request extends Base {
     let timer: any
 
     // Resolve the transport request with timeout rejection.
-    const result = new Promise((resolve, reject) => {
+    const result = new Promise<Response>((resolve, reject) => {
       if (timeout > 0) {
         timer = setTimeout(
           () => {
@@ -245,7 +245,7 @@ export class Request extends Base {
 
       // Wrap the transport layer to defer resolving the outer promise, allows
       // other conditions to possibly `reject` over the transport layer.
-      Promise.resolve(this.transport.open(this)).then(
+      void Promise.resolve(this.transport.open(this)).then(
         (res) => resolve(res),
         (err) => reject(err)
       )
@@ -253,7 +253,7 @@ export class Request extends Base {
 
     // Clear the timeout on resolve, if enabled.
     if (timeout > 0) {
-      result.then(
+      void result.then(
         () => clearTimeout(timer),
         () => clearTimeout(timer)
       )
