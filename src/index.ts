@@ -65,11 +65,9 @@ enum REDIRECT_TYPE {
  * Possible redirection status codes.
  */
 const REDIRECT_STATUS: { [status: number]: number } = {
-  '300': REDIRECT_TYPE.FOLLOW_WITH_GET,
   '301': REDIRECT_TYPE.FOLLOW_WITH_GET,
   '302': REDIRECT_TYPE.FOLLOW_WITH_GET,
   '303': REDIRECT_TYPE.FOLLOW_WITH_GET,
-  '305': REDIRECT_TYPE.FOLLOW_WITH_GET,
   '307': REDIRECT_TYPE.FOLLOW_WITH_CONFIRMATION,
   '308': REDIRECT_TYPE.FOLLOW_WITH_CONFIRMATION
 }
@@ -173,7 +171,7 @@ function handle (request: Request, options: Options): Promise<Response> {
                 // Update the "Content-Length" for updated redirection body.
                 request.set('Content-Length', '0')
 
-                return get(newUrl, 'GET')
+                return get(newUrl, arg.method === 'HEAD' ? 'HEAD' : 'GET')
               }
 
               if (redirect === REDIRECT_TYPE.FOLLOW_WITH_CONFIRMATION) {
