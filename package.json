@@ -1,46 +1,39 @@
 {
   "name": "popsicle",
   "version": "10.0.0",
-  "description": "Simple HTTP requests for node and the browser",
-  "main": "dist/common.js",
-  "types": "dist/common.d.ts",
+  "description": "Advanced HTTP requests in node.js and browsers, using Servie",
+  "main": "dist/universal.js",
+  "types": "dist/universal.d.ts",
   "files": [
     "dist/",
-    "LICENSE",
     "logo.svg"
   ],
   "browser": {
-    "buffer": false,
-    "form-data": "./dist/browser/form-data.js",
-    "tough-cookie": "./dist/browser/tough-cookie.js",
-    "./dist/index.js": "./dist/browser.js",
-    "./dist/plugins/index.js": "./dist/plugins/browser.js",
-    "./dist/plugins/is-host/index.js": "./dist/plugins/is-host/browser.js"
+    "./dist/node.js": "./dist/browser.js"
   },
   "scripts": {
-    "lint": "tslint \"src/**/*.ts\" --project tsconfig.json --type-check",
-    "check-size": "browserify . -s popsicle --external bluebird > popsicle.js && du -h popsicle.js",
-    "build": "rm -rf dist/ && tsc && npm run check-size",
-    "test-spec": "npm run test-server-open && HTTPS_PORT=7358 PORT=7357 node dist/test/index.js; EXIT=$?; npm run test-server-close; exit $EXIT",
-    "test-cov": "HTTPS_PORT=7358 PORT=7357 istanbul cover --print none dist/test/index.js | tap-spec",
-    "test-browser": "HTTPS_PORT=7358 PORT=7357 browserify -d -t envify dist/test/index.js | tape-run --render tap-spec",
-    "test-server-open": "PORT=7357 node scripts/server.js & echo $! > server.pid; HTTPS_PORT=7358 node scripts/https-server.js & echo $! > https-server.pid",
-    "test-server-close": "if [ -f server.pid ]; then kill -9 $(cat server.pid); rm server.pid; fi; if [ -f https-server.pid ]; then kill -9 $(cat https-server.pid); rm https-server.pid; fi",
-    "test": "npm run lint && npm run build && npm run test-server-open && npm run test-cov && npm run test-browser; EXIT=$?; npm run test-server-close; exit $EXIT",
+    "lint": "tslint \"src/**/*.ts\" --project tsconfig.json",
+    "bundle": "browserify -g [ envify --NODE_ENV production ] -s popsicle -o popsicle.js .",
+    "bundle:size": "du -h popsicle.js",
+    "build": "rimraf dist/ && tsc && npm run bundle && npm run bundle:size",
+    "specs": "HTTPS_PORT=7358 PORT=7357 jest --coverage",
+    "server:open": "PORT=7357 node scripts/http-server.js & echo $! > server.pid; HTTPS_PORT=7358 node scripts/https-server.js & echo $! > https-server.pid",
+    "server:close": "if [ -f server.pid ]; then kill -9 $(cat server.pid); rm server.pid; fi; if [ -f https-server.pid ]; then kill -9 $(cat https-server.pid); rm https-server.pid; fi",
+    "test": "npm run lint && npm run build && npm run server:open && npm run specs; EXIT=$?; npm run server:close; exit $EXIT",
     "prepublish": "npm run build"
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/blakeembrey/popsicle.git"
+    "url": "git://github.com/serviejs/popsicle.git"
   },
   "keywords": [
     "request",
-    "ajax",
     "http",
+    "middleware",
     "node",
+    "ajax",
     "browser",
-    "promise",
-    "agent"
+    "promise"
   ],
   "author": {
     "name": "Blake Embrey",
@@ -49,34 +42,48 @@
   },
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/blakeembrey/popsicle/issues"
+    "url": "https://github.com/serviejs/popsicle/issues"
   },
-  "homepage": "https://github.com/blakeembrey/popsicle",
+  "homepage": "https://github.com/serviejs/popsicle",
+  "jest": {
+    "roots": [
+      "<rootDir>/src/"
+    ],
+    "transform": {
+      "\\.tsx?$": "ts-jest"
+    },
+    "testRegex": "(/__tests__/.*|\\.(test|spec))\\.(tsx?|jsx?)$",
+    "moduleFileExtensions": [
+      "ts",
+      "tsx",
+      "js",
+      "jsx",
+      "json",
+      "node"
+    ]
+  },
   "devDependencies": {
-    "@types/blue-tape": "^0.1.30",
+    "@types/jest": "^22.2.3",
     "@types/node": "^8.0.0",
-    "blue-tape": "^1.0.0",
-    "bluebird": "^3.0.5",
-    "body-parser": "^1.9.2",
+    "body-parser": "^1.18.3",
     "browserify": "^14.3.0",
-    "envify": "^4.0.0",
-    "express": "^4.10.2",
-    "istanbul": "^0.4.0",
+    "envify": "^4.1.0",
+    "express": "^4.16.3",
+    "jest": "^22.4.4",
     "methods": "^1.1.2",
-    "tap-spec": "^4.1.1",
-    "tape-run": "3.0.0",
-    "tslint": "^5.2.0",
+    "rimraf": "^2.6.2",
+    "ts-jest": "^22.4.6",
+    "tslint": "^5.10.0",
     "tslint-config-standard": "^7.0.0",
-    "typescript": "^2.4.1"
+    "typescript": "^2.8.3"
   },
   "dependencies": {
-    "@types/concat-stream": "^1.6.0",
-    "@types/form-data": "0.0.33",
-    "@types/methods": "^1.1.0",
-    "@types/tough-cookie": "^2.3.0",
-    "concat-stream": "^1.4.7",
-    "form-data": "^2.0.0",
-    "make-error-cause": "^1.2.1",
+    "@types/pump": "^1.0.1",
+    "@types/tough-cookie": "^2.3.2",
+    "make-error-cause": "^2.1.0",
+    "pump": "^3.0.0",
+    "servie": "^3.2.2",
+    "throwback": "^3.0.0",
     "tough-cookie": "^2.0.0"
   }
 }

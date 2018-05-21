@@ -68,12 +68,8 @@ app.all('/cookie/redirect', function (req, res) {
   res.redirect('/echo/header/cookie')
 })
 
-app.get('/not-found', function (req, res) {
-  res.sendStatus(404)
-})
-
-app.get('/no-content', function (req, res) {
-  res.sendStatus(204)
+app.get('/status/:status', function (req, res) {
+  res.sendStatus(~~req.params.status)
 })
 
 app.get('/delay/const', function (req, res) {
@@ -92,15 +88,15 @@ app.all('/echo/query', function (req, res) {
   res.send(req.query)
 })
 
-app.all('/echo/header/:field', function (req, res) {
-  res.send(req.headers[req.params.field])
-})
-
 app.all('/echo/method', function (req, res) {
   res.send(req.method)
 })
 
-app.all('/redirect/code/:code(\\d+)', function (req, res) {
+app.all('/echo/header/:field', function (req, res) {
+  res.send(req.headers[req.params.field])
+})
+
+app.all('/redirect/status/:code(\\d+)', function (req, res) {
   return res.redirect(~~req.params.code, '/destination')
 })
 
@@ -127,17 +123,17 @@ app.all('/urandom', function (req, res) {
   fs.createReadStream('/dev/urandom').pipe(res)
 })
 
-app.get('/json', function (req, res) {
+app.get('/type/json', function (req, res) {
   res.send({
     username: 'blakeembrey'
   })
 })
 
-app.get('/text', function (req, res) {
+app.get('/type/text', function (req, res) {
   res.send('text response')
 })
 
-app.get('/foo', function (req, res) {
+app.get('/type/urlencoded', function (req, res) {
   res.header('Content-Type', 'application/x-www-form-urlencoded')
   res.send('foo=bar')
 })

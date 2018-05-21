@@ -1,17 +1,16 @@
-import makeErrorCause = require('make-error-cause')
-import { Request } from './request'
+import { BaseError } from 'make-error-cause'
+import { Request } from 'servie'
 
-export default class PopsicleError extends makeErrorCause.BaseError {
+export class PopsicleError extends BaseError {
 
   code: string
-  popsicle: Request
-  name = 'PopsicleError'
+  request: Request
 
-  constructor (message: string, code: string, original: Error, popsicle: Request) {
-    super(message, original)
+  constructor (message: string, code: string, request: Request, cause?: Error) {
+    super(message, cause)
 
     this.code = code
-    this.popsicle = popsicle
+    this.request = request
   }
 
 }

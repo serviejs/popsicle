@@ -1,8 +1,16 @@
 import { Request, createHeaders, CreateHeaders } from 'servie'
-import { createBody, CreateBody } from 'servie/dist/body/browser'
+import { CookieJar, Store } from 'tough-cookie'
+import { createBody, CreateBody } from 'servie/dist/body/node'
 
-// Use `xhr` transport in browsers.
-export * from './transports/xhr'
+// Use `http` transport by default.
+export * from './transports/http'
+
+/**
+ * Create a cookie jar instance.
+ */
+export function cookieJar (store?: Store) {
+  return new CookieJar(store)
+}
 
 /**
  * Universal request options.
