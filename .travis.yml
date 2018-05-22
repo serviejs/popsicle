@@ -6,19 +6,8 @@ notifications:
     on_success: never
     on_failure: change
 
-addons:
-  apt:
-    packages:
-      - xvfb
-
-install:
-  - export DISPLAY=':99.0'
-  - Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
-  - npm install
-  - npm install bluebird
-
 node_js:
-  - '4'
+  - '6'
   - stable
 
 after_script: "npm install coveralls@2 && cat ./coverage/lcov.info | coveralls"
