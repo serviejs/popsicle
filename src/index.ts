@@ -6,7 +6,7 @@ import concat = require('concat-stream')
 import { CookieJar } from 'tough-cookie'
 import { createUnzip } from 'zlib'
 import { Headers } from './base'
-import { Request } from './request'
+import { Request, TransportOptions, Middleware } from './request'
 import { Response } from './response'
 import { stringify, headers } from './plugins/index'
 
@@ -38,7 +38,7 @@ export interface Options {
 /**
  * Create a transport object.
  */
-export function createTransport (options: Options) {
+export function createTransport (options: Options): TransportOptions {
   return {
     use,
     abort,
@@ -51,7 +51,7 @@ export function createTransport (options: Options) {
 /**
  * Default uses.
  */
-const use = [stringify(), headers()]
+const use: Middleware[] = [stringify(), headers()]
 
 /**
  * Redirection types to handle.
@@ -65,11 +65,9 @@ enum REDIRECT_TYPE {
  * Possible redirection status codes.
  */
 const REDIRECT_STATUS: { [status: number]: number } = {
-  '300': REDIRECT_TYPE.FOLLOW_WITH_GET,
   '301': REDIRECT_TYPE.FOLLOW_WITH_GET,
   '302': REDIRECT_TYPE.FOLLOW_WITH_GET,
   '303': REDIRECT_TYPE.FOLLOW_WITH_GET,
-  '305': REDIRECT_TYPE.FOLLOW_WITH_GET,
   '307': REDIRECT_TYPE.FOLLOW_WITH_CONFIRMATION,
   '308': REDIRECT_TYPE.FOLLOW_WITH_CONFIRMATION
 }
@@ -77,7 +75,7 @@ const REDIRECT_STATUS: { [status: number]: number } = {
 /**
  * Open a HTTP request with node.
  */
-function handle (request: Request, options: Options) {
+function handle (request: Request, options: Options): Promise<Response> {
   const { followRedirects, type, unzip, rejectUnauthorized, ca, key, cert, agent } = options
   const { url, method, body } = request
   const maxRedirects = num(options.maxRedirects, 5)
@@ -101,7 +99,7 @@ function handle (request: Request, options: Options) {
   /**
    * Create the HTTP request, in a way we can re-use this.
    */
-  function get (url: string, method: string, body?: any) {
+  function get (url: string, method: string, body?: any): Promise<Response> {
     // Check redirection count before executing request.
     if (requestCount++ > maxRedirects) {
       return Promise.reject(
@@ -111,7 +109,7 @@ function handle (request: Request, options: Options) {
 
     return attachCookies(url)
       .then(function () {
-        return new Promise((resolve, reject) => {
+        return new Promise<Response>((resolve, reject) => {
           const arg: any = urlLib.parse(url)
           const isHttp = arg.protocol !== 'https:'
           const engine: typeof httpRequest = isHttp ? httpRequest : httpsRequest
@@ -173,7 +171,7 @@ function handle (request: Request, options: Options) {
                 // Update the "Content-Length" for updated redirection body.
                 request.set('Content-Length', '0')
 
-                return get(newUrl, 'GET')
+                return get(newUrl, arg.method === 'HEAD' ? 'HEAD' : 'GET')
               }
 
               if (redirect === REDIRECT_TYPE.FOLLOW_WITH_CONFIRMATION) {

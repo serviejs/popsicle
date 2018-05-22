@@ -908,13 +908,13 @@ test('override request mechanism', function (t) {
     url: '/foo',
     transport: {
       open () {
-        return Promise.resolve({
+        return Promise.resolve(new popsicle.Response({
           url: '/foo',
           body: 'testing',
           headers: {},
           status: 200,
           statusText: 'OK'
-        })
+        }))
       }
     }
   })
