@@ -4,5 +4,4 @@ coverage/
 node_modules/
 npm-debug.log
 dist/
-typings/
 popsicle.js

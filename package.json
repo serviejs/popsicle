@@ -3,9 +3,9 @@
   "version": "9.2.0",
   "description": "Simple HTTP requests for node and the browser",
   "main": "dist/common.js",
+  "types": "dist/common.d.ts",
   "files": [
     "dist/",
-    "typings.json",
     "LICENSE",
     "logo.svg"
   ],
@@ -27,7 +27,7 @@
     "test-server-open": "PORT=7357 node scripts/server.js & echo $! > server.pid; HTTPS_PORT=7358 node scripts/https-server.js & echo $! > https-server.pid",
     "test-server-close": "if [ -f server.pid ]; then kill -9 $(cat server.pid); rm server.pid; fi; if [ -f https-server.pid ]; then kill -9 $(cat https-server.pid); rm https-server.pid; fi",
     "test": "npm run lint && npm run build && npm run test-server-open && npm run test-cov && npm run test-browser; EXIT=$?; npm run test-server-close; exit $EXIT",
-    "prepublish": "typings install && npm run build"
+    "prepublish": "npm run build"
   },
   "repository": {
     "type": "git",
@@ -53,6 +53,7 @@
   },
   "homepage": "https://github.com/blakeembrey/popsicle",
   "devDependencies": {
+    "@types/blue-tape": "^0.1.30",
     "@types/node": "^8.0.0",
     "blue-tape": "^1.0.0",
     "bluebird": "^3.0.5",
@@ -66,10 +67,13 @@
     "tape-run": "3.0.0",
     "tslint": "^5.2.0",
     "tslint-config-standard": "^7.0.0",
-    "typescript": "^2.4.1",
-    "typings": "^2.0.0"
+    "typescript": "^2.4.1"
   },
   "dependencies": {
+    "@types/concat-stream": "^1.6.0",
+    "@types/form-data": "0.0.33",
+    "@types/methods": "^1.1.0",
+    "@types/tough-cookie": "^2.3.0",
     "concat-stream": "^1.4.7",
     "form-data": "^2.0.0",
     "make-error-cause": "^1.2.1",
