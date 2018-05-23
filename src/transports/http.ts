@@ -140,11 +140,16 @@ export function normalizeUserAgent <T extends Request, U extends Response> (
   }
 }
 
+export enum NegotiateHttpVersion {
+  HTTP1_ONLY,
+  HTTP2_FOR_HTTPS,
+  HTTP2_ONLY
+}
+
 /**
  * Node.js HTTP request options.
  */
 export interface SendOptions {
-  negotiateHttp2?: boolean
   rejectUnauthorized?: boolean
   ca?: string | Buffer | Array<string | Buffer>
   cert?: string | Buffer
@@ -152,6 +157,7 @@ export interface SendOptions {
   agent?: Agent
   secureContext?: SecureContext
   secureProtocol?: string
+  negotiateHttpVersion?: NegotiateHttpVersion
 }
 
 /**
@@ -203,7 +209,7 @@ function execHttp (
 
     // Trigger unavailable error when node.js errors before response.
     function onError (err: Error) {
-      return reject(new PopsicleError('Unable to connect', 'EUNAVAILABLE', req, err))
+      return reject(new PopsicleError(`Unable to connect to ${host}:${port}`, 'EUNAVAILABLE', req, err))
     }
 
     // Track the node.js response.
@@ -263,7 +269,7 @@ function execHttp2 (
   protocol: string,
   host: string,
   port: number,
-  socket: TLSSocket
+  socket: TLSSocket | Socket
 ): Promise<Http2Response> {
   return new Promise<Http2Response>((resolve, reject) => {
     // HTTP2 formatted headers.
@@ -274,34 +280,33 @@ function execHttp2 (
 
     // TODO: Fix node.js types.
     const connectOptions: any = {
-      createConnection: () => socket as any
+      createConnection: () => socket
     }
 
     const authority = `${protocol}//${host}:${port}`
     const client = http2Connect(authority, connectOptions)
-    const rawRequest = client.request(headers, { endStream: false })
+    const http2Stream = client.request(headers, { endStream: false })
     const requestStream = new PassThrough()
 
     // Trigger unavailable error when node.js errors before response.
     function onError (err: Error) {
-      return reject(new PopsicleError('Unable to connect', 'EUNAVAILABLE', req, err))
+      return reject(new PopsicleError(`Unable to connect to ${host}:${port}`, 'EUNAVAILABLE', req, err))
     }
 
-    rawRequest.on('error', onError)
-
     function onResponse (headers: IncomingHttpHeaders) {
-      const { localAddress, localPort, remoteAddress, remotePort, encrypted } = socket
+      const encrypted = (socket as TLSSocket).encrypted === true
+      const { localAddress, localPort, remoteAddress, remotePort } = socket
 
       // Replace request error listener behaviour with proxy.
-      rawRequest.removeListener('error', onError)
-      rawRequest.on('error', err => req.events.emit('error', err))
+      http2Stream.removeListener('error', onError)
+      http2Stream.on('error', err => req.events.emit('error', err))
 
       const res = new Http2Response({
         statusCode: Number(headers[h2constants.HTTP2_HEADER_STATUS]),
         url: req.url,
         httpVersion: '2.0',
         headers: createHeaders(headers as any),
-        body: createBody(pump(rawRequest, new PassThrough()), { headers: {} })
+        body: createBody(pump(http2Stream, new PassThrough()), { headers: {} })
       })
 
       // https://github.com/serviejs/servie#implementers
@@ -309,10 +314,10 @@ function execHttp2 (
       req.connection = { localAddress, localPort, remoteAddress, remotePort, encrypted }
 
       // Track response progress.
-      rawRequest.on('data', (chunk: Buffer) => res.bytesTransferred += chunk.length)
+      http2Stream.on('data', (chunk: Buffer) => res.bytesTransferred += chunk.length)
 
       // Close HTTP2 session when request ends.
-      rawRequest.on('end', () => {
+      http2Stream.on('end', () => {
         req.closed = true
         res.finished = true
         ;(client as any).close()
@@ -321,16 +326,17 @@ function execHttp2 (
       return resolve(res)
     }
 
-    rawRequest.once('error', onError)
-    rawRequest.once('response', onResponse)
+    client.once('error', onError)
+    http2Stream.once('error', onError)
+    http2Stream.once('response', onResponse)
 
     // https://github.com/serviejs/servie#implementers
     req.started = true
-    req.events.on('abort', () => rawRequest.destroy())
+    req.events.on('abort', () => http2Stream.destroy())
 
     // Track request upload progress.
     requestStream.on('data', (chunk: Buffer) => req.bytesTransferred += chunk.length)
-    pump(requestStream, rawRequest, () => req.finished = true)
+    pump(requestStream, http2Stream, () => req.finished = true)
 
     return sendBody(req.body, requestStream, reject)
   })
@@ -340,6 +346,9 @@ function execHttp2 (
  * Function to execute HTTP request.
  */
 export function send (options: SendOptions) {
+  // Mirror common browser behaviour by default.
+  const { negotiateHttpVersion = NegotiateHttpVersion.HTTP2_FOR_HTTPS } = options
+
   return function (req: Request): Promise<HttpResponse> {
     const { hostname, protocol } = req.Url
     const host = hostname || 'localhost'
@@ -347,6 +356,10 @@ export function send (options: SendOptions) {
     if (protocol === 'http:') {
       const port = Number(req.Url.port) || 80
       const socketOptions: NetConnectOpts = { host, port }
+
+      if (negotiateHttpVersion === NegotiateHttpVersion.HTTP2_ONLY) {
+        return execHttp2(req, protocol, host, port, netConnect(socketOptions))
+      }
 
       return execHttp(req, protocol, host, port, netConnect(socketOptions), options.agent)
     }
@@ -358,7 +371,7 @@ export function send (options: SendOptions) {
       const socketOptions: TlsConnectOpts = {
         host,
         port,
-        servername: (req.headers.get('host') || host).replace(/:.*$/, ''),
+        servername: calculateServerName(host, req.headers.get('host')),
         rejectUnauthorized: options.rejectUnauthorized !== false,
         ca: options.ca,
         cert: options.cert,
@@ -367,14 +380,17 @@ export function send (options: SendOptions) {
         secureContext: options.secureContext
       }
 
-      if (options.negotiateHttp2 === false) {
+      if (negotiateHttpVersion === NegotiateHttpVersion.HTTP1_ONLY) {
         return execHttp(req, protocol, host, port, tlsConnect(socketOptions), options.agent)
       }
 
-      // Negotiate for HTTP2 connection over HTTP1.
-      socketOptions.ALPNProtocols = ['h2', 'http/1.1']
+      if (negotiateHttpVersion === NegotiateHttpVersion.HTTP2_ONLY) {
+        socketOptions.ALPNProtocols = ['h2'] // Only requesting HTTP2 support.
+        return execHttp2(req, protocol, host, port, tlsConnect(socketOptions))
+      }
 
       return new Promise<HttpResponse>((resolve, reject) => {
+        socketOptions.ALPNProtocols = ['h2', 'http/1.1'] // Request HTTP2 or HTTP1.
         const socket = tlsConnect(socketOptions)
 
         socket.once('secureConnect', () => {
@@ -393,7 +409,7 @@ export function send (options: SendOptions) {
         })
 
         socket.once('error', (err) => {
-          return reject(new PopsicleError('Unable to connect', 'EUNAVAILABLE', req, err))
+          return reject(new PopsicleError(`Unable to connect to ${host}:${port}`, 'EUNAVAILABLE', req, err))
         })
       })
     }
@@ -432,4 +448,17 @@ export function transport (options: TransportOptions = {}) {
   const middlware = compose<Request, HttpResponse>(fns)
 
   return (req: Request) => middlware(req, done)
+}
+
+/**
+ * Ref: https://github.com/nodejs/node/blob/5823938d156f4eb6dc718746afbf58f1150f70fb/lib/_http_agent.js#L231
+ */
+function calculateServerName (host: string, hostHeader?: string) {
+  if (!hostHeader) return host
+  if (hostHeader.charAt(0) === '[') {
+    const index = hostHeader.indexOf(']')
+    if (index === -1) return hostHeader
+    return hostHeader.substr(1, index - 1)
+  }
+  return hostHeader.split(':', 1)[0]
 }
