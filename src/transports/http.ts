@@ -9,12 +9,13 @@ import { Request, Response, createHeaders, Headers, ResponseOptions } from 'serv
 import { createBody, Body } from 'servie/dist/body/node'
 import { parse } from 'url'
 import { PopsicleError } from '../error'
-import { followRedirects, FollowRedirectsOptions, normalizeRequest } from '../common'
+import { followRedirects, FollowRedirectsOptions, normalizeRequest, NormalizeRequestOptions } from '../common'
 
 /**
  * Extend response with URL.
  */
 export interface HttpResponseOptions extends ResponseOptions {
+  url: string
   body: Body
 }
 
@@ -23,10 +24,12 @@ export interface HttpResponseOptions extends ResponseOptions {
  */
 export class HttpResponse extends Response implements HttpResponseOptions {
 
+  url: string
   body: Body
 
   constructor (options: HttpResponseOptions) {
     super(options)
+    this.url = options.url
     this.body = options.body
   }
 
@@ -107,13 +110,22 @@ export function autoUnzip <T extends Request, U extends HttpResponse> (): Middle
 }
 
 /**
+ * Override the default user-agent header.
+ */
+export interface NormalizeUserAgentOptions {
+  userAgent?: string
+}
+
+/**
  * Set default user-agent in node.js.
  */
-export function normalizeUserAgent <T extends Request, U extends Response> (): Middleware<T, U> {
+export function normalizeUserAgent <T extends Request, U extends Response> (
+  options: NormalizeUserAgentOptions = {}
+): Middleware<T, U> {
+  const userAgent = options.userAgent || 'Popsicle (https://github.com/serviejs/popsicle)'
+
   return function (req, next) {
-    if (!req.headers.has('User-Agent')) {
-      req.headers.set('User-Agent', 'Popsicle (https://github.com/blakeembrey/popsicle)')
-    }
+    if (!req.headers.has('User-Agent')) req.headers.set('User-Agent', userAgent)
 
     return next()
   }
@@ -137,8 +149,8 @@ export interface SendOptions {
 export function send (options: SendOptions) {
   return function (req: Request): Promise<HttpResponse> {
     return new Promise<HttpResponse>((resolve, reject) => {
-      const { body } = req
-      const arg: RequestOptions = parse(req.url)
+      const { url, body } = req
+      const arg: RequestOptions = parse(url)
       const encrypted = arg.protocol === 'https:'
       const engine: typeof httpRequest = encrypted ? httpsRequest : httpRequest
 
@@ -177,7 +189,7 @@ export function send (options: SendOptions) {
 
         const { address: localAddress, port: localPort } = rawRequest.connection.address()
         const { address: remoteAddress, port: remotePort } = rawResponse.connection.address()
-        const res = new HttpResponse({ statusCode, statusMessage, headers, trailer, body })
+        const res = new HttpResponse({ statusCode, statusMessage, headers, trailer, body, url })
 
         // Update request connection.
         req.connection = { localAddress, localPort, remoteAddress, remotePort, encrypted }
@@ -230,7 +242,11 @@ export function send (options: SendOptions) {
 /**
  * Node.js HTTP transport configuration.
  */
-export interface TransportOptions extends SendOptions, FollowRedirectsOptions, SendOptions {
+export interface TransportOptions extends SendOptions,
+  FollowRedirectsOptions,
+  SendOptions,
+  NormalizeRequestOptions,
+  NormalizeUserAgentOptions {
   jar?: CookieJar
   unzip?: boolean
   follow?: boolean
@@ -240,7 +256,7 @@ export interface TransportOptions extends SendOptions, FollowRedirectsOptions, S
  * Create a request transport using node.js `http` libraries.
  */
 export function transport (options: TransportOptions = {}) {
-  const fns: Array<Middleware<Request, HttpResponse>> = [normalizeRequest(), normalizeUserAgent()]
+  const fns: Array<Middleware<Request, HttpResponse>> = [normalizeRequest(options), normalizeUserAgent(options)]
   const { jar, unzip = true, follow = true } = options
 
   if (unzip) fns.push(autoUnzip())

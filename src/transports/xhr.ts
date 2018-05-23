@@ -8,8 +8,8 @@ import { normalizeRequest } from '../common'
  * Extend response with URL.
  */
 export interface XhrResponseOptions extends ResponseOptions {
+  url: string
   body: Body
-  responseUrl: string
 }
 
 /**
@@ -17,13 +17,13 @@ export interface XhrResponseOptions extends ResponseOptions {
  */
 export class XhrResponse extends Response implements XhrResponseOptions {
 
+  url: string
   body: Body
-  responseUrl: string
 
   constructor (options: XhrResponseOptions) {
     super(options)
+    this.url = options.url
     this.body = options.body
-    this.responseUrl = options.responseUrl
   }
 
 }
@@ -70,7 +70,7 @@ export function send (options: SendOptions) {
           statusMessage: xhr.statusText,
           headers: createHeaders(parseXhrHeaders(xhr.getAllResponseHeaders())),
           body: createBody(type === 'text' ? xhr.responseText : xhr.response, { headers: [] }),
-          responseUrl: xhr.responseURL
+          url: xhr.responseURL
         })
 
         // https://github.com/serviejs/servie#implementers

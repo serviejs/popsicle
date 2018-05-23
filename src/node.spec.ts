@@ -31,9 +31,7 @@ describe('popsicle node', () => {
   it('should always send user agent', async () => {
     const res = await transport()(request(`${TEST_HTTP_URL}/echo/header/user-agent`))
 
-    expect(await res.body.text()).toMatch(
-      /^Popsicle \(https:\/\/github\.com\/blakeembrey\/popsicle\)$/
-    )
+    expect(await res.body.text()).toEqual('Popsicle (https://github.com/serviejs/popsicle)')
   })
 
   it('send a custom user agent header', async () => {
