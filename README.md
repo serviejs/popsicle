@@ -4,6 +4,7 @@
 [![NPM downloads](https://img.shields.io/npm/dm/popsicle.svg?style=flat)](https://npmjs.org/package/popsicle)
 [![Build status](https://img.shields.io/travis/serviejs/popsicle.svg?style=flat)](https://travis-ci.org/serviejs/popsicle)
 [![Test coverage](https://img.shields.io/coveralls/serviejs/popsicle.svg?style=flat)](https://coveralls.io/r/serviejs/popsicle?branch=master)
+[![Bundle size](https://img.shields.io/bundlephobia/minzip/popsicle.svg)](https://bundlephobia.com/result?p=popsicle)
 
 > Advanced HTTP requests in node.js and browsers, using [Servie](https://github.com/serviejs/servie).
 
