@@ -3,11 +3,13 @@ import { CookieJar } from 'tough-cookie'
 import { compose, Middleware } from 'throwback'
 import { request as httpRequest, IncomingMessage, ClientRequest, Agent } from 'http'
 import { request as httpsRequest, RequestOptions } from 'https'
-import { PassThrough } from 'stream'
+import { connect as netConnect, Socket, NetConnectOpts } from 'net'
+import { connect as tlsConnect, SecureContext, TLSSocket, ConnectionOptions as TlsConnectOpts } from 'tls'
+import { connect as http2Connect, IncomingHttpHeaders, constants as h2constants } from 'http2'
+import { PassThrough, Writable } from 'stream'
 import { createUnzip } from 'zlib'
-import { Request, Response, createHeaders, Headers, ResponseOptions } from 'servie'
+import { Request, Response, createHeaders, Headers, ResponseOptions, BodyCommon } from 'servie'
 import { createBody, Body } from 'servie/dist/body/node'
-import { parse } from 'url'
 import { PopsicleError } from '../error'
 import { followRedirects, FollowRedirectsOptions, normalizeRequest, NormalizeRequestOptions } from '../common'
 
@@ -17,6 +19,7 @@ import { followRedirects, FollowRedirectsOptions, normalizeRequest, NormalizeReq
 export interface HttpResponseOptions extends ResponseOptions {
   url: string
   body: Body
+  httpVersion: string
 }
 
 /**
@@ -26,13 +29,19 @@ export class HttpResponse extends Response implements HttpResponseOptions {
 
   url: string
   body: Body
+  httpVersion: string
 
   constructor (options: HttpResponseOptions) {
     super(options)
     this.url = options.url
     this.body = options.body
+    this.httpVersion = options.httpVersion
   }
 
+}
+
+export class Http2Response extends HttpResponse {
+  // TODO: Add HTTP2 features.
 }
 
 /**
@@ -135,12 +144,196 @@ export function normalizeUserAgent <T extends Request, U extends Response> (
  * Node.js HTTP request options.
  */
 export interface SendOptions {
-  agent?: Agent
+  negotiateHttp2?: boolean
   rejectUnauthorized?: boolean
   ca?: string | Buffer | Array<string | Buffer>
   cert?: string | Buffer
   key?: string | Buffer
+  agent?: Agent
+  secureContext?: SecureContext
   secureProtocol?: string
+}
+
+/**
+ * Write Servie body object to node.js stream.
+ */
+function sendBody (body: BodyCommon, stream: Writable, onError: (err: Error) => void) {
+  // Pipe the body to the stream.
+  if (body instanceof Body) {
+    if (body.buffered) {
+      body.buffer().then(x => stream.end(x), onError)
+    } else {
+      pump(body.stream(), stream)
+    }
+  } else {
+    body.arrayBuffer().then(x => stream.end(Buffer.from(x)), onError)
+  }
+}
+
+/**
+ * Execute HTTP request.
+ */
+function execHttp (
+  req: Request,
+  protocol: string,
+  host: string,
+  port: number,
+  socket: Socket | TLSSocket,
+  agent?: Agent
+): Promise<HttpResponse> {
+  return new Promise<HttpResponse>((resolve, reject) => {
+    const { url, body, Url } = req
+    const encrypted = Url.protocol === 'https:'
+    const request: typeof httpRequest = encrypted ? httpsRequest : httpRequest
+
+    const arg: RequestOptions = {
+      protocol,
+      host,
+      port,
+      method: req.method,
+      path: Url.path,
+      headers: req.headers.asObject(false),
+      auth: Url.auth,
+      agent,
+      createConnection: () => socket
+    }
+
+    const rawRequest = request(arg)
+    const requestStream = new PassThrough()
+
+    // Trigger unavailable error when node.js errors before response.
+    function onError (err: Error) {
+      return reject(new PopsicleError('Unable to connect', 'EUNAVAILABLE', req, err))
+    }
+
+    // Track the node.js response.
+    function onResponse (rawResponse: IncomingMessage) {
+      const { statusCode, statusMessage, httpVersion } = rawResponse
+      const headers = createHeaders(rawResponse.rawHeaders)
+      const body = createBody(pump(rawResponse, new PassThrough()), { headers: {} })
+
+      // Trailers are populated on "end".
+      const trailer = new Promise<Headers>(resolve => {
+        rawResponse.on('end', () => resolve(createHeaders(rawResponse.rawTrailers)))
+      })
+
+      // Replace request error listener behaviour.
+      rawRequest.removeListener('error', onError)
+      rawRequest.on('error', err => req.events.emit('error', err))
+
+      const { address: localAddress, port: localPort } = rawRequest.connection.address()
+      const { address: remoteAddress, port: remotePort } = rawResponse.connection.address()
+      const res = new HttpResponse({ statusCode, statusMessage, headers, trailer, body, url, httpVersion })
+
+      // Update request connection.
+      req.connection = { localAddress, localPort, remoteAddress, remotePort, encrypted }
+
+      // https://github.com/serviejs/servie#implementers
+      res.started = true
+      req.events.emit('response', res)
+
+      // Track response progress.
+      rawResponse.on('data', (chunk: Buffer) => res.bytesTransferred += chunk.length)
+      rawResponse.on('end', () => res.finished = true)
+      rawResponse.on('close', () => req.closed = true)
+
+      return resolve(res)
+    }
+
+    rawRequest.once('error', onError)
+    rawRequest.once('response', onResponse)
+
+    // https://github.com/serviejs/servie#implementers
+    req.started = true
+    req.events.on('abort', () => rawRequest.abort())
+
+    // Track request upload progress.
+    requestStream.on('data', (chunk: Buffer) => req.bytesTransferred += chunk.length)
+    pump(requestStream, rawRequest, () => req.finished = true)
+
+    return sendBody(body, requestStream, reject)
+  })
+}
+
+/**
+ * Execute a HTTP2 connection.
+ */
+function execHttp2 (
+  req: Request,
+  protocol: string,
+  host: string,
+  port: number,
+  socket: TLSSocket
+): Promise<Http2Response> {
+  return new Promise<Http2Response>((resolve, reject) => {
+    // HTTP2 formatted headers.
+    const headers = Object.assign(req.headers.asObject(false), {
+      [h2constants.HTTP2_HEADER_METHOD]: req.method,
+      [h2constants.HTTP2_HEADER_PATH]: req.Url.path
+    })
+
+    // TODO: Fix node.js types.
+    const connectOptions: any = {
+      createConnection: () => socket as any
+    }
+
+    const authority = `${protocol}//${host}:${port}`
+    const client = http2Connect(authority, connectOptions)
+    const rawRequest = client.request(headers, { endStream: false })
+    const requestStream = new PassThrough()
+
+    // Trigger unavailable error when node.js errors before response.
+    function onError (err: Error) {
+      return reject(new PopsicleError('Unable to connect', 'EUNAVAILABLE', req, err))
+    }
+
+    rawRequest.on('error', onError)
+
+    function onResponse (headers: IncomingHttpHeaders) {
+      const { localAddress, localPort, remoteAddress, remotePort, encrypted } = socket
+
+      // Replace request error listener behaviour with proxy.
+      rawRequest.removeListener('error', onError)
+      rawRequest.on('error', err => req.events.emit('error', err))
+
+      const res = new Http2Response({
+        statusCode: Number(headers[h2constants.HTTP2_HEADER_STATUS]),
+        url: req.url,
+        httpVersion: '2.0',
+        headers: createHeaders(headers as any),
+        body: createBody(pump(rawRequest, new PassThrough()), { headers: {} })
+      })
+
+      // https://github.com/serviejs/servie#implementers
+      res.started = true
+      req.connection = { localAddress, localPort, remoteAddress, remotePort, encrypted }
+
+      // Track response progress.
+      rawRequest.on('data', (chunk: Buffer) => res.bytesTransferred += chunk.length)
+
+      // Close HTTP2 session when request ends.
+      rawRequest.on('end', () => {
+        req.closed = true
+        res.finished = true
+        ;(client as any).close()
+      })
+
+      return resolve(res)
+    }
+
+    rawRequest.once('error', onError)
+    rawRequest.once('response', onResponse)
+
+    // https://github.com/serviejs/servie#implementers
+    req.started = true
+    req.events.on('abort', () => rawRequest.destroy())
+
+    // Track request upload progress.
+    requestStream.on('data', (chunk: Buffer) => req.bytesTransferred += chunk.length)
+    pump(requestStream, rawRequest, () => req.finished = true)
+
+    return sendBody(req.body, requestStream, reject)
+  })
 }
 
 /**
@@ -148,94 +341,66 @@ export interface SendOptions {
  */
 export function send (options: SendOptions) {
   return function (req: Request): Promise<HttpResponse> {
-    return new Promise<HttpResponse>((resolve, reject) => {
-      const { url, body } = req
-      const arg: RequestOptions = parse(url)
-      const encrypted = arg.protocol === 'https:'
-      const engine: typeof httpRequest = encrypted ? httpsRequest : httpRequest
+    const { hostname, protocol } = req.Url
+    const host = hostname || 'localhost'
 
-      // Attach request options.
-      arg.method = req.method
-      arg.headers = req.headers.asObject(false)
-      arg.agent = options.agent
-      arg.rejectUnauthorized = options.rejectUnauthorized !== false
-      arg.ca = options.ca
-      arg.cert = options.cert
-      arg.key = options.key
-      arg.secureProtocol = options.secureProtocol
+    if (protocol === 'http:') {
+      const port = Number(req.Url.port) || 80
+      const socketOptions: NetConnectOpts = { host, port }
 
-      const rawRequest = engine(arg)
-      const requestStream = new PassThrough()
+      return execHttp(req, protocol, host, port, netConnect(socketOptions), options.agent)
+    }
 
-      // Trigger unavailable error when node.js errors before response.
-      function onError (err: Error) {
-        reject(new PopsicleError('Unable to connect', 'EUNAVAILABLE', req, err))
+    // Optionally negotiate HTTP2 connection.
+    if (protocol === 'https:') {
+      const port = Number(req.Url.port) || 443
+
+      const socketOptions: TlsConnectOpts = {
+        host,
+        port,
+        servername: (req.headers.get('host') || host).replace(/:.*$/, ''),
+        rejectUnauthorized: options.rejectUnauthorized !== false,
+        ca: options.ca,
+        cert: options.cert,
+        key: options.key,
+        secureProtocol: options.secureProtocol,
+        secureContext: options.secureContext
       }
 
-      // Track the node.js response.
-      function onResponse (rawResponse: IncomingMessage) {
-        const { statusCode, statusMessage } = rawResponse
-        const headers = createHeaders(rawResponse.rawHeaders)
-        const body = createBody(pump(rawResponse, new PassThrough()))
-
-        // Trailers are populated on "end".
-        const trailer = new Promise<Headers>(resolve => {
-          rawResponse.on('end', () => resolve(createHeaders(rawResponse.rawTrailers)))
-        })
-
-        // Replace request error listener behaviour.
-        rawRequest.removeListener('error', onError)
-        rawRequest.on('error', err => req.events.emit('error', err))
-
-        const { address: localAddress, port: localPort } = rawRequest.connection.address()
-        const { address: remoteAddress, port: remotePort } = rawResponse.connection.address()
-        const res = new HttpResponse({ statusCode, statusMessage, headers, trailer, body, url })
-
-        // Update request connection.
-        req.connection = { localAddress, localPort, remoteAddress, remotePort, encrypted }
-
-        // https://github.com/serviejs/servie#implementers
-        res.started = true
-        req.events.emit('response', res)
-
-        // Track response progress.
-        rawResponse.on('data', (chunk: Buffer) => {
-          res.bytesTransferred += chunk.length
-        })
-
-        rawResponse.on('end', () => res.finished = true)
-        rawResponse.on('close', () => req.closed = true)
-
-        return resolve(res)
+      if (options.negotiateHttp2 === false) {
+        return execHttp(req, protocol, host, port, tlsConnect(socketOptions), options.agent)
       }
 
-      // Track request upload progress.
-      requestStream.on('data', (chunk: Buffer) => {
-        req.bytesTransferred += chunk.length
+      // Negotiate for HTTP2 connection over HTTP1.
+      socketOptions.ALPNProtocols = ['h2', 'http/1.1']
+
+      return new Promise<HttpResponse>((resolve, reject) => {
+        const socket = tlsConnect(socketOptions)
+
+        socket.once('secureConnect', () => {
+          const alpnProtocol: string = (socket as any).alpnProtocol
+
+          // Successfully negotiated HTTP2 connection.
+          if (alpnProtocol === 'h2') {
+            return resolve(execHttp2(req, protocol, host, port, socket))
+          }
+
+          if (alpnProtocol === 'http/1.1') {
+            return resolve(execHttp(req, protocol, host, port, socket, options.agent))
+          }
+
+          return reject(new PopsicleError('No ALPN protocol negotiated', 'EALPNPROTOCOL', req))
+        })
+
+        socket.once('error', (err) => {
+          return reject(new PopsicleError('Unable to connect', 'EUNAVAILABLE', req, err))
+        })
       })
+    }
 
-      // Listen for connection errors.
-      rawRequest.once('error', onError)
-      rawRequest.once('response', onResponse)
-
-      // https://github.com/serviejs/servie#implementers
-      req.started = true
-      req.events.on('abort', () => rawRequest.abort())
-
-      // Pump request body into HTTP request object.
-      pump(requestStream, rawRequest, () => req.finished = true)
-
-      // Pipe the body to the stream.
-      if (body instanceof Body) {
-        if (body.buffered) {
-          body.buffer().then(x => requestStream.end(x), reject)
-        } else {
-          pump(body.stream(), requestStream)
-        }
-      } else {
-        body.arrayBuffer().then(x => requestStream.end(Buffer.from(x)), reject)
-      }
-    })
+    return Promise.reject(
+      new PopsicleError(`Unsupported URL protocol: ${req.Url.protocol}`, 'EPROTOCOL', req)
+    )
   }
 }
 
@@ -247,9 +412,9 @@ export interface TransportOptions extends SendOptions,
   SendOptions,
   NormalizeRequestOptions,
   NormalizeUserAgentOptions {
-  jar?: CookieJar
-  unzip?: boolean
-  follow?: boolean
+  jar?: CookieJar | false
+  unzip?: false
+  follow?: false
 }
 
 /**
@@ -257,7 +422,7 @@ export interface TransportOptions extends SendOptions,
  */
 export function transport (options: TransportOptions = {}) {
   const fns: Array<Middleware<Request, HttpResponse>> = [normalizeRequest(options), normalizeUserAgent(options)]
-  const { jar, unzip = true, follow = true } = options
+  const { jar = new CookieJar(), unzip = true, follow = true } = options
 
   if (unzip) fns.push(autoUnzip())
   if (follow) fns.push(followRedirects(options))
