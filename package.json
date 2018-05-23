@@ -82,7 +82,7 @@
     "@types/tough-cookie": "^2.3.2",
     "make-error-cause": "^2.1.0",
     "pump": "^3.0.0",
-    "servie": "^3.2.2",
+    "servie": "^3.2.3",
     "throwback": "^3.0.0",
     "tough-cookie": "^2.0.0"
   }

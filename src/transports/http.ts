@@ -305,7 +305,7 @@ function execHttp2 (
         statusCode: Number(headers[h2constants.HTTP2_HEADER_STATUS]),
         url: req.url,
         httpVersion: '2.0',
-        headers: createHeaders(headers as any),
+        headers: createHeaders(headers),
         body: createBody(pump(http2Stream, new PassThrough()), { headers: {} })
       })
 
