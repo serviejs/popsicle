@@ -20,7 +20,7 @@
     "server:open": "PORT=7357 node scripts/http-server.js & echo $! > server.pid; HTTPS_PORT=7358 node scripts/https-server.js & echo $! > https-server.pid",
     "server:close": "if [ -f server.pid ]; then kill -9 $(cat server.pid); rm server.pid; fi; if [ -f https-server.pid ]; then kill -9 $(cat https-server.pid); rm https-server.pid; fi",
     "test": "npm run lint && npm run build && npm run server:open && npm run specs; EXIT=$?; npm run server:close; exit $EXIT",
-    "prepublish": "npm run build"
+    "prepare": "npm run build"
   },
   "repository": {
     "type": "git",
