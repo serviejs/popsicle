@@ -76,13 +76,12 @@ describe('popsicle node', () => {
 
     req.abort()
 
-    expect.assertions(2)
+    expect.assertions(1)
 
     try {
       await transport()(req)
     } catch (err) {
-      expect(err.message).toEqual('Request aborted')
-      expect(err.code).toEqual('EABORT')
+      expect(err.message).toEqual('Request has been aborted')
     }
   })
 
@@ -104,11 +103,9 @@ describe('popsicle node', () => {
     req.abort()
 
     try {
-      const res = await transport()(req)
-
-      expect(await res.body.text()).toEqual('')
+      await transport()(req)
     } catch (err) {
-      expect(err.code).toEqual('EABORT')
+      expect(err.message).toEqual('Request has been aborted')
     }
   })
 

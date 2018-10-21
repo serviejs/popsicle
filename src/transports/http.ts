@@ -1,6 +1,7 @@
 import pump = require('pump')
+import { resolve } from 'url'
 import { CookieJar } from 'tough-cookie'
-import { compose, Middleware } from 'throwback'
+import { compose, Middleware, Composed } from 'throwback'
 import { request as httpRequest, IncomingMessage, ClientRequest, Agent } from 'http'
 import { request as httpsRequest, RequestOptions } from 'https'
 import { connect as netConnect, Socket, SocketConnectOpts, AddressInfo } from 'net'
@@ -11,7 +12,7 @@ import { createUnzip } from 'zlib'
 import { Request, Response, createHeaders, Headers, ResponseOptions, BodyCommon } from 'servie'
 import { createBody, Body } from 'servie/dist/body/node'
 import { PopsicleError } from '../error'
-import { followRedirects, FollowRedirectsOptions, normalizeRequest, NormalizeRequestOptions } from '../common'
+import { normalizeRequest, NormalizeRequestOptions } from '../common'
 
 /**
  * Extend response with URL.
@@ -140,6 +141,99 @@ export function normalizeUserAgent <T extends Request, U extends Response> (
   }
 }
 
+/**
+ * Redirection types to handle.
+ */
+enum REDIRECT_TYPE {
+  FOLLOW_WITH_GET,
+  FOLLOW_WITH_CONFIRMATION
+}
+
+/**
+ * Possible redirection status codes.
+ */
+const REDIRECT_STATUS: { [status: number]: number | undefined } = {
+  '301': REDIRECT_TYPE.FOLLOW_WITH_GET,
+  '302': REDIRECT_TYPE.FOLLOW_WITH_GET,
+  '303': REDIRECT_TYPE.FOLLOW_WITH_GET,
+  '307': REDIRECT_TYPE.FOLLOW_WITH_CONFIRMATION,
+  '308': REDIRECT_TYPE.FOLLOW_WITH_CONFIRMATION
+}
+
+/**
+ * Redirect middleware configuration.
+ */
+export interface FollowRedirectsOptions {
+  maxRedirects?: number
+  confirmRedirect?: (request: Request, response: Response) => boolean
+}
+
+/**
+ * Middleware function for following HTTP redirects.
+ */
+export function followRedirects <T extends Request, U extends Response> (
+  process: Composed<T, U>,
+  options: FollowRedirectsOptions = {}
+): Composed<T, U> {
+  return async function (initialRequest, done) {
+    let req = initialRequest.clone()
+    let redirectCount = 0
+    const maxRedirects = typeof options.maxRedirects === 'number' ? options.maxRedirects : 5
+    const confirmRedirect = options.confirmRedirect || (() => false)
+
+    while (redirectCount++ < maxRedirects) {
+      const res = await process(req as T, done)
+      const redirect = REDIRECT_STATUS[res.statusCode]
+
+      if (redirect === undefined || !res.headers.has('Location')) return res
+
+      const newUrl = resolve(req.url, res.headers.get('Location')!) // tslint:disable-line
+
+      // Ignore the result of the response on redirect.
+      req.abort()
+      req.events.emit('redirect', newUrl)
+
+      if (redirect === REDIRECT_TYPE.FOLLOW_WITH_GET) {
+        req = initialRequest.clone()
+        req.headers.set('Content-Length', '0')
+        req.url = newUrl
+        req.method = req.method.toUpperCase() === 'HEAD' ? 'HEAD' : 'GET'
+        req.body = createBody(undefined)
+        req.trailer = Promise.resolve(createHeaders())
+
+        continue
+      }
+
+      if (redirect === REDIRECT_TYPE.FOLLOW_WITH_CONFIRMATION) {
+        const method = req.method.toUpperCase()
+
+        // Following HTTP spec by automatically redirecting with GET/HEAD.
+        if (method === 'GET' || method === 'HEAD') {
+          req = initialRequest.clone()
+          req.url = newUrl
+
+          continue
+        }
+
+        // Allow the user to confirm redirect according to HTTP spec.
+        if (confirmRedirect(req, res)) {
+          req = initialRequest.clone()
+          req.url = newUrl
+
+          continue
+        }
+      }
+
+      return res
+    }
+
+    throw new PopsicleError(`Maximum redirects exceeded: ${maxRedirects}`, 'EMAXREDIRECTS', req)
+  }
+}
+
+/**
+ * Track HTTP connections for reuse.
+ */
 export class ConnectionManager <T> {
 
   connections = new Map<string, T>()
@@ -723,17 +817,20 @@ export interface TransportOptions extends SendOptions,
  * Create a request transport using node.js `http` libraries.
  */
 export function transport (options: TransportOptions = {}) {
-  const fns: Array<Middleware<Request, HttpResponse>> = [normalizeRequest(options), normalizeUserAgent(options)]
+  const fns: Array<Middleware<Request, HttpResponse>> = []
   const { jar = new CookieJar(), unzip = true, follow = true } = options
 
+  // Built-in behaviours.
+  fns.push(normalizeRequest(options))
+  fns.push(normalizeUserAgent(options))
+
   if (unzip) fns.push(autoUnzip())
-  if (follow) fns.push(followRedirects(options))
   if (jar) fns.push(getCookies({ jar }), saveCookies({ jar }))
 
   const done = send(options)
-  const middlware = compose<Request, HttpResponse>(fns)
+  const middleware = follow ? followRedirects(compose(fns), options) : compose(fns)
 
-  return (req: Request) => middlware(req, done)
+  return (req: Request) => middleware(req, done)
 }
 
 /**
