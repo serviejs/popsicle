@@ -1,6 +1,5 @@
 import { Request, Response, createHeaders, ResponseOptions } from 'servie'
 import { createBody, Body } from 'servie/dist/body/browser'
-import { compose } from 'throwback'
 import { PopsicleError } from '../error'
 import { normalizeRequest } from '../common'
 
@@ -151,9 +150,9 @@ export interface TransportOptions extends SendOptions {}
  */
 export function transport (options: TransportOptions = {}) {
   const done = send(options)
-  const middleware = compose<Request, XhrResponse>([normalizeRequest()])
+  const normalize = normalizeRequest()
 
-  return (req: Request) => middleware(req, done)
+  return (req: Request) => normalize(req, () => done(req))
 }
 
 /**

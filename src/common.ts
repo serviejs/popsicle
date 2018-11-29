@@ -1,6 +1,5 @@
 import { Request, Response } from 'servie'
 import { Middleware } from 'throwback'
-import { PopsicleError } from './error'
 
 /**
  * Request normalization.
