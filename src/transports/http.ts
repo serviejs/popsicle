@@ -696,11 +696,7 @@ export function forward (options: ForwardOptions) {
               return resolve(execHttp2(req, protocol, host, port, client))
             }
 
-            if (alpnProtocol === 'http/1.1') {
-              return resolve(execHttp1(req, protocol, host, port, keepAlive, socket))
-            }
-
-            return reject(new PopsicleError('No ALPN protocol negotiated', 'EALPNPROTOCOL', req))
+            return resolve(execHttp1(req, protocol, host, port, keepAlive, socket))
           })
 
           socket.once('error', (err) => {
