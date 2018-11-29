@@ -679,7 +679,7 @@ export function forward (options: ForwardOptions) {
           }
 
           socket.once('secureConnect', () => {
-            const alpnProtocol: string = (socket as any).alpnProtocol
+            const alpnProtocol: string | false = (socket as any).alpnProtocol
 
             // Successfully negotiated HTTP2 connection.
             if (alpnProtocol === 'h2') {
@@ -696,7 +696,11 @@ export function forward (options: ForwardOptions) {
               return resolve(execHttp2(req, protocol, host, port, client))
             }
 
-            return resolve(execHttp1(req, protocol, host, port, keepAlive, socket))
+            if (alpnProtocol === 'http/1.1' || alpnProtocol === false) {
+              return resolve(execHttp1(req, protocol, host, port, keepAlive, socket))
+            }
+
+            return reject(new PopsicleError(`Unknown ALPN protocol negotiated: ${alpnProtocol}`, 'EALPNPROTOCOL', req))
           })
 
           socket.once('error', (err) => {

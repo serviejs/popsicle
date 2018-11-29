@@ -64,7 +64,7 @@
   },
   "devDependencies": {
     "@types/jest": "^23.3.5",
-    "@types/node": "^10.1.2",
+    "@types/node": "^10.12.10",
     "body-parser": "^1.18.3",
     "browserify": "^16.2.2",
     "envify": "^4.1.0",
