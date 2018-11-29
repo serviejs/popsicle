@@ -373,7 +373,7 @@ export enum NegotiateHttpVersion {
 /**
  * Node.js HTTP request options.
  */
-export interface SendOptions {
+export interface ForwardOptions {
   keepAlive?: number
   servername?: string
   rejectUnauthorized?: boolean
@@ -579,9 +579,9 @@ function execHttp2 (
 }
 
 /**
- * Function to execute HTTP request.
+ * Forward request over `http`.
  */
-export function send (options: SendOptions) {
+export function forward (options: ForwardOptions) {
   const {
     keepAlive = 5000, // Default to keeping a connection open briefly.
     negotiateHttpVersion = NegotiateHttpVersion.HTTP2_FOR_HTTPS
@@ -803,9 +803,9 @@ function unref (socket: Socket | TLSSocket) {
 /**
  * Node.js HTTP transport configuration.
  */
-export interface TransportOptions extends SendOptions,
+export interface TransportOptions extends ForwardOptions,
   FollowRedirectsOptions,
-  SendOptions,
+  ForwardOptions,
   NormalizeRequestOptions,
   NormalizeUserAgentOptions {
   jar?: CookieJar | false
@@ -827,7 +827,7 @@ export function transport (options: TransportOptions = {}) {
   if (unzip) fns.push(autoUnzip())
   if (jar) fns.push(getCookies({ jar }), saveCookies({ jar }))
 
-  const done = send(options)
+  const done = forward(options)
   const middleware = follow ? followRedirects(compose(fns), options) : compose(fns)
 
   return (req: Request) => middleware(req, done)

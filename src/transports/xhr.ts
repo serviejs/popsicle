@@ -30,16 +30,16 @@ export class XhrResponse extends Response implements XhrResponseOptions {
 /**
  * Valid XHR configuration.
  */
-export interface SendOptions {
+export interface ForwardOptions {
   type?: XMLHttpRequestResponseType
   withCredentials?: boolean
   overrideMimeType?: string
 }
 
 /**
- * Send request over `XMLHttpRequest`.
+ * Forward request over `XMLHttpRequest`.
  */
-export function send (options: SendOptions) {
+export function forward (options: ForwardOptions) {
   return function (req: Request): Promise<XhrResponse> {
     return new Promise<XhrResponse>(function (resolve, reject) {
       const type = options.type || 'text'
@@ -143,13 +143,13 @@ export function send (options: SendOptions) {
 /**
  * Combined transport options.
  */
-export interface TransportOptions extends SendOptions {}
+export interface TransportOptions extends ForwardOptions {}
 
 /**
  * Create a request transport using `XMLHttpRequest`.
  */
 export function transport (options: TransportOptions = {}) {
-  const done = send(options)
+  const done = forward(options)
   const normalize = normalizeRequest()
 
   return (req: Request) => normalize(req, () => done(req))
