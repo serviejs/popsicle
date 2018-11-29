@@ -83,7 +83,7 @@ _Coming back soon._
 See [Throwback](https://github.com/serviejs/throwback#usage) for more information:
 
 ```ts
-type Plugin = (req: Request, next: (req?: Request) => Promise<Response>) => Promise<Response>
+type Plugin = (req: Request, next: () => Promise<Response>) => Promise<Response>
 ```
 
 ### Transportation Layers
