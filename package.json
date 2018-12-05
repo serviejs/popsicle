@@ -1,6 +1,6 @@
 {
   "name": "popsicle",
-  "version": "11.0.3",
+  "version": "11.0.4",
   "description": "Advanced HTTP requests in node.js and browsers, using Servie",
   "main": "dist/universal.js",
   "types": "dist/universal.d.ts",
