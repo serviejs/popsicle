@@ -262,10 +262,10 @@ export interface ConcurrencyConnectionManagerOptions {
   maxFreeConnections?: number
 }
 
-export interface ConnectionSet <T> {
-  used?: Set<T>
-  free?: Set<T>
-  pend?: Array<(connection?: T) => void>
+export class ConnectionSet <T> {
+  used = new Set<T>()
+  free = new Set<T>()
+  pend: Array<(connection?: T) => void> = []
 }
 
 /**
@@ -287,76 +287,70 @@ export class ConcurrencyConnectionManager <T> extends ConnectionManager<Connecti
    * Create a new connection.
    */
   ready (key: string, onReady: (existingConnection?: T) => void): void {
-    const pool = this.get(key) || this.set(key, Object.create(null))
+    const pool = this.get(key)
+
+    // No pool, zero connections.
+    if (!pool) return onReady()
 
     // Reuse free connections first.
-    if (pool.free) return onReady(this.getFreeConnection(key))
-
-    // If no other connections exist, `onReady` immediately.
-    if (!pool.used) return onReady()
+    if (pool.free.size) return onReady(this.getFreeConnection(key))
 
     // Add to "pending" queue.
     if (pool.used.size >= this.maxConnections) {
-      if (!pool.pend) pool.pend = []
       pool.pend.push(onReady)
       return
     }
 
+    // Allow a new connection.
     return onReady()
   }
 
   getUsedConnection (key: string): T | undefined {
     const pool = this.get(key)
-    if (pool && pool.used) return pool.used.values().next().value
+    if (pool) return pool.used.values().next().value
   }
 
   getFreeConnection (key: string): T | undefined {
     const pool = this.get(key)
-    if (pool && pool.free) return pool.free.values().next().value
+    if (pool) return pool.free.values().next().value
   }
 
   use (key: string, connection: T): void {
-    const pool = this.get(key) || this.set(key, Object.create(null))
-    if (pool.free) pool.free.delete(connection)
-    if (!pool.used) pool.used = new Set()
+    const pool = this.get(key) || this.set(key, new ConnectionSet<T>())
+    pool.free.delete(connection)
     pool.used.add(connection)
   }
 
   freed (key: string, connection: T, discard: () => void): void {
-    const pool = this.get(key) || this.set(key, Object.create(null))
+    const pool = this.get(key)
+    if (!pool) return
 
     // Remove from any possible "used".
-    if (pool.used) pool.used.delete(connection)
+    pool.used.delete(connection)
+    pool.free.add(connection)
+
+    // Discard when too many freed connections.
+    if (pool.free.size >= this.maxFreeConnections) return discard()
 
     // Immediately send for connection.
-    if (pool.pend) {
+    if (pool.pend.length) {
       const onReady = pool.pend.shift()!
-      onReady(connection)
-      if (!pool.pend.length) delete pool.pend
+      return onReady(connection)
     }
-
-    // Add to "free" connections pool.
-    if (!pool.free) pool.free = new Set()
-    if (pool.free.size >= this.maxFreeConnections) return discard()
-    pool.free.add(connection)
   }
 
   remove (key: string, connection: T): void {
     const pool = this.get(key)
-
     if (!pool) return
 
-    if (pool.used && pool.used.has(connection)) {
-      pool.used.delete(connection)
-      if (!pool.used.size) delete pool.used
-    }
+    // Delete connection from pool.
+    if (pool.used.has(connection)) pool.used.delete(connection)
+    if (pool.free.has(connection)) pool.free.delete(connection)
 
-    if (pool.free && pool.free.has(connection)) {
-      pool.free.delete(connection)
-      if (!pool.free.size) delete pool.free
+    // Remove connection manager from pooling.
+    if (!pool.free.size && !pool.used.size && !pool.pend.length) {
+      this.delete(key, pool)
     }
-
-    if (!pool.free && !pool.used && !pool.pend) this.delete(key, pool)
   }
 
 }
@@ -678,7 +672,8 @@ export function forward (options: ForwardOptions) {
             return resolve(execHttp2(req, protocol, host, port, client))
           }
 
-          socket.once('secureConnect', () => {
+          // Execute HTTP connection according to negotiated ALPN protocol.
+          const onConnect = () => {
             const alpnProtocol: string | false = (socket as any).alpnProtocol
 
             // Successfully negotiated HTTP2 connection.
@@ -701,9 +696,16 @@ export function forward (options: ForwardOptions) {
             }
 
             return reject(new PopsicleError(`Unknown ALPN protocol negotiated: ${alpnProtocol}`, 'EALPNPROTOCOL', req))
-          })
+          }
 
-          socket.once('error', (err) => {
+          // Existing socket may already have negotiated ALPN protocol.
+          if ((socket as any).alpnProtocol !== null) return onConnect()
+
+          // Handle TLS socket connection.
+          socket.once('secureConnect', onConnect)
+
+          // Handle socket connection issues.
+          socket.once('error', (err: Error) => {
             return reject(new PopsicleError(`Unable to connect to ${host}:${port}`, 'EUNAVAILABLE', req, err))
           })
         })

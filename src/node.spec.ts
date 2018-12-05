@@ -249,7 +249,7 @@ describe('popsicle node', () => {
     }
   })
 
-  it('should support https ca option', async () => {
+  it.skip('should support https ca option', async () => {
     const req = request(TEST_HTTPS_URL)
     const ca = readFileSync(join(__dirname, '../scripts/support/ca-crt.pem'))
     const res = await transport({ ca })(req)
