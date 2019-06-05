@@ -406,9 +406,6 @@ const globalHttp2Connections = new ConnectionManager<ClientHttp2Session>()
  */
 function execHttp1 (
   req: Request,
-  protocol: string,
-  host: string,
-  port: number,
   keepAlive: number,
   socket: Socket | TLSSocket
 ): Promise<HttpResponse> {
@@ -418,9 +415,10 @@ function execHttp1 (
     const request: typeof httpRequest = encrypted ? httpsRequest : httpRequest
 
     const arg: RequestOptions = {
-      protocol,
-      host,
-      port,
+      protocol: Url.protocol,
+      host: Url.hostname,
+      port: Url.port,
+      defaultPort: encrypted ? 443 : 80, // Specify to avoid `Host` header issues.
       method: req.method,
       path: Url.path,
       headers: req.headers.asObject(false),
@@ -439,7 +437,7 @@ function execHttp1 (
 
     // Trigger unavailable error when node.js errors before response.
     function onError (err: Error) {
-      return reject(new PopsicleError(`Unable to connect to ${host}:${port}`, 'EUNAVAILABLE', req, err))
+      return reject(new PopsicleError(`Unable to connect to ${Url.host}`, 'EUNAVAILABLE', req, err))
     }
 
     // Track the node.js response.
@@ -501,9 +499,6 @@ function execHttp1 (
  */
 function execHttp2 (
   req: Request,
-  protocol: string,
-  host: string,
-  port: number,
   client: ClientHttp2Session
 ): Promise<Http2Response> {
   return new Promise<Http2Response>((resolve, reject) => {
@@ -526,7 +521,7 @@ function execHttp2 (
 
     // Trigger unavailable error when node.js errors before response.
     function onError (err: Error) {
-      return reject(new PopsicleError(`Unable to connect to ${host}:${port}`, 'EUNAVAILABLE', req, err))
+      return reject(new PopsicleError(`Unable to connect to ${req.Url.host}`, 'EUNAVAILABLE', req, err))
     }
 
     function onResponse (headers: IncomingHttpHeaders) {
@@ -598,7 +593,7 @@ export function forward (options: ForwardOptions) {
       if (negotiateHttpVersion === NegotiateHttpVersion.HTTP2_ONLY) {
         const existingSession = http2Connections.get(connectionKey)
 
-        if (existingSession) return execHttp2(req, protocol, host, port, existingSession)
+        if (existingSession) return execHttp2(req, existingSession)
       }
 
       return new Promise<HttpResponse>((resolve) => {
@@ -613,10 +608,10 @@ export function forward (options: ForwardOptions) {
             const authority = `${protocol}//${host}:${port}`
             const client = manageHttp2(authority, connectionKey, keepAlive, http2Connections, socket)
 
-            return resolve(execHttp2(req, protocol, host, port, client))
+            return resolve(execHttp2(req, client))
           }
 
-          return resolve(execHttp1(req, protocol, host, port, keepAlive, socket))
+          return resolve(execHttp1(req, keepAlive, socket))
         })
       })
     }
@@ -645,7 +640,7 @@ export function forward (options: ForwardOptions) {
       ) {
         const existingSession = http2Connections.get(connectionKey)
 
-        if (existingSession) return execHttp2(req, protocol, host, port, existingSession)
+        if (existingSession) return execHttp2(req, existingSession)
       }
 
       return new Promise<HttpResponse>((resolve, reject) => {
@@ -663,13 +658,13 @@ export function forward (options: ForwardOptions) {
           tlsConnections.use(connectionKey, socket)
 
           if (negotiateHttpVersion === NegotiateHttpVersion.HTTP1_ONLY) {
-            return resolve(execHttp1(req, protocol, host, port, keepAlive, socket))
+            return resolve(execHttp1(req, keepAlive, socket))
           }
 
           if (negotiateHttpVersion === NegotiateHttpVersion.HTTP2_ONLY) {
             const client = manageHttp2(`${protocol}//${host}:${port}`, connectionKey, keepAlive, http2Connections, socket)
 
-            return resolve(execHttp2(req, protocol, host, port, client))
+            return resolve(execHttp2(req, client))
           }
 
           // Execute HTTP connection according to negotiated ALPN protocol.
@@ -683,16 +678,16 @@ export function forward (options: ForwardOptions) {
               if (existingClient) {
                 socket.destroy() // Destroy socket in case of TLS connection race.
 
-                return resolve(execHttp2(req, protocol, host, port, existingClient))
+                return resolve(execHttp2(req, existingClient))
               }
 
               const client = manageHttp2(`${protocol}//${host}:${port}`, connectionKey, keepAlive, http2Connections, socket)
 
-              return resolve(execHttp2(req, protocol, host, port, client))
+              return resolve(execHttp2(req, client))
             }
 
             if (alpnProtocol === 'http/1.1' || alpnProtocol === false) {
-              return resolve(execHttp1(req, protocol, host, port, keepAlive, socket))
+              return resolve(execHttp1(req, keepAlive, socket))
             }
 
             return reject(new PopsicleError(`Unknown ALPN protocol negotiated: ${alpnProtocol}`, 'EALPNPROTOCOL', req))
