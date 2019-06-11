@@ -1,35 +1,37 @@
-import { Request, createHeaders, CreateHeaders } from 'servie'
-import { CookieJar, Store } from 'tough-cookie'
-import { createBody, CreateBody } from 'servie/dist/body/node'
-
-// Use `http` transport by default.
-export * from './transports/http'
-
-/**
- * Create a cookie jar instance.
- */
-export function cookieJar (store?: Store) {
-  return new CookieJar(store)
-}
+import { Request } from "servie/dist/node";
+import { compose } from "throwback";
+import { transport, HttpResponse } from "popsicle-transport-http";
+import { cookies } from "popsicle-cookie-jar";
+import { contentEncoding } from "popsicle-content-encoding";
+import { redirects } from "popsicle-redirects";
+import { userAgent } from "popsicle-user-agent";
+import { toFetch } from "./common";
 
 /**
- * Universal request options.
+ * Expose node.js components.
  */
-export interface RequestOptions {
-  method?: string
-  headers?: CreateHeaders
-  trailer?: CreateHeaders | Promise<CreateHeaders>
-  body?: CreateBody
-}
+export {
+  contentEncoding,
+  cookies,
+  HttpResponse,
+  redirects,
+  Request,
+  toFetch,
+  transport,
+  userAgent
+};
 
 /**
- * Simple universal request creator.
+ * Node.js standard middleware stack.
  */
-export function request (url: string, options: RequestOptions = {}) {
-  const { method } = options
-  const headers = createHeaders(options.headers)
-  const body = createBody(options.body)
-  const trailer = Promise.resolve<CreateHeaders | undefined>(options.trailer).then(createHeaders)
+export const middleware = compose<Request, HttpResponse>([
+  userAgent(),
+  contentEncoding(),
+  // Redirects must happen around cookie support.
+  redirects(compose([cookies(), transport()]))
+]);
 
-  return new Request({ url, method, headers, body, trailer })
-}
+/**
+ * Standard node.js fetch interface.
+ */
+export const fetch = toFetch(middleware, Request);

@@ -1,27 +1,18 @@
-import { Request, createHeaders, CreateHeaders } from 'servie'
-import { createBody, CreateBody } from 'servie/dist/body/browser'
-
-// Use `xhr` transport in browsers.
-export * from './transports/xhr'
+import { Request } from "servie/dist/browser";
+import { transport, XhrResponse } from "popsicle-transport-xhr";
+import { toFetch } from "./common";
 
 /**
- * Universal request options.
+ * Expose browser components.
  */
-export interface RequestOptions {
-  method?: string
-  headers?: CreateHeaders
-  trailer?: CreateHeaders | Promise<CreateHeaders>
-  body?: CreateBody
-}
+export { transport, Request, XhrResponse, toFetch };
 
 /**
- * Simple universal request creator.
+ * Browser standard middleware stack.
  */
-export function request (url: string, options: RequestOptions = {}) {
-  const { method } = options
-  const headers = createHeaders(options.headers)
-  const body = createBody(options.body)
-  const trailer = Promise.resolve<CreateHeaders | undefined>(options.trailer).then(createHeaders)
+export const middleware = transport();
 
-  return new Request({ url, method, headers, body, trailer })
-}
+/**
+ * Standard browser fetch interface.
+ */
+export const fetch = toFetch(middleware, Request);

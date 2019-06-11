@@ -1,35 +1,21 @@
-import { Request, Response } from 'servie'
-import { Middleware } from 'throwback'
+import { Composed } from "throwback";
+import { CommonRequest, CommonResponse } from "servie/dist/common";
 
 /**
- * Request normalization.
+ * Create a `fetch` like interface from middleware stack.
  */
-export interface NormalizeRequestOptions {
-  upgradeInsecureRequests?: boolean
-}
-
-/**
- * Default header handling.
- */
-export function normalizeRequest <T extends Request, U extends Response> (
-  options: NormalizeRequestOptions = {}
-): Middleware<T, U> {
-  return function (req, next) {
-    // Remove headers that should not be created by the user.
-    req.headers.delete('Host')
-
-    // If we have no accept header set already, default to accepting
-    // everything. This is needed because otherwise Firefox defaults to
-    // an accept header of `html/xml`.
-    if (!req.headers.get('Accept')) {
-      req.headers.set('Accept', '*/*')
-    }
-
-    // Request a preference to upgrade to HTTPS.
-    if (options.upgradeInsecureRequests !== false && req.Url.protocol === 'http:') {
-      req.headers.set('Upgrade-Insecure-Requests', '1')
-    }
-
-    return next()
+export function toFetch<
+  T extends CommonRequest,
+  U extends CommonResponse,
+  A extends any[]
+>(middleware: Composed<T, U>, Request: new (...args: A) => T) {
+  function done(): never {
+    throw new TypeError("Invalid middleware stack, missing transport function");
   }
+
+  return function fetch(...args: A) {
+    const req = args[0] instanceof Request ? args[0] : new Request(...args);
+
+    return middleware(req, done);
+  };
 }

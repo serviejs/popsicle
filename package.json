@@ -1,7 +1,7 @@
 {
   "name": "popsicle",
   "version": "11.0.5",
-  "description": "Advanced HTTP requests in node.js and browsers, using Servie",
+  "description": "Advanced HTTP requests in node.js and browsers",
   "main": "dist/universal.js",
   "types": "dist/universal.d.ts",
   "files": [
@@ -12,15 +12,14 @@
     "./dist/node.js": "./dist/browser.js"
   },
   "scripts": {
+    "prettier": "prettier --write",
     "lint": "tslint \"src/**/*.ts\" --project tsconfig.json",
-    "bundle": "browserify -g [ envify --NODE_ENV production ] -s popsicle -o popsicle.js .",
-    "bundle:size": "du -h popsicle.js",
-    "build": "rimraf dist/ && tsc && npm run bundle && npm run bundle:size",
-    "specs": "HTTPS_PORT=7358 PORT=7357 jest --coverage",
-    "server:open": "PORT=7357 node scripts/http-server.js & echo $! > server.pid; HTTPS_PORT=7358 node scripts/https-server.js & echo $! > https-server.pid",
-    "server:close": "if [ -f server.pid ]; then kill -9 $(cat server.pid); rm server.pid; fi; if [ -f https-server.pid ]; then kill -9 $(cat https-server.pid); rm https-server.pid; fi",
-    "test": "npm run lint && npm run build && npm run server:open && npm run specs; EXIT=$?; npm run server:close; exit $EXIT",
-    "prepare": "npm run build"
+    "format": "npm run prettier -- README.md \"src/**/*.{js,ts}\"",
+    "build": "rimraf dist && tsc",
+    "specs": "jest --coverage",
+    "test": "npm run -s lint && npm run -s build && npm run -s specs && npm run -s size",
+    "prepare": "npm run build",
+    "size": "size-limit"
   },
   "repository": {
     "type": "git",
@@ -62,28 +61,51 @@
       "node"
     ]
   },
+  "size-limit": [
+    {
+      "path": "./dist/index.js",
+      "limit": "2.7 kB"
+    }
+  ],
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "*.{js,json,css,md}": [
+      "npm run prettier",
+      "git add"
+    ]
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "devDependencies": {
-    "@types/jest": "^23.3.5",
-    "@types/node": "^10.12.10",
-    "body-parser": "^1.18.3",
+    "@types/jest": "^24.0.11",
+    "@types/node": "^12.0.0",
     "browserify": "^16.2.3",
-    "envify": "^4.1.0",
-    "express": "^4.16.3",
-    "jest": "^23.6.0",
-    "methods": "^1.1.2",
+    "husky": "^2.2.0",
+    "jest": "^24.6.0",
+    "lint-staged": "^8.1.6",
+    "prettier": "^1.17.0",
     "rimraf": "^2.6.2",
-    "ts-jest": "^23.10.4",
-    "tslint": "^5.10.0",
+    "size-limit": "^1.3.1",
+    "ts-jest": "^24.0.1",
+    "tslint": "^5.16.0",
+    "tslint-config-prettier": "^1.18.0",
     "tslint-config-standard": "^8.0.1",
-    "typescript": "^3.1.3"
+    "typescript": "^3.4.1"
   },
   "dependencies": {
-    "@types/pump": "^1.0.1",
-    "@types/tough-cookie": "^2.3.2",
-    "make-error-cause": "^2.1.0",
-    "pump": "^3.0.0",
-    "servie": "^3.2.3",
-    "throwback": "^4.0.0",
-    "tough-cookie": "^2.0.0"
+    "popsicle-content-encoding": "^1.0.0",
+    "popsicle-cookie-jar": "^1.0.0",
+    "popsicle-redirects": "^1.0.0",
+    "popsicle-transport-http": "^1.0.0",
+    "popsicle-transport-xhr": "^1.0.0",
+    "popsicle-user-agent": "^1.0.0",
+    "servie": "^4.0.6",
+    "throwback": "^4.1.0",
+    "tough-cookie": "^3.0.1"
   }
 }
