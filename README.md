@@ -19,7 +19,8 @@ npm install popsicle --save
 ```js
 import { fetch } from "popsicle";
 
-const req = fetch("http://example.com");
+const res = await fetch("http://example.com");
+const data = await res.text();
 ```
 
 > Popsicle is a universal package, meaning node.js and browsers are supported without any configuration. This means the primary endpoint requires some `dom` types in TypeScript. When in a node.js or browser only environments prefer importing `popsicle/dist/{node,browser}` instead.
