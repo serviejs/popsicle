@@ -9,6 +9,9 @@ import {
   XhrResponse
 } from "./browser";
 
+export * from "servie/dist/signal";
+export * from "servie/dist/headers";
+
 export const fetch: (
   ...args: Parameters<typeof nodeFetch> & Parameters<typeof browserFetch>
 ) => Promise<XhrResponse | HttpResponse> = nodeFetch;
