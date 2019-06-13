@@ -25,18 +25,36 @@ const data = await res.text();
 
 > Popsicle is a universal package, meaning node.js and browsers are supported without any configuration. This means the primary endpoint requires some `dom` types in TypeScript. When in a node.js or browser only environments prefer importing `popsicle/dist/{node,browser}` instead.
 
+Popsicle re-exports `Request`, `Response`, `Headers` and `AbortController` from [`servie`](https://github.com/serviejs/servie). The `fetch` function accepts the same arguments as [`Request`](https://github.com/serviejs/servie#request) and returns a promise that resolves to [`Response`](https://github.com/serviejs/servie#response). You can use the [`Signal`](https://github.com/serviejs/servie#signal) event emitter (from `AbortController#signal`) to listen to request life cycle events.
+
 ### [Browser](./src/browser.ts)
 
-The middleware stack for browsers contains _only_ the transport layer. This makes the package tiny and quick on browsers.
+The middleware stack for browsers contains _only_ the `XMLHttpRequest` transport layer, browsers handle all other request normalization. This means a smaller and faster package for browsers.
 
 ### [Node.js](./src/node.ts)
 
-The middleware stack for node.js includes a lot more normalization to act similar to browsers:
+The middleware stack for node.js includes normalization to act similar to browsers:
 
-- Default `User-Agent` initialization
-- Default decoding of compressed responses
-- Follows valid HTTP redirects
+- Default `User-Agent`
+- Support for decoding compressed payloads
+- Follows HTTP redirects
 - Caches cookies in-memory
+
+### Recipes
+
+#### Aborting a Request
+
+```ts
+import { fetch, AbortController } from "popsicle";
+
+const controller = new AbortController();
+
+setTimeout(() => controller.abort(), 500);
+
+const res = fetch("http://example.com", {
+  signal: controller.signal
+});
+```
 
 ### Errors
 
