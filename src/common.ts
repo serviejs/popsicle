@@ -14,7 +14,10 @@ export function toFetch<
   }
 
   return function fetch(...args: A) {
-    const req = args[0] instanceof Request ? args[0] : new Request(...args);
+    const req =
+      args.length === 1 && args[0] instanceof Request
+        ? args[0]
+        : new Request(...args);
 
     return middleware(req, done);
   };
