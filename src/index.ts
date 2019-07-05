@@ -9,8 +9,7 @@ import {
   XhrResponse
 } from "./browser";
 
-export { toFetch } from "./common";
-
+export * from "./common";
 export * from "servie/dist/signal";
 export * from "servie/dist/headers";
 
