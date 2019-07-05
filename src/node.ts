@@ -7,6 +7,7 @@ import { redirects } from "popsicle-redirects";
 import { userAgent } from "popsicle-user-agent";
 import { toFetch } from "./common";
 
+export * from "./common";
 export * from "servie/dist/signal";
 export * from "servie/dist/headers";
 
@@ -19,7 +20,6 @@ export {
   HttpResponse,
   redirects,
   Request,
-  toFetch,
   transport,
   userAgent
 };
