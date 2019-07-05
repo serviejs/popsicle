@@ -40,6 +40,8 @@ The middleware stack for node.js includes normalization to act similar to browse
 - Follows HTTP redirects
 - Caches cookies in-memory
 
+> **Important:** If you are doing anything non-trivial with Popsicle, please override the `User-Agent` and respect `robots.txt`.
+
 ### Recipes
 
 #### Aborting a Request
