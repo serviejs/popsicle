@@ -1,4 +1,4 @@
-# ![Popsicle](https://cdn.rawgit.com/serviejs/popsicle/master/logo.svg)
+# ![Popsicle](logo.svg)
 
 [![NPM version](https://img.shields.io/npm/v/popsicle.svg?style=flat)](https://npmjs.org/package/popsicle)
 [![NPM downloads](https://img.shields.io/npm/dm/popsicle.svg?style=flat)](https://npmjs.org/package/popsicle)
