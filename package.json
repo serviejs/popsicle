@@ -1,6 +1,6 @@
 {
   "name": "popsicle",
-  "version": "12.0.4",
+  "version": "12.0.5",
   "description": "Advanced HTTP requests in node.js and browsers",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
