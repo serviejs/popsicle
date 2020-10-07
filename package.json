@@ -102,10 +102,9 @@
     "popsicle-cookie-jar": "^1.0.0",
     "popsicle-redirects": "^1.1.0",
     "popsicle-transport-http": "^1.0.8",
-    "popsicle-transport-xhr": "^1.0.2",
+    "popsicle-transport-xhr": "^2.0.0",
     "popsicle-user-agent": "^1.0.0",
     "servie": "^4.3.3",
-    "throwback": "^4.1.0",
-    "tough-cookie": "^3.0.1"
+    "throwback": "^4.1.0"
   }
 }
