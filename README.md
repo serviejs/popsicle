@@ -35,10 +35,11 @@ The middleware stack for browsers contains _only_ the `XMLHttpRequest` transport
 
 The middleware stack for node.js includes normalization to act similar to browsers:
 
-- Default `User-Agent`
-- Support for decoding compressed payloads
-- Follows HTTP redirects
-- Caches cookies in-memory
+- Default `User-Agent` ([Learn more](https://github.com/serviejs/popsicle-user-agent))
+- Decodes `gzip`, `deflate` and `brotli` ([Learn more](https://github.com/serviejs/popsicle-content-encoding))
+- Follows HTTP redirects ([Learn more](https://github.com/serviejs/popsicle-redirects))
+- In-memory cookie cache ([Learn more](https://github.com/serviejs/popsicle-cookie-jar))
+- Automatic HTTP2 and HTTP1 support and DNS caching ([Learn more](https://github.com/serviejs/popsicle-transport-http))
 
 > **Important:** If you are doing anything non-trivial with Popsicle, please override the `User-Agent` and respect `robots.txt`.
 
@@ -54,7 +55,7 @@ const controller = new AbortController();
 setTimeout(() => controller.abort(), 500);
 
 const res = fetch("http://example.com", {
-  signal: controller.signal
+  signal: controller.signal,
 });
 ```
 
