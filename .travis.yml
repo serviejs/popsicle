@@ -7,7 +7,7 @@ notifications:
     on_failure: change
 
 node_js:
-  - "8"
+  - "12"
   - stable
 
 after_script: "npm install coveralls@2 && cat ./coverage/lcov.info | coveralls"
