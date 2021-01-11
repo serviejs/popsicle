@@ -85,7 +85,6 @@
     "@size-limit/preset-small-lib": "^4.6.0",
     "@types/jest": "^26.0.14",
     "@types/node": "^14.11.5",
-    "browserify": "^16.2.3",
     "husky": "^4.3.0",
     "jest": "^26.5.2",
     "lint-staged": "^10.4.0",
