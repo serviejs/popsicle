@@ -102,7 +102,7 @@
     "popsicle-content-encoding": "^1.0.0",
     "popsicle-cookie-jar": "^1.0.0",
     "popsicle-redirects": "^1.1.0",
-    "popsicle-transport-http": "^1.0.8",
+    "popsicle-transport-http": "^1.1.0",
     "popsicle-transport-xhr": "^2.0.0",
     "popsicle-user-agent": "^1.0.0",
     "servie": "^4.3.3",
