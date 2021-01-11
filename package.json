@@ -73,10 +73,7 @@
     }
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx,json,css,md,yml,yaml}": [
-      "npm run prettier",
-      "git add"
-    ]
+    "*.{js,jsx,ts,tsx,json,css,md,yml,yaml}": "npm run prettier"
   },
   "publishConfig": {
     "access": "public"
