@@ -101,7 +101,7 @@ function handle (request: Request, options: Options): Promise<Response> {
    */
   function get (url: string, method: string, body?: any): Promise<Response> {
     // Check redirection count before executing request.
-    if (requestCount++ > maxRedirects) {
+    if (requestCount++ > (maxRedirects as number)) {
       return Promise.reject(
         request.error(`Exceeded maximum of ${maxRedirects} redirects`, 'EMAXREDIRECTS')
       )
@@ -145,7 +145,7 @@ function handle (request: Request, options: Options): Promise<Response> {
             request._setDownloadedBytes(downloadedBytes)
 
             // Abort on the max buffer size.
-            if (downloadedBytes > maxBufferSize) {
+            if (downloadedBytes > (maxBufferSize as number)) {
               rawRequest.abort()
               responseStream.emit('error', request.error('Response too large', 'ETOOLARGE'))
             }
@@ -157,7 +157,10 @@ function handle (request: Request, options: Options): Promise<Response> {
 
           // Handle the HTTP response.
           function response (incomingMessage: IncomingMessage) {
-            const { headers, rawHeaders, statusCode: status, statusMessage: statusText } = incomingMessage
+            const { headers: headersRaw, rawHeaders, statusCode: statusRaw, statusMessage: statusTextRaw } = incomingMessage
+            var headers: Headers = headersRaw as Headers
+            var status: number = statusRaw as number
+            var statusText: string = statusTextRaw as string
             const redirect = REDIRECT_STATUS[status]
 
             // Handle HTTP redirects.
@@ -187,7 +190,7 @@ function handle (request: Request, options: Options): Promise<Response> {
               }
             }
 
-            request.downloadLength = num(headers['content-length'], null)
+            request.downloadLength = num(headers['content-length'], null as unknown as number) as number
             incomingMessage.pipe(responseStream)
 
             return handleResponse(responseStream, headers, options)
@@ -211,7 +214,7 @@ function handle (request: Request, options: Options): Promise<Response> {
           }
 
           rawRequest.on('response', function (message: IncomingMessage) {
-            resolve(storeCookies(url, message.headers).then(() => response(message)))
+            resolve(storeCookies(url, message.headers as Headers).then(() => response(message)))
           })
 
           rawRequest.on('error', function (error: Error) {
@@ -219,7 +222,7 @@ function handle (request: Request, options: Options): Promise<Response> {
           })
 
           request._raw = rawRequest
-          request.uploadLength = num(rawRequest.getHeader('content-length'), null)
+          request.uploadLength = num(rawRequest.getHeader('content-length'), null as unknown as number) as number
           requestStream.pipe(rawRequest)
           requestStream.on('error', emitError)
 
@@ -277,10 +280,10 @@ function getAttachCookies (request: Request, options: Options): (url: string) =>
   }
 
   return function (url: string) {
-    return new Promise(function (resolve, reject) {
+    return new Promise<void>(function (resolve, reject) {
       let cookieString = requestCookieString
 
-      options.jar.getCookieString(url, function (err: Error, jarCookieString?: string) {
+      options.jar?.getCookieString(url, function (err: Error, jarCookieString?: string) {
         if (err) {
           return reject(err)
         }
@@ -317,7 +320,7 @@ function getStoreCookies (options: Options): (url: string, headers: Headers) => 
     }
 
     const storeCookies = (Array.isArray(cookies) ? cookies : [cookies]).map(function (cookie) {
-      return new Promise(function (resolve, reject) {
+      return new Promise<void>(function (resolve, reject) {
         jar.setCookie(cookie, url, { ignoreError: true }, function (err: Error) {
           return err ? reject(err) : resolve()
         })

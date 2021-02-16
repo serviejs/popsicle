@@ -86,7 +86,7 @@ export class Base {
 
       this.rawHeaders = rawHeaders.slice(0)
     } else {
-      this.headers = headers
+      this.headers = headers as Headers
     }
   }
 
@@ -100,11 +100,11 @@ export class Base {
 
   set query (query: string | Query) {
     this.Url.query = typeof query === 'string' ? parseQuery(query) : query
-    this.Url.search = null
+    this.Url.search = null as any
   }
 
   get query () {
-    return this.Url.query
+    return this.Url.query as Query
   }
 
   get headers () {
@@ -217,7 +217,7 @@ export class Base {
   type (value: string): this
   type (value?: string): string | this {
     if (arguments.length === 0) {
-      return type(this.get('Content-Type'))
+      return type(this.get('Content-Type')) as string
     }
 
     return this.set('Content-Type', value)

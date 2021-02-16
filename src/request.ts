@@ -62,7 +62,7 @@ export class Request extends Base {
   constructor (options: RequestOptions) {
     super(options)
 
-    this.timeout = (options.timeout | 0)
+    this.timeout = (options.timeout || 0)
     this.method = (options.method || 'GET').toUpperCase()
     this.body = options.body
     this.events = options.events || Object.create(null)
@@ -70,8 +70,11 @@ export class Request extends Base {
     // Extend to avoid mutations of the transport object.
     this.transport = Object.assign({}, options.transport)
 
+    var optionsUse: Middleware[] = options.use as Middleware[]
+    var transportUse: Middleware[] = this.transport.use as Middleware[]
+
     // Automatically `use` default middleware functions.
-    this.use(options.use || this.transport.use)
+    this.use(optionsUse || transportUse)
 
     // External promise representation, resolves _after_ middleware has been
     // attached by relying on promises always resolving on the "next tick".
@@ -88,7 +91,7 @@ export class Request extends Base {
   }
 
   error (message: string, code: string, original?: Error): PopsicleError {
-    return new PopsicleError(message, code, original, this)
+    return new PopsicleError(message, code, original as Error, this)
   }
 
   then <T> (

@@ -111,7 +111,7 @@ test('clone a request instance', function (t) {
     return next()
   })
 
-  return Promise.all([req, req.clone()])
+  return Promise.all([req._promise, req.clone()._promise])
     .then(function (res) {
       t.notEqual(res[0], res[1])
 
@@ -610,7 +610,7 @@ test('response body', function (t) {
         .then(function (res) {
           t.equal(typeof res.body, 'object')
 
-          return new Promise(function (resolve) {
+          return new Promise<void>(function (resolve) {
             res.body.pipe(concat(function (data: Buffer) {
               t.equal(data.toString(), '{"username":"blakeembrey"}')
 
@@ -824,7 +824,7 @@ test('request flow', function (t) {
       t.plan(2)
 
       req.use(function (self, next) {
-        return new Promise(function (resolve) {
+        return new Promise<void>(function (resolve) {
           setTimeout(
             function () {
               t.equal(self, req)
@@ -880,7 +880,7 @@ if (!process.browser) {
 
           cookie = res.get('Set-Cookie').split(/ *; */, 1)[0]
 
-          return instance(REMOTE_URL + '/echo')
+          return instance(REMOTE_URL + '/echo')._promise
         })
         .then(function (res) {
           t.equal(res.get('Cookie'), cookie)
