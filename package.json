@@ -1,6 +1,6 @@
 {
   "name": "popsicle",
-  "version": "12.1.0",
+  "version": "12.1.1",
   "description": "Advanced HTTP requests in node.js and browsers",
   "keywords": [
     "request",
