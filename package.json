@@ -45,6 +45,7 @@
   },
   "dependencies": {
     "popsicle-content-encoding": "^1.0.0",
+    "popsicle-cookie-jar": "^1.0.1",
     "popsicle-redirects": "^1.1.0",
     "popsicle-transport-http": "^1.1.0",
     "popsicle-transport-xhr": "^2.0.0",
@@ -57,7 +58,6 @@
     "@size-limit/preset-small-lib": "^11.0.0",
     "@types/node": "^20.9.3",
     "@vitest/coverage-v8": "^0.34.6",
-    "popsicle-cookie-jar": "^1.0.1",
     "size-limit": "^11.0.0",
     "typescript": "^5.3.2",
     "vitest": "^0.34.6"
