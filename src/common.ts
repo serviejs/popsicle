@@ -7,7 +7,7 @@ import { CommonRequest, CommonResponse } from "servie/dist/common";
 export function toFetch<
   T extends CommonRequest,
   U extends CommonResponse,
-  A extends any[]
+  A extends any[],
 >(middleware: Composed<T, U>, Request: new (...args: A) => T) {
   function done(): never {
     throw new TypeError("Invalid middleware stack, missing transport function");

@@ -1,12 +1,12 @@
 import {
   middleware as nodeMiddleware,
   fetch as nodeFetch,
-  HttpResponse
+  HttpResponse,
 } from "./node";
 import {
   middleware as browserMiddleware,
   fetch as browserFetch,
-  XhrResponse
+  XhrResponse,
 } from "./browser";
 
 export * from "./common";
@@ -17,6 +17,5 @@ export const fetch: (
   ...args: Parameters<typeof nodeFetch> & Parameters<typeof browserFetch>
 ) => Promise<XhrResponse | HttpResponse> = nodeFetch;
 
-export const middleware:
-  | typeof nodeMiddleware
-  | typeof browserMiddleware = nodeMiddleware;
+export const middleware: typeof nodeMiddleware | typeof browserMiddleware =
+  nodeMiddleware;

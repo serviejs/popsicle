@@ -86,7 +86,7 @@ See [Throwback](https://github.com/serviejs/throwback#usage) for more informatio
 ```ts
 type Plugin = (
   req: Request,
-  next: () => Promise<Response>
+  next: () => Promise<Response>,
 ) => Promise<Response>;
 ```
 

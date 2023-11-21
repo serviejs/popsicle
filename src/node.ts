@@ -21,7 +21,7 @@ export {
   redirects,
   Request,
   transport,
-  userAgent
+  userAgent,
 };
 
 /**
@@ -31,7 +31,7 @@ export const middleware = compose<Request, HttpResponse>([
   userAgent(),
   contentEncoding(),
   // Redirects must happen around cookie support.
-  redirects(compose([cookies(), transport()]))
+  redirects(compose([cookies(), transport()])),
 ]);
 
 /**
